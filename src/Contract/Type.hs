@@ -1,0 +1,2 @@
+module Contract.Type where
+

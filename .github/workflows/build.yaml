@@ -1,0 +1,16 @@
+on: [push]
+name: build
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-haskell@v1
+        with:
+          ghc-version: '8.8.3' # Exact version of ghc to use
+          stack-version: 'latest'
+      - run: stack build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
