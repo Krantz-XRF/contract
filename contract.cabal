@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1f60eed8b02773d8fdc6f19690c83c7089cd508cf803fadc98063de6085dfbb5
+-- hash: 2a594f964e4f777267da99545f57a25e9b0c84eda3a32627c62570fa8f4724c8
 
 name:           contract
 version:        0.1.0.0
@@ -25,6 +25,9 @@ source-repository head
   location: https://github.com/Krantz-XRF/contract
 
 library
+  exposed-modules:
+      Language.Contract.AST
+      Language.Contract.Type
   other-modules:
       Paths_contract
   hs-source-dirs:
