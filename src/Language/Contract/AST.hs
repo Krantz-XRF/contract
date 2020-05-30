@@ -7,18 +7,21 @@ import Language.Contract.Type
 
 -- |Terms of STLC.
 data Term
-  = Lambda Type Term
+  = Unit
+  | Lambda Type Term
   | App Term Term
   | Atom Natural
   | If Term Term Term
   | Succ Term
   | Pred Term
+  | IsZero Term
   | Natural Natural
   | Boolean Bool
   deriving stock (Show, Eq)
 
 -- |Is this term a value?
 isValue :: Term -> Bool
+isValue Unit = True
 isValue (Lambda _ _) = True
 isValue (Natural _) = True 
 isValue (Boolean _) = True
@@ -30,6 +33,7 @@ pattern Value <- (isValue -> True)
 
 -- |The type of a term, within a specific context.
 typeOf :: [Type] -> Term -> Maybe Type
+typeOf _  Unit = pure TUnit
 typeOf ts (Lambda t m) = TArrow t <$> typeOf (t:ts) m
 typeOf ts (App f x) = do
   TArrow tx tr <- typeOf ts f
@@ -51,6 +55,9 @@ typeOf ts (Succ n) = do
 typeOf ts (Pred n) = do
   TNatural <- typeOf ts n
   pure TNatural
+typeOf ts (IsZero t) = do
+  TNatural <- typeOf ts t
+  pure TBoolean
 typeOf _ (Boolean _) = pure TBoolean
 typeOf _ (Natural _) = pure TNatural
 
@@ -66,6 +73,8 @@ eval1 _  (Succ (Natural n)) = Natural (n + 1)
 eval1 vs (Succ n) = Succ (eval1 vs n)
 eval1 _  (Pred (Natural n)) = Natural (n - 1)
 eval1 vs (Pred n) = Pred (eval1 vs n)
+eval1 _  (IsZero (Natural n)) = Boolean (n == 0)
+eval1 vs (IsZero n) = IsZero (eval1 vs n)
 eval1 _  v = v
 
 -- |Full evaluation of a term.
