@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2a594f964e4f777267da99545f57a25e9b0c84eda3a32627c62570fa8f4724c8
+-- hash: 0e4a1d7de4164103836735b9e8baac30b1f813bb62658b0c03163ee57f69dc5b
 
 name:           contract
 version:        0.1.0.0
@@ -27,7 +27,8 @@ source-repository head
 library
   exposed-modules:
       Language.Contract.AST
-      Language.Contract.Type
+      Language.Contract.Check
+      Language.Contract.Parser
   other-modules:
       Paths_contract
   hs-source-dirs:
@@ -36,6 +37,9 @@ library
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
+    , mtl
+    , parsec
+    , transformers
   default-language: Haskell2010
 
 executable contract-exe
@@ -49,6 +53,9 @@ executable contract-exe
   build-depends:
       base >=4.7 && <5
     , contract
+    , mtl
+    , parsec
+    , transformers
   default-language: Haskell2010
 
 test-suite contract-test
@@ -63,4 +70,7 @@ test-suite contract-test
   build-depends:
       base >=4.7 && <5
     , contract
+    , mtl
+    , parsec
+    , transformers
   default-language: Haskell2010

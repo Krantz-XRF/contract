@@ -1,15 +1,26 @@
 module Language.Contract.AST where
 
 import Data.List
+import Data.Bifunctor
 import Numeric.Natural
-import Control.Monad
-import Language.Contract.Type
+
+import Control.Monad.Reader
+import Control.Monad.Writer
+
+-- |Types: Nat, Bool, * -> *
+data Type
+  = TUnit
+  | TNatural
+  | TBoolean
+  | TArrow Term Type Type
+  deriving stock (Show, Eq)
 
 -- |Terms of STLC.
 data Term
   = Unit
-  | Lambda Type Term
+  | Lambda Term Type Term
   | App Term Term
+  | Assert Term Term
   | Atom Natural
   | If Term Term Term
   | Succ Term
@@ -19,10 +30,17 @@ data Term
   | Boolean Bool
   deriving stock (Show, Eq)
 
+pattern And, Or :: Term -> Term -> Term
+pattern And x y = If x y (Boolean False)
+pattern Or x y = If x (Boolean True) y
+
+pattern Not :: Term -> Term
+pattern Not x = If x (Boolean False) (Boolean True)
+
 -- |Is this term a value?
 isValue :: Term -> Bool
 isValue Unit = True
-isValue (Lambda _ _) = True
+isValue (Lambda _ _ _) = True
 isValue (Natural _) = True 
 isValue (Boolean _) = True
 isValue _ = False
@@ -31,53 +49,87 @@ isValue _ = False
 pattern Value :: Term
 pattern Value <- (isValue -> True)
 
--- |The type of a term, within a specific context.
-typeOf :: [Type] -> Term -> Maybe Type
-typeOf _  Unit = pure TUnit
-typeOf ts (Lambda t m) = TArrow t <$> typeOf (t:ts) m
-typeOf ts (App f x) = do
-  TArrow tx tr <- typeOf ts f
-  tx' <- typeOf ts x
-  guard (tx == tx')
-  pure tr
-typeOf ts (Atom n) = do
-  guard (genericLength ts > n)
-  pure (ts `genericIndex` n)
-typeOf ts (If c t f) = do
-  TBoolean <- typeOf ts c
-  tt <- typeOf ts t
-  tf <- typeOf ts f
-  guard (tt == tf)
-  pure tt
-typeOf ts (Succ n) = do
-  TNatural <- typeOf ts n
-  pure TNatural
-typeOf ts (Pred n) = do
-  TNatural <- typeOf ts n
-  pure TNatural
-typeOf ts (IsZero t) = do
-  TNatural <- typeOf ts t
-  pure TBoolean
-typeOf _ (Boolean _) = pure TBoolean
-typeOf _ (Natural _) = pure TNatural
+type MonadPretty m = (MonadReader (Int, [String]) m, MonadWriter String m)
 
--- |One-step evaluation of a term.
-eval1 :: [Term] -> Term -> Term
-eval1 vs (App (Lambda _ m) x@Value) = eval1 (x:vs) m
-eval1 vs (App f@(Lambda _ _) x) = App f (eval1 vs x)
-eval1 vs (App f x) = App (eval1 vs f) x
-eval1 vs (Atom n) = vs `genericIndex` n
-eval1 _  (If (Boolean c) t f) = if c then t else f
-eval1 vs (If c t f) = If (eval1 vs c) t f
-eval1 _  (Succ (Natural n)) = Natural (n + 1)
-eval1 vs (Succ n) = Succ (eval1 vs n)
-eval1 _  (Pred (Natural n)) = Natural (n - 1)
-eval1 vs (Pred n) = Pred (eval1 vs n)
-eval1 _  (IsZero (Natural n)) = Boolean (n == 0)
-eval1 vs (IsZero n) = IsZero (eval1 vs n)
-eval1 _  v = v
+newVar :: MonadPretty m => (String -> m a) -> m a
+newVar p = do
+  x <- asks (head . snd)
+  let x' = map succ x
+  local (second (x':)) (p x')
 
--- |Full evaluation of a term.
-eval :: Term -> Term
-eval t = let x = eval1 [] t in
-  if isValue x || t == x then x else eval x
+paren :: MonadPretty m => Int -> m a -> m a
+paren n = local (first (const n))
+
+tellParen :: MonadPretty m => Int -> m a -> m a
+tellParen n m = do
+  p <- asks fst
+  when (n < p) (tell "(")
+  res <- local (first (const n)) m
+  when (n < p) (tell ")")
+  pure res
+
+prettyType :: MonadPretty m => Type -> m ()
+prettyType TUnit = tell "Unit"
+prettyType TNatural = tell "Nat"
+prettyType TBoolean = tell "Bool"
+prettyType (TArrow p s t) = do
+  tell "{"
+  prettyTerm p
+  tell "} "
+  prettyType s
+  tell " -> "
+  prettyType t
+
+prettyTerm :: MonadPretty m => Term -> m ()
+prettyTerm Unit = tell "unit"
+prettyTerm (Lambda p t tm) = newVar $ \x -> tellParen 0 $ do
+  tell "\\"
+  tell x
+  tell " : "
+  prettyType t
+  tell " {"
+  prettyTerm p
+  tell "} . "
+  prettyTerm tm
+prettyTerm (App f x) = tellParen 1 $ do
+  paren 1 $ prettyTerm f
+  tell " "
+  paren 0 $ prettyTerm x
+prettyTerm (Assert p x) = tellParen 1 $ do
+  tell "{"
+  prettyTerm p
+  tell "} "
+  paren 0 $ prettyTerm x
+prettyTerm (Atom n) = do
+  x <- asks ((`genericIndex` n) . snd)
+  tell x
+prettyTerm (If c t f) = tellParen 0 $ do
+  tell "if "
+  prettyTerm c
+  tell " then "
+  prettyTerm t
+  tell " else "
+  prettyTerm f
+prettyTerm (Succ t) = tellParen 1 $ tell "succ " *> paren 0 (prettyTerm t)
+prettyTerm (Pred t) = tellParen 1 $ tell "pred " *> paren 0 (prettyTerm t)
+prettyTerm (IsZero t) = tellParen 1 $ tell "iszero " *> paren 0 (prettyTerm t)
+prettyTerm (Natural n) = tell (show n)
+prettyTerm (Boolean b) = tell (if b then "true" else "false")
+
+class PrettyPrint a where
+  pretty :: a -> String
+
+prettyPrint :: PrettyPrint a => a -> IO ()
+prettyPrint = putStrLn . pretty
+
+instance PrettyPrint Type where
+  pretty t = runReader (execWriterT (prettyType t)) (0, ["`"])
+
+instance PrettyPrint Term where
+  pretty t = runReader (execWriterT (prettyTerm t)) (0, ["`"])
+
+instance PrettyPrint a => PrettyPrint [a] where
+  pretty ys = "[" <> go ys <> "]" where
+    go [] = ""
+    go [x] = pretty x
+    go (x : xs) = pretty x <> ", " <> go xs
