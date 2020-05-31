@@ -21,5 +21,5 @@ main = forever $ do
       Nothing -> putStrLn "error: the program does not type check."
       Just t -> do
         putStr "Type: "
-        prettyPrint t
-        prettyPrint (eval tm)
+        prettyPrint 0 t
+        prettyPrint 0 (eval tm)

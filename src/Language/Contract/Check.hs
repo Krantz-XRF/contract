@@ -22,9 +22,10 @@ assert c = unless c (fail "")
 
 prove :: MonadTypeCheck m => Term -> m ()
 prove res = do
+  n <- asks (length . fst)
   premise <- asks snd
   liftIO $ printf "%s => %s [%s]\n"
-    (pretty premise) (pretty $ eval res) (pretty res)
+    (pretty n premise) (pretty n $ eval res) (pretty n res)
 
 -- |The type of a term, within a specific context.
 typeOf :: MonadTypeCheck m => Term -> m Type
