@@ -5,9 +5,9 @@ import System.Exit
 
 import Control.Monad
 
-import Language.Contract.AST
 import Language.Contract.Check
 import Language.Contract.Parser
+import Language.Contract.Pretty
 
 main :: IO ()
 main = forever $ do

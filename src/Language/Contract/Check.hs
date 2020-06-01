@@ -8,6 +8,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
 
 import Language.Contract.AST
+import Language.Contract.Pretty
 
 type MonadTypeCheck m =
   ( MonadReader ([Type], [Term]) m

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0e4a1d7de4164103836735b9e8baac30b1f813bb62658b0c03163ee57f69dc5b
+-- hash: 9806a50855f50e71ebf8636da0f759ba59d26977d4834c7ffe96c0e5e31404e6
 
 name:           contract
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
       Language.Contract.AST
       Language.Contract.Check
       Language.Contract.Parser
+      Language.Contract.Pretty
   other-modules:
       Paths_contract
   hs-source-dirs:
