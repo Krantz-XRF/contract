@@ -16,7 +16,7 @@ langDef = LanguageDef
   , commentEnd      = "-}"
   , commentLine     = "--"
   , nestedComments  = True
-  , identStart      = letter
+  , identStart      = letter <|> char '_'
   , identLetter     = alphaNum <|> oneOf "_'"
   , opStart         = opLetter langDef
   , opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
@@ -52,6 +52,7 @@ type_ = parens lexer type_
 atom :: Parser Term
 atom = do
   x <- identifier lexer
+  when (x == "_") (fail "Unexpected wildcard '_'.")
   names <- asks (`zip` [0..])
   case lookup x names of
     Just n -> pure (Atom n)
@@ -63,7 +64,8 @@ lambda = do
   x <- identifier lexer
   reservedOp lexer ":"
   t <- type_
-  p <- option (Boolean True) $ local (x:) (braces lexer term)
+  let env = if x /= "_" then local (x:) else id
+  p <- option (Boolean True) $ env (braces lexer term)
   reservedOp lexer "."
   body <- local (x:) term
   pure (Lambda p t body)
