@@ -20,11 +20,11 @@ langDef = LanguageDef
   , identLetter     = alphaNum <|> oneOf "_'"
   , opStart         = opLetter langDef
   , opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
-  , reservedOpNames = ["\\", "->", ":", "."]
+  , reservedOpNames = ["\\", "->", ":", ".", "&", "|"]
   , reservedNames   =
     [ "if", "then", "else"
     , "unit", "true", "false"
-    , "iszero", "pred", "succ"
+    , "iszero", "pred", "succ", "not"
     , "Unit", "Nat", "Bool" ]
   , caseSensitive   = True
   }
@@ -52,7 +52,7 @@ type_ = parens lexer type_
 atom :: Parser Term
 atom = do
   x <- identifier lexer
-  names <- asks (flip zip [0..])
+  names <- asks (`zip` [0..])
   case lookup x names of
     Just n -> pure (Atom n)
     Nothing -> fail "unbound variable."
@@ -63,7 +63,7 @@ lambda = do
   x <- identifier lexer
   reservedOp lexer ":"
   t <- type_
-  p <- local (x:) (braces lexer term)
+  p <- option (Boolean True) $ local (x:) (braces lexer term)
   reservedOp lexer "."
   body <- local (x:) term
   pure (Lambda p t body)
@@ -83,9 +83,12 @@ atomTerm = parens lexer term
   <|> reserved lexer "iszero" *> fmap IsZero term
   <|> reserved lexer "pred" *> fmap Pred term
   <|> reserved lexer "succ" *> fmap Succ term
+  <|> reserved lexer "not" *> fmap Not term
 
 term :: Parser Term
-term = foldl1 App <$> many1 atomTerm
+term = try (And <$> atomTerm <* reservedOp lexer "&" <*> atomTerm)
+  <|> try (Or <$> atomTerm <* reservedOp lexer "|" <*> atomTerm)
+  <|> foldl1 App <$> many1 atomTerm
 
 parseTerm :: String -> Either ParseError Term
 parseTerm s =

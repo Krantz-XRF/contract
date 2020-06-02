@@ -9,6 +9,7 @@ import Control.Monad.Reader
 
 import Language.Contract.AST
 import Language.Contract.Pretty
+import Language.Contract.Proof
 
 type MonadTypeCheck m =
   ( MonadReader ([Type], [Term]) m
@@ -23,22 +24,28 @@ assert c = unless c (fail "")
 
 prove :: MonadTypeCheck m => Term -> m ()
 prove res = do
-  n <- asks (length . fst)
-  premise <- asks snd
-  liftIO $ printf "%s => %s [%s]\n"
-    (pretty n premise) (pretty n $ eval res) (pretty n res)
+  bindings <- asks fst
+  let n = genericLength bindings
+  premise <- asks (filter (/= Boolean True) . map eval . snd)
+  let res' = eval res
+  if res /= res'
+    then liftIO $ printf "Proving %s => %s [%s] ... "
+      (prettyWith n premise) (prettyWith n res') (prettyWith n res)
+    else liftIO $ printf "Proving %s => %s ... "
+      (prettyWith n premise) (prettyWith n res')
+  tryProve bindings premise res'
 
 -- |The type of a term, within a specific context.
 typeOf :: MonadTypeCheck m => Term -> m Type
 typeOf Unit = pure TUnit
 typeOf (Lambda p t m) = do
   TBoolean <- local (first (t:)) (typeOf p)
-  TArrow p t <$> local (bimap (t:) (p:)) (typeOf m)
+  TArrow p t <$> local (bimap (t:) ((p:) . map (liftAtom 0 1))) (typeOf m)
 typeOf (App f x) = do
   TArrow p tx tr <- typeOf f
   tx' <- typeOf x
   assert (tx == tx')
-  prove (Lambda (Boolean True) tx p `App` x)
+  prove (evalWith [x] p)
   pure tr
 typeOf (Assert p x) = do
   t <- typeOf x
@@ -89,6 +96,10 @@ eval1 vs (IsZero n) = IsZero (eval1 vs n)
 eval1 _  v = v
 
 -- |Full evaluation of a term.
-eval :: Term -> Term
-eval t = let x = eval1 [] t in
+evalWith :: [Term] -> Term -> Term
+evalWith vs t = let x = eval1 vs t in
   if isValue x || t == x then x else eval x
+
+-- |Full evaluation of a term.
+eval :: Term -> Term
+eval = evalWith []

@@ -20,6 +20,6 @@ main = forever $ do
     Right tm -> runTypeCheck (typeOf tm) >>= \case
       Nothing -> putStrLn "error: the program does not type check."
       Just t -> do
-        putStr "Type: "
-        prettyPrint 0 t
-        prettyPrint 0 (eval tm)
+        putStr $ pretty (eval tm)
+        putStr " : "
+        prettyPrint t

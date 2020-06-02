@@ -1,20 +1,27 @@
 module Language.Contract.Pretty where
 
-import Data.List
+import Data.Char
 import Data.Bifunctor
+import Numeric.Natural
 
 import Control.Monad.Reader
 import Control.Monad.Writer
 
 import Language.Contract.AST
 
-type MonadPretty m = (MonadReader (Int, [String]) m, MonadWriter String m)
+type MonadPretty m = (MonadReader (Int, Natural) m, MonadWriter String m)
 
 newVar :: MonadPretty m => (String -> m a) -> m a
 newVar p = do
-  x <- asks (head . snd)
-  let x' = map succ x
-  local (second (x':)) (p x')
+  x <- asks (makeVarName . snd)
+  local (second (+1)) (p x)
+
+makeVarName :: Natural -> String
+makeVarName = toStr . go [] where
+  go xs 0 = xs
+  go xs n = let (q, r) = quotRem n 26 in go (r : xs) q
+  toStr [] = "a"
+  toStr xs = map (chr . (+ ord 'a') . fromIntegral) xs
 
 paren :: MonadPretty m => Int -> m a -> m a
 paren n = local (first (const n))
@@ -31,7 +38,7 @@ prettyType :: MonadPretty m => Type -> m ()
 prettyType TUnit = tell "Unit"
 prettyType TNatural = tell "Nat"
 prettyType TBoolean = tell "Bool"
-prettyType (TArrow p s t) = do
+prettyType (TArrow p s t) = local (second (+1)) $ do
   tell "{"
   prettyTerm p
   tell "} "
@@ -43,11 +50,11 @@ prettyTerm :: MonadPretty m => Term -> m ()
 prettyTerm (Not t) = tellParen 3 $ tell "not " *> paren 4 (prettyTerm t)
 prettyTerm (And x y) = tellParen 2 $ do
   prettyTerm x
-  tell " and "
+  tell " & "
   prettyTerm y
 prettyTerm (Or x y) = tellParen 1 $ do
   prettyTerm x
-  tell " or "
+  tell " | "
   prettyTerm y
 prettyTerm Unit = tell "unit"
 prettyTerm (Lambda p t tm) = newVar $ \x -> tellParen 0 $ do
@@ -69,8 +76,8 @@ prettyTerm (Assert p x) = tellParen 3 $ do
   tell "} "
   paren 4 $ prettyTerm x
 prettyTerm (Atom n) = do
-  x <- asks ((`genericIndex` n) . snd)
-  tell x
+  x <- asks snd
+  tell (makeVarName $ x - n - 1)
 prettyTerm (If c t f) = tellParen 0 $ do
   tell "if "
   prettyTerm c
@@ -85,23 +92,27 @@ prettyTerm (Natural n) = tell (show n)
 prettyTerm (Boolean b) = tell (if b then "true" else "false")
 
 class PrettyPrint a where
-  pretty :: Int -> a -> String
+  prettyWith :: Natural -> a -> String
+  pretty :: a -> String
 
-prettyPrint :: PrettyPrint a => Int -> a -> IO ()
-prettyPrint u = putStrLn . pretty u
+  prettyWith _ = pretty
+  pretty = prettyWith 0
+  {-# MINIMAL prettyWith | pretty #-}
+
+prettyPrintWith :: PrettyPrint a => Natural -> a -> IO ()
+prettyPrintWith u = putStrLn . prettyWith u
+
+prettyPrint :: PrettyPrint a => a -> IO ()
+prettyPrint = putStrLn . pretty
 
 instance PrettyPrint Type where
-  pretty m t = runReader (execWriterT (prettyType t)) (0, vars m ["`"])
-    where vars 0 xs = xs
-          vars n xs = vars (pred n) (map succ (head xs) : xs)
+  prettyWith m t = runReader (execWriterT (prettyType t)) (0, m)
 
 instance PrettyPrint Term where
-  pretty m t = runReader (execWriterT (prettyTerm t)) (0, vars m ["`"])
-    where vars 0 xs = xs
-          vars n xs = vars (pred n) (map succ (head xs) : xs)
+  prettyWith m t = runReader (execWriterT (prettyTerm t)) (0, m)
 
 instance PrettyPrint a => PrettyPrint [a] where
-  pretty n ys = "[" <> go ys <> "]" where
+  prettyWith n ys = "[" <> go ys <> "]" where
     go [] = ""
-    go [x] = pretty n x
-    go (x : xs) = pretty n x <> ", " <> go xs
+    go [x] = prettyWith n x
+    go (x : xs) = prettyWith n x <> ", " <> go xs
