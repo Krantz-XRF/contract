@@ -33,7 +33,7 @@ prove res = do
       (prettyWith n premise) (prettyWith n res') (prettyWith n res)
     else liftIO $ printf "Proving %s => %s ... "
       (prettyWith n premise) (prettyWith n res')
-  tryProve bindings premise res'
+  naiveTryProve bindings premise res'
 
 -- |The type of a term, within a specific context.
 typeOf :: MonadTypeCheck m => Term -> m Type
@@ -98,7 +98,7 @@ eval1 _  v = v
 -- |Full evaluation of a term.
 evalWith :: [Term] -> Term -> Term
 evalWith vs t = let x = eval1 vs t in
-  if isValue x || t == x then x else eval x
+  if isValue x || t == x then x else evalWith vs x
 
 -- |Full evaluation of a term.
 eval :: Term -> Term
