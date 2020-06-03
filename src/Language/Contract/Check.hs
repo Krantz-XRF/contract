@@ -33,7 +33,16 @@ prove res = do
       (prettyWith n premise) (prettyWith n res') (prettyWith n res)
     else liftIO $ printf "Proving %s => %s ... "
       (prettyWith n premise) (prettyWith n res')
-  naiveTryProve bindings premise res'
+  tryProve bindings premise res' >>= \case
+    Just r@Proven -> liftIO (print r)
+    Just r@Falsified -> liftIO (print r) >> fail "Proof failed."
+    Just r -> do
+      liftIO (print r)
+      liftIO $ putStr "SBV not usable, fall back to naive proving ... "
+      naiveTryProve bindings premise res'
+    Nothing -> do
+      liftIO $ putStr "SBV failed, fall back to naive proving ... "
+      naiveTryProve bindings premise res'
 
 -- |The type of a term, within a specific context.
 typeOf :: MonadTypeCheck m => Term -> m Type

@@ -2,3 +2,6 @@ resolver: lts-15.10
 
 packages:
 - .
+
+extra-deps:
+- sbv-8.6@sha256:1bcd7a8851157a97e44a000498f984fb738e54441f16e8c2e2afcc1d0818e888,19781

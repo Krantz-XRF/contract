@@ -24,6 +24,7 @@ dependencies:
 - transformers
 - parsec
 - mtl
+- sbv
 
 default-extensions:
 # Type level goodies
