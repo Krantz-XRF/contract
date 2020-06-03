@@ -47,7 +47,7 @@ prettyType (TArrow p s t) = local (second (+1)) $ do
   prettyType t
 
 prettyTerm :: MonadPretty m => Term -> m ()
-prettyTerm (Not t) = tellParen 3 $ tell "not " *> paren 4 (prettyTerm t)
+prettyTerm (Not t) = tellParen 5 $ tell "not " *> paren 6 (prettyTerm t)
 prettyTerm (And x y) = tellParen 2 $ do
   prettyTerm x
   tell " & "
