@@ -1,0 +1,1 @@
+(\y : Nat {not (iszero y)} . (\x : Nat {not (iszero x)} . pred x) y) 42
