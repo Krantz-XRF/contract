@@ -42,12 +42,20 @@ bool :: Parser Term
 bool = Boolean True <$ reserved lexer "true"
   <|> Boolean False <$ reserved lexer "false"
 
+predict :: Parser Term
+predict = braces lexer $ do
+  reservedOp lexer "\\"
+  x <- identifier lexer
+  let env = if x /= "_" then local (x:) else id
+  reservedOp lexer "."
+  env term
+
 type_ :: Parser Type
 type_ = parens lexer type_
   <|> TNatural <$ reserved lexer "Nat"
   <|> TBoolean <$ reserved lexer "Bool"
   <|> TUnit <$ reserved lexer "Unit"
-  <|> TArrow <$> braces lexer lambda <*> type_ <* reservedOp lexer "->" <*> type_
+  <|> TArrow <$> predict <*> type_ <* reservedOp lexer "->" <*> type_
 
 atom :: Parser Term
 atom = do
@@ -67,7 +75,7 @@ lambda = do
   let env = if x /= "_" then local (x:) else id
   p <- option (Boolean True) $ env (braces lexer term)
   reservedOp lexer "."
-  body <- local (x:) term
+  body <- env term
   pure (Lambda p t body)
 
 if_ :: Parser Term

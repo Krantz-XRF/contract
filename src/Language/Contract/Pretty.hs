@@ -85,9 +85,9 @@ prettyTerm (If c t f) = tellParen 0 $ do
   prettyTerm t
   tell " else "
   prettyTerm f
-prettyTerm (Succ t) = tellParen 3 $ tell "succ " *> paren 4 (prettyTerm t)
-prettyTerm (Pred t) = tellParen 3 $ tell "pred " *> paren 4 (prettyTerm t)
-prettyTerm (IsZero t) = tellParen 3 $ tell "iszero " *> paren 4 (prettyTerm t)
+prettyTerm (Succ t) = tellParen 5 $ tell "succ " *> paren 6 (prettyTerm t)
+prettyTerm (Pred t) = tellParen 5 $ tell "pred " *> paren 6 (prettyTerm t)
+prettyTerm (IsZero t) = tellParen 5 $ tell "iszero " *> paren 6 (prettyTerm t)
 prettyTerm (Natural n) = tell (show n)
 prettyTerm (Boolean b) = tell (if b then "true" else "false")
 
