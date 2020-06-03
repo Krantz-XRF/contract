@@ -38,10 +38,10 @@ prove res = do
     Just r@Falsified -> liftIO (print r) >> fail "Proof failed."
     Just r -> do
       liftIO (print r)
-      liftIO $ putStr "SBV not usable, fall back to naive proving ... "
+      liftIO $ putStr "SBV failed, fall back to naive proving ... "
       naiveTryProve bindings premise res'
     Nothing -> do
-      liftIO $ putStr "SBV failed, fall back to naive proving ... "
+      liftIO $ putStr "SBV not usable, fall back to naive proving ... "
       naiveTryProve bindings premise res'
 
 -- |The type of a term, within a specific context.

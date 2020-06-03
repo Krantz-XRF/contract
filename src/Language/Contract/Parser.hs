@@ -1,4 +1,7 @@
-module Language.Contract.Parser (parseTerm) where
+module Language.Contract.Parser
+  ( parseTerm
+  , parseFile
+  ) where
 
 import Text.Parsec
 import Text.Parsec.Token
@@ -19,9 +22,9 @@ langDef = LanguageDef
   , identLetter     = alphaNum <|> oneOf "_'"
   , opStart         = opLetter langDef
   , opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
-  , reservedOpNames = ["\\", "->", ":", ".", "&", "|"]
+  , reservedOpNames = ["\\", "->", ":", ".", "&", "|", "="]
   , reservedNames   =
-    [ "if", "then", "else"
+    [ "if", "then", "else", "let"
     , "unit", "true", "false"
     , "iszero", "pred", "succ", "not"
     , "Unit", "Nat", "Bool" ]
@@ -101,5 +104,18 @@ term = try (And <$> atomTerm <* reservedOp lexer "&" <*> atomTerm)
 
 parseTerm :: String -> Either ParseError Term
 parseTerm s =
-  let prog = whiteSpace lexer *> term
+  let prog = whiteSpace lexer *> term <* eof
   in runReader (runParserT prog () "<interactive>" s) []
+
+binding :: Parser (String, Term)
+binding = (,)
+  <$> (reserved lexer "let" *> identifier lexer)
+  <*> (reservedOp lexer "=" *> term)
+
+file :: Parser [(String, Term)]
+file = binding `endBy` lexeme lexer (char ';')
+
+parseFile :: String -> String -> Either ParseError [(String, Term)]
+parseFile nm s =
+  let prog = whiteSpace lexer *> file <* eof
+  in runReader (runParserT prog () nm s) []

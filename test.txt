@@ -1,1 +1,14 @@
-(\y : Nat {not (iszero y)} . (\x : Nat {not (iszero x)} . pred x) y) 42
+-- This does not type check.
+let a = \x : Nat . pred x;
+-- SBV solves this.
+let b = \x : Nat {not (iszero x)} . pred x;
+-- Currently not representable in SBV, fall back to custom naive solver.
+let c = \f : {\_ . true} Nat -> Nat . (\x : Nat {not (iszero (f x))} . pred (f x));
+-- Provable with no premise at all.
+let d = \x : Nat . pred (succ x);
+-- A vacuous premise makes the abstraction type check ...
+let e = \x : Nat {false} . pred x;
+-- ... but not the application
+let f = (\x : Nat {false} . pred x) 42;
+-- An arbitrary example
+let g = (\y : Nat {not (iszero y)} . (\x : Nat {not (iszero x)} . pred x) y) 42;
