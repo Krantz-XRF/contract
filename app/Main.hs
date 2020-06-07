@@ -1,3 +1,12 @@
+{-|
+Module      : Main
+Description : Main program for contract interpreter.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
 module Main where
 
 import System.IO

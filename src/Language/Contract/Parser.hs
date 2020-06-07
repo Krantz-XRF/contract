@@ -1,3 +1,12 @@
+{-|
+Module      : Language.Contract.Parser
+Description : Parser for the contract language (STLC based).
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
 module Language.Contract.Parser
   ( parseTerm
   , parseFile
@@ -102,6 +111,7 @@ term = try (And <$> atomTerm <* reservedOp lexer "&" <*> atomTerm)
   <|> try (Or <$> atomTerm <* reservedOp lexer "|" <*> atomTerm)
   <|> foldl1 App <$> many1 atomTerm
 
+-- |Parse a term, for parsing many terms see 'parseFile'.
 parseTerm :: String -> Either ParseError Term
 parseTerm s =
   let prog = whiteSpace lexer *> term <* eof
@@ -115,6 +125,7 @@ binding = (,)
 file :: Parser [(String, Term)]
 file = binding `endBy` lexeme lexer (char ';')
 
+-- |Parse a file, bindings in the form @let <name> = <term>;@.
 parseFile :: String -> String -> Either ParseError [(String, Term)]
 parseFile nm s =
   let prog = whiteSpace lexer *> file <* eof

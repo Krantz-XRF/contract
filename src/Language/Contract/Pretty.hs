@@ -1,4 +1,18 @@
-module Language.Contract.Pretty where
+{-|
+Module      : Language.Contract.Pretty
+Description : Pretty printer for the contract language.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
+module Language.Contract.Pretty
+  ( makeVarName
+  , PrettyPrint(..)
+  , prettyPrintWith
+  , prettyPrint
+  ) where
 
 import Data.Char
 import Data.Bifunctor
@@ -16,6 +30,7 @@ newVar p = do
   x <- asks (makeVarName . snd)
   local (second (+1)) (p x)
 
+-- |Make a variable name from its internal index.
 makeVarName :: Natural -> String
 makeVarName = toStr . go [] where
   go xs 0 = xs
@@ -91,17 +106,22 @@ prettyTerm (IsZero t) = tellParen 5 $ tell "iszero " *> paren 6 (prettyTerm t)
 prettyTerm (Natural n) = tell (show n)
 prettyTerm (Boolean b) = tell (if b then "true" else "false")
 
+-- |Pretty show for terms and types.
 class PrettyPrint a where
+  -- |Pretty show provided the number of layers of lambda abstractions.
   prettyWith :: Natural -> a -> String
+  -- |Pretty show assuming no outside lambda abstractions.
   pretty :: a -> String
 
   prettyWith _ = pretty
   pretty = prettyWith 0
   {-# MINIMAL prettyWith | pretty #-}
 
+-- |Pretty print, a 'putStrLn' after a 'prettyWith'.
 prettyPrintWith :: PrettyPrint a => Natural -> a -> IO ()
 prettyPrintWith u = putStrLn . prettyWith u
 
+-- |Pretty print, a 'putStrLn' after a 'pretty'.
 prettyPrint :: PrettyPrint a => a -> IO ()
 prettyPrint = putStrLn . pretty
 

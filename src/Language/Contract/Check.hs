@@ -1,3 +1,12 @@
+{-|
+Module      : Language.Contract.Check
+Description : Type checker for the contract language.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
 module Language.Contract.Check where
 
 import Data.List
@@ -11,17 +20,22 @@ import Language.Contract.AST
 import Language.Contract.Pretty
 import Language.Contract.Proof
 
+-- |Type checker monad.
 type MonadTypeCheck m =
   ( MonadReader ([Type], [Term]) m
   , MonadFail m
   , MonadIO m )
 
+-- |Run the type checker monad, get a 'Maybe' result.
 runTypeCheck :: MaybeT (ReaderT ([Type], [Term]) IO) a -> IO (Maybe a)
 runTypeCheck m = runReaderT (runMaybeT m) ([], [])
 
+-- |Assertion, fail with 'MonadFail'.
+-- 'guard' from Prelude uses Alternative, so not suitable here.
 assert :: MonadFail m => Bool -> m ()
 assert c = unless c (fail "")
 
+-- |Prove a term in the type checker monad.
 prove :: MonadTypeCheck m => Term -> m ()
 prove res = do
   bindings <- asks fst

@@ -1,4 +1,19 @@
-module Language.Contract.Proof where
+{-|
+Module      : Language.Contract.Proof
+Description : Theorem prover for type checking.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
+module Language.Contract.Proof
+  ( pattern Falsified
+  , pattern Proven
+  , isFalsified
+  , tryProve
+  , naiveTryProve
+  ) where
 
 import Data.List
 import Data.SBV.Trans
@@ -9,11 +24,6 @@ import Control.Monad.Trans.Maybe
 
 import Language.Contract.AST
 import Language.Contract.Pretty
-
-type MonadCheck m =
-  ( MonadSymbolic m
-  , MonadIO m
-  , MonadReader [Var] m )
 
 data Var
   = VBool SBool
@@ -61,17 +71,21 @@ makeTerm vs (IsZero n) = VBool . (.== 0) . asNat $ makeTerm vs n
 makeTerm _  (Natural n) = VNat $ literal $ fromIntegral n
 makeTerm _  (Boolean b) = VBool $ literal b
 
+-- |A falsified theorem.
 pattern Falsified :: ThmResult
 pattern Falsified <- ThmResult (isFalsified -> True)
 
+-- |Is this theorem falsified?
 isFalsified :: SMTResult -> Bool
 isFalsified (Satisfiable _ _) = True
 isFalsified (SatExtField _ _) = True
 isFalsified _ = False
 
+-- |A proven theorem.
 pattern Proven :: ThmResult
 pattern Proven <- ThmResult (Unsatisfiable _ _)
 
+-- |Try prove with sbv.
 tryProve :: MonadIO m => [Type] -> [Term] -> Term -> m (Maybe ThmResult)
 tryProve bindings premises target =
   let prove' = prove :: SymbolicT (MaybeT IO) SBool -> MaybeT IO ThmResult
@@ -83,6 +97,7 @@ tryProve bindings premises target =
   mapM_ (constrainPremise vars) premises
   pure (makeBoolTerm vars target)
 
+-- |Use the naive theorem prover.
 naiveTryProve :: (MonadFail m, MonadIO m) => [Type] -> [Term] -> Term -> m ()
 naiveTryProve _ _ (Boolean True) = liftIO (putStrLn "Q.E.D. (Trivial)")
 naiveTryProve _ [] _ = liftIO (putStrLn "Falsified") >> fail "Falsified"

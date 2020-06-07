@@ -1,3 +1,12 @@
+{-|
+Module      : Language.Contract.AST
+Description : Abstract Syntax Tree for the contract language.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}
 module Language.Contract.AST where
 
 import Numeric.Natural
@@ -25,10 +34,15 @@ data Term
   | Boolean Bool
   deriving stock (Show, Eq, Ord)
 
-pattern And, Or :: Term -> Term -> Term
+-- |@x & y = if x then y else false@
+pattern And :: Term -> Term -> Term
 pattern And x y = If x y (Boolean False)
+
+-- |@x | y = if x then true else y@
+pattern Or :: Term -> Term -> Term
 pattern Or x y = If x (Boolean True) y
 
+-- |@not x = if x then false else true@
 pattern Not :: Term -> Term
 pattern Not x = If x (Boolean False) (Boolean True)
 
@@ -44,6 +58,7 @@ isValue _ = False
 pattern Value :: Term
 pattern Value <- (isValue -> True)
 
+-- |The lift operation of de Bruijn notation.
 liftAtom :: Natural -> Natural -> Term -> Term
 liftAtom c n (Lambda p t m)
   = Lambda (liftAtom (succ c) n p) t (liftAtom (succ c) n m)
