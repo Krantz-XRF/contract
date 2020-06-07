@@ -1,0 +1,338 @@
+\documentclass[handout]{beamer}
+
+\usetheme[progressbar=foot]{metropolis}
+\setbeamercovered{transparent=10}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{mathrsfs}
+\usepackage{physics}
+\usepackage{tensor}
+\usepackage{ulem}
+\usepackage{mathtools}
+
+\usepackage{textgreek}
+\usepackage{ebproof}
+
+\usepackage{enumerate}
+
+\definecolor{Black}{HTML}{222831}
+\definecolor{White}{HTML}{F2F2F2}
+\definecolor{Blue}{HTML}{3A96DD}
+\setbeamercolor{normal text}{fg=Black,bg=White}
+\setbeamercolor{alerted text}{fg=Blue}
+\makeatletter
+\setlength{\metropolis@progressinheadfoot@linewidth}{1.5pt}
+\setlength{\metropolis@titleseparator@linewidth}{0.5pt}
+\setlength{\metropolis@progressonsectionpage@linewidth}{0.8pt}
+\makeatother
+
+\title{Contract in the Type System}
+\subtitle{Statically-enforced constraints}
+\author{Xie Ruifeng, Dong Zining}
+\institute{{School of EECS, Peking University}\\{https://github.com/Krantz-XRF/contract}}
+\date{June 2020}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{Background}
+
+\begin{frame}{Background: Statically-Checked Contract}
+
+\begin{block}{Motivation: the Annoying ``$\textbf{pred} \ 0 = 0$''}\vspace{0pt}
+Recall that we had a rule $\textbf{pred} \ 0 \to 0$ in STLC.
+\end{block}
+
+\pause
+
+\begin{block}{\alert{Partiality}: Practice 8.3.5}\vspace{0pt}
+What if we want to get rid of this, i.e. make $\textbf{pred} \ 0$ diverge? \alert{Type safety} (in particular, progress property) breaks: $\textbf{pred} \ 0$ type-checks as a \textbf{Nat}, but diverges.
+\end{block}
+
+\pause
+
+\begin{block}{Solution}\vspace{0pt}
+Statically enforce the constraint $x \ne 0$ on $\textbf{pred} \ x$.
+\end{block}
+
+\pause
+
+\begin{block}{Basic Idea}\vspace{0pt}
+We know for sure \alert{$b$ in the \textbf{then}-branch of $\textbf{if} \ b$, and $\neg b$ in the \textbf{else}-branch}. We can also \alert{assume on the parameters} in lambda abstraction and \alert{check on application}.
+\end{block}
+
+\end{frame}
+
+\section{Language Design}
+
+\begin{frame}{Language Design: Grammar}
+
+\scriptsize
+
+\begin{columns}
+\begin{column}{0.45\textwidth}
+\begin{align*}
+    t \Coloneqq &                           \tag{Term} \\
+        & \textbf{unit}                     \tag{Unit} \\
+        & 0                                 \tag{0} \\
+        & \textbf{succ} \ t                 \tag{Successor} \\
+        & \textbf{pred} \ t                 \tag{Predecessor} \\
+        & \textbf{iszero} \ t               \tag{0-testing} \\
+        & \textbf{true}                     \tag{Boolean True} \\
+        & \textbf{false}                    \tag{Boolean False} \\
+        & \textbf{if} \ t \ \textbf{then} \ t \ \textbf{else} \ t & \tag{Condition} \\
+        & x                                 \tag{Variable} \\
+        & \lambda \alert{\qty{t}} \ x : T . t \tag{Abstraction} \\
+        & t \ t                             \tag{Application} \\
+        & \alert{\qty{t} \ t}               \tag*{\alert{(Assertion)}}
+\end{align*}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{align*}
+    v \Coloneqq &                           \tag{Value} \\
+        & \textbf{unit}                     \tag{Unit} \\
+        & nv                                \tag{Natural} \\
+        & \textbf{true}                     \tag{Boolean True} \\
+        & \textbf{false}                    \tag{Boolean False} \\
+        & \lambda \alert{\qty{t}} \ x : T . t \tag{Abstraction} \\
+    nv \Coloneqq &                          \tag{Natural} \\
+        & 0                                 \tag{0} \\
+        & \textbf{succ} \ nv                \tag{Successor} \\
+    T \Coloneqq &                          \tag{Type} \\
+        & \textbf{Unit}                    \tag{Unit Type} \\
+        & \textbf{Bool}                    \tag{Boolean} \\
+        & \textbf{Nat}                     \tag{Natural} \\
+        & T \alert{\xrightarrow{t \ x}} T  \tag{Function \alert{with Assertion}}
+\end{align*}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+\begin{frame}{Some Grammar Candies}
+    \begin{align*}
+        \neg x &= \textbf{if} \ x \ \textbf{then} \ \textbf{false} \ \textbf{else} \ \textbf{true} \tag{Negation} \\
+        x \operatorname{\&} y &= \textbf{if} \ x \ \textbf{then} \ y \ \textbf{else} \ \textbf{false} \tag{And} \\
+        x \operatorname{|} y &= \textbf{if} \ x \ \textbf{then} \ \textbf{true} \ \textbf{else} \ y \tag{Or} \\
+        \lambda x : T . t &= \lambda \qty{\textbf{true}} \ x : T . t \tag{OmitPredicate:Term} \\
+        T_1 \to T_2 &= T_1 \xrightarrow{(\lambda x . \textbf{true}) \ x} T_2 \tag{OmitPredicate:Type}
+    \end{align*}
+    These grammar candies make the good old STLC a proper subset of our system.
+\end{frame}
+
+\begin{frame}{Example Programs}
+    \[
+        \lambda x : \textbf{Nat} \operatorname. \textbf{pred} \ x
+    \] \pause
+    \[
+        \lambda \qty{\lambda x \operatorname. \neg (\textbf{iszero} \ x)} \ x : \textbf{Nat} \operatorname. \textbf{pred} \ x
+    \] \pause
+    \[
+        \lambda f : \textbf{Nat} \to \textbf{Nat} \operatorname. \lambda \qty{\lambda x . \neg(\textbf{iszero} (f \ x))} x : \textbf{Nat} \operatorname. \textbf{pred} \ (f \ x)
+    \] \pause
+    \[
+        \lambda \qty{\lambda x \operatorname. \neg (\textbf{iszero} \ x)} \ x : \textbf{Nat} \operatorname. \textbf{pred} \ (\textbf{succ} \ x)
+    \]
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Evaluation Rules Overview}
+
+\begin{gather*}
+    \textbf{if} \ \textbf{true} \ \textbf{then} \ t_2 \ \textbf{else} \ t_3 \to t_2
+        \tag{\textsc{E-IfTrue}} \\
+    \textbf{if} \ \textbf{false} \ \textbf{then} \ t_2 \ \textbf{else} \ t_3 \to t_3
+        \tag{\textsc{E-IfFalse}} \\
+    {\begin{prooftree}
+        \hypo{t_1 \to t_1'}
+        \infer1{ \textbf{if} \ t_1 \ \textbf{then} \ t_2 \ \textbf{else} \ t_3 \to \textbf{if} \ t_1' \ \textbf{then} \ t_2 \ \textbf{else} \ t_3 }
+    \end{prooftree}} \tag{\textsc{E-If}} \\
+    {\begin{prooftree}
+        \hypo{t_1 \to t_1'}
+        \infer1{ \textbf{succ} \ t_1 \to \textbf{succ} \ t_1' }
+    \end{prooftree}} \tag{\textsc{E-Succ}} \\
+    {\begin{prooftree}
+        \hypo{t_1 \to t_1'}
+        \infer1{ \textbf{pred} \ t_1 \to \textbf{pred} \ t_1' }
+    \end{prooftree}} \tag{\textsc{E-Pred}} \\
+    \textbf{pred} \ (\textbf{succ} \ nv_1) \to nv_1
+        \tag{\textsc{E-PredSucc}}
+\end{gather*}
+
+\begin{gather*}
+    \textbf{iszero} \ 0 \to \textbf{true}
+        \tag{\textsc{E-IszeroZero}} \\
+    \textbf{iszero} \ (\textbf{succ} \ nv_1) \to \textbf{false}
+        \tag{\textsc{E-IszeroSucc}} \\
+    {\begin{prooftree}
+        \hypo{t_1 \to t_1'}
+        \infer1{ \textbf{iszero} \ t_1 \to \textbf{iszero} \ t_1' }
+    \end{prooftree}} \tag{\textsc{E-IsZero}} \\
+    {\begin{prooftree}
+        \hypo{t_1 \to t_1'}
+        \infer1{ t_1 \ t_2 \to t_1' \ t_2 }
+    \end{prooftree}} \tag{\textsc{E-App1}} \\
+    {\begin{prooftree}
+        \hypo{ t_2 \to t_2' }
+        \infer1{ v_1 \ t_2 \to v_1 \ t_2' }
+    \end{prooftree}} \tag{\textsc{E-App2}} \\
+    (\lambda \qty{p} \ x : T . t_1) \ v_2 \to [x \mapsto v_2] t_1
+        \tag{\textsc{E-AppAbs}} \\
+    \qty{p} \ t \to t \tag{\textsc{E-Assert}}
+\end{gather*}
+
+\end{frame}
+
+\begin{frame}{Evaluation Rules: Differences}
+    Differences with $\lambda_{\to \mathbb{B} \mathbb{N} \mathbb{U}}$ (STLC + booleans/naturals/unit):
+
+    \begin{itemize}
+        \item \textsc{E-PredZero} (\alert{$\textbf{pred} \ 0 \to 0$}) removed.
+        \item \textsc{E-Assert} (\alert{$\qty{p} \ t \to t$}) added.
+        \item \textsc{E-AppAbs} ($\lambda \alert{\qty{p}} \ x : T . t_1) \ v_2 \to [x \mapsto v_2] t_1$) adjusted.
+    \end{itemize}
+
+    Contracts are statically checked, so evaluation rules are mostly unaffected.
+\end{frame}
+
+\begin{frame}{Typing Rules: Overview}
+
+\begin{gather*}
+    \textbf{unit} : \textbf{Unit} \tag{\textsc{T-Unit}} \\
+    \textbf{true} : \textbf{Bool} \tag{\textsc{T-True}} \\
+    \textbf{false} : \textbf{Bool} \tag{\textsc{T-False}} \\
+    {\begin{prooftree}
+        \hypo{ \Gamma;\Sigma \vdash t_1 : \textbf{Bool} }
+        \hypo{ \Gamma;\alert{\Sigma,t_1} \vdash t_2 : T }
+        \hypo{ \Gamma;\alert{\Sigma,\neg t_1} \vdash t_3 : T }
+        \infer3{ \Gamma;\Sigma \vdash \textbf{if} \ t_1 \ \textbf{then} \ t_2 \ \textbf{else} \ t_3 : T }
+    \end{prooftree}} \tag{\textsc{T-If}} \\
+    0 : \textbf{Nat} \tag{\textsc{T-Zero}} \\
+    {\begin{prooftree}
+        \hypo{ \Gamma;\Sigma \vdash t_1 : \textbf{Nat} }
+        \infer1{ \Gamma;\Sigma \vdash \textbf{succ} \ t_1 : \textbf{Nat} }
+    \end{prooftree}} \tag{\textsc{T-Succ}} \\
+    {\begin{prooftree}
+        \hypo{ \Gamma;\Sigma \vdash t_1 : \textbf{Nat} }
+        \hypo{ \alert{\Sigma \models \neg(\textbf{iszero} \ t_1)} }
+        \infer2{ \Gamma;\Sigma \vdash \textbf{pred} \ t_1 : \textbf{Nat} }
+    \end{prooftree}} \tag{\textsc{T-Pred}}
+\end{gather*}
+
+\end{frame}
+
+\begin{frame}{Typing Rules: Overview Cont'd}
+
+\begin{gather*}
+    {\begin{prooftree}
+        \hypo{ \Gamma;\Sigma \vdash t_1 : \textbf{Nat} }
+        \infer1{ \Gamma;\Sigma \vdash \textbf{iszero} \ t_1 : \textbf{Bool} }
+    \end{prooftree}} \tag{\textsc{T-IsZero}} \\
+    {\begin{prooftree}
+        \hypo{ x:T \in \Gamma }
+        \infer1{ \Gamma;\Sigma \vdash x : T }
+    \end{prooftree}} \tag{\textsc{T-Var}} \\
+    {\begin{prooftree}
+        \hypo{ \alert{\Gamma;\Sigma \vdash p : T \to \textbf{Bool}} }
+        \hypo{ \Gamma;\Sigma \vdash t : T }
+        \hypo{ \alert{\Sigma \models p \ t} }
+        \infer3{ \Gamma;\Sigma \vdash \alert{\qty{p}} \ t : T }
+    \end{prooftree}} \tag*{\alert{(\textsc{T-Assert})}} \\
+    {\begin{prooftree}
+        \hypo{ \alert{\Gamma;\Sigma \vdash p : T_1 \to \textbf{Bool}} }
+        \hypo{ \Gamma, x:T_1;\alert{\Sigma,p \ x} \vdash t : T_2 }
+        \infer2{ \Gamma;\Sigma \vdash \lambda \alert{\qty{p}} \ x : T_1 . t : T_1 \xrightarrow{\alert{p \ x}} T_2 }
+    \end{prooftree}} \tag{\textsc{T-Abs}} \\
+    {\begin{prooftree}
+        \hypo{ \Gamma;\Sigma \vdash t_1 : T_2 \xrightarrow{\alert{p \ x}} T }
+        \hypo{ \Gamma;\Sigma \vdash t_2 : T_2 }
+        \hypo{ \alert{\Sigma \models p \ t_2} }
+        \infer3{ \Gamma;\Sigma \vdash t_1 \ t_2 : \alert{[x \mapsto t_2]}T }
+    \end{prooftree}} \tag{\textsc{T-App}}
+\end{gather*}
+
+\end{frame}
+
+\begin{frame}{Note: Contract in Contract}
+    \begin{align*}
+        {\begin{prooftree}
+            \hypo{ \alert{\Gamma;\Sigma \vdash p : T \to \textbf{Bool}} }
+            \hypo{ \Gamma;\Sigma \vdash t : T }
+            \hypo{ \Sigma \models p \ t }
+            \infer3{ \Gamma;\Sigma \vdash \qty{p} \ t : T }
+        \end{prooftree}} \tag{\textsc{T-Assert}} \\
+        {\begin{prooftree}
+            \hypo{ \alert{\Gamma;\Sigma \vdash p : T_1 \to \textbf{Bool}} }
+            \hypo{ \Gamma, x:T_1;\Sigma,p \ x \vdash t : T_2 }
+            \infer2{ \Gamma;\Sigma \vdash \lambda \qty{p} \ x : T_1 . t : T_1 \xrightarrow{p \ x} T_2 }
+        \end{prooftree}} \tag{\textsc{T-Abs}}
+    \end{align*}
+    Here we require the predicate to have a trivial contract. But despite this restriction, we can still use a $f$ function with contract $p$ as a predicate. \pause
+
+    Recall that \textbf{if}-expressions introduce its condition as a premise to its \textbf{then}-branch, and that $\&$ is in fact an \textbf{if}, we have
+    \[
+        \qty{\lambda \qty{p} \ x : T \operatorname. f \ x}
+        = \qty{\lambda x : T \operatorname. p \ x \operatorname{\&} f \ x}
+    \]
+\end{frame}
+
+\section{Implementation}
+
+\begin{frame}{Implementation}
+    The code can be found in Xie Ruifeng's GitHub repository (https://github.com/Krantz-XRF/contract).
+    \begin{itemize}
+        \item Minor tweaks on the grammar:
+        \begin{itemize}
+            \item Use de Bruijn notation
+            \item \alert{$\lambda \qty{p} x : T \operatorname. t$} changed to \alert{$\lambda x : T \ \qty{p(x)} \operatorname. t$} \\
+            $x$ is implicitly in scope when parsing $p$
+            \item \alert{$T \xrightarrow{p \ x} T$} written as \alert{$\qty{p(x)} T \to T$} \\
+            the $x$ is always a $0$ in de Bruijn notation
+        \end{itemize}
+        \item Use an SMT Solver (\texttt{sbv} in Hackage) to prove theorems
+        \item Issues on \texttt{sbv}: handling \texttt{forall}ed functions
+        \item Na\"ive theorem prover: hand-written, fall back prover
+    \end{itemize}
+\end{frame}
+
+\section{Demo}
+
+\begin{frame}[allowframebreaks]{Live Demo}
+    This one does not type-check:
+    \[
+        \lambda x : \textbf{Nat} \operatorname. \textbf{pred} \ x
+    \]
+    SBV proves the theorems:
+    \[
+        \lambda x : \textbf{Nat} \ \qty{\neg (\textbf{iszero} \ x)} \operatorname. \textbf{pred} \ x
+    \]
+    SBV not usable, na\"ive prover used:
+    \[
+        \lambda f : \textbf{Nat} \to \textbf{Nat} . \lambda x : \textbf{Nat} \ \qty{\neg(\textbf{iszero} (f \ x))} \operatorname. \textbf{pred} \ (f \ x)
+    \]
+    SBV proves the theorems with no premise at all:
+    \[
+        \lambda x : \textbf{Nat} \operatorname. \textbf{pred} \ (\textbf{succ} \ x)
+    \]
+    A vacuous premise makes the abstraction type-check ...
+    \[
+        \lambda x : \textbf{Nat} \qty{\textbf{false}} \operatorname. \textbf{pred} \ x
+    \]
+    ... but not the application
+    \[
+        (\lambda x : \textbf{Nat} \qty{\textbf{false}} \operatorname. \textbf{pred} \ x) \ 42
+    \]
+\end{frame}
+
+\appendix
+
+\begin{frame}[standout]
+Thanks
+\end{frame}
+
+\end{document}
