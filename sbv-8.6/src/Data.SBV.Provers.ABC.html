@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Provers.ABC</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Adam Foltzer</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- The connection to the ABC verification and synthesis tool</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Provers.ABC</span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Provers.ABC.html#abc"><span class="hs-identifier">abc</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html"><span class="hs-identifier">Data.SBV.SMT.SMT</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | The description of abc. The default executable is @\&quot;abc\&quot;@,</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- which must be in your path. You can use the @SBV_ABC@ environment</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- variable to point to the executable on your system.  The default</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- options are @-S \&quot;%blast; &amp;sweep -C 5000; &amp;syn4; &amp;cec -s -m -C 2000\&quot;@.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- You can use the @SBV_ABC_OPTIONS@ environment variable to override the options.</span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Data.SBV.Provers.ABC.html#abc"><span class="hs-identifier hs-type">abc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTSolver"><span class="hs-identifier hs-type">SMTSolver</span></a></span><span>
+</span><span id="line-25"></span><span id="abc"><span class="annot"><span class="annottext">abc :: SMTSolver
+</span><a href="Data.SBV.Provers.ABC.html#abc"><span class="hs-identifier hs-var hs-var">abc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTSolver :: Solver
+-&gt; String
+-&gt; (String -&gt; String)
+-&gt; (SMTConfig -&gt; [String])
+-&gt; SMTEngine
+-&gt; SolverCapabilities
+-&gt; SMTSolver
+</span><a href="Data.SBV.Core.Symbolic.html#SMTSolver"><span class="hs-identifier hs-type hs-type">SMTSolver</span></a></span><span> </span><span class="hs-special">{</span><span>
+</span><span id="line-26"></span><span>           </span><span class="annot"><span class="annottext">name :: Solver
+</span><a href="Data.SBV.Core.Symbolic.html#name"><span class="hs-identifier hs-var">name</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Solver
+</span><a href="Data.SBV.Core.Symbolic.html#ABC"><span class="hs-identifier hs-var">ABC</span></a></span><span>
+</span><span id="line-27"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">executable :: String
+</span><a href="Data.SBV.Core.Symbolic.html#executable"><span class="hs-identifier hs-var">executable</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;abc&quot;</span></span><span>
+</span><span id="line-28"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">preprocess :: String -&gt; String
+</span><a href="Data.SBV.Core.Symbolic.html#preprocess"><span class="hs-identifier hs-var">preprocess</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-29"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">options :: SMTConfig -&gt; [String]
+</span><a href="Data.SBV.Core.Symbolic.html#options"><span class="hs-identifier hs-var">options</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; SMTConfig -&gt; [String]
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;-S&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;%blast; &amp;sweep -C 5000; &amp;syn4; &amp;cec -s -m -C 2000&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-30"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">engine :: SMTEngine
+</span><a href="Data.SBV.Core.Symbolic.html#engine"><span class="hs-identifier hs-var">engine</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; SMTEngine
+</span><a href="Data.SBV.SMT.SMT.html#standardEngine"><span class="hs-identifier hs-var">standardEngine</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;SBV_ABC&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;SBV_ABC_OPTIONS&quot;</span></span><span>
+</span><span id="line-31"></span><span>         </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">capabilities :: SolverCapabilities
+</span><a href="Data.SBV.Core.Symbolic.html#capabilities"><span class="hs-identifier hs-var">capabilities</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SolverCapabilities :: Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Bool
+-&gt; Maybe [String]
+-&gt; SolverCapabilities
+</span><a href="Data.SBV.Core.Symbolic.html#SolverCapabilities"><span class="hs-identifier hs-type hs-type">SolverCapabilities</span></a></span><span> </span><span class="hs-special">{</span><span>
+</span><span id="line-32"></span><span>                                </span><span class="annot"><span class="annottext">supportsQuantifiers :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsQuantifiers"><span class="hs-identifier hs-var">supportsQuantifiers</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-33"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsUninterpretedSorts :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsUninterpretedSorts"><span class="hs-identifier hs-var">supportsUninterpretedSorts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-34"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsUnboundedInts :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsUnboundedInts"><span class="hs-identifier hs-var">supportsUnboundedInts</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-35"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsReals :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsReals"><span class="hs-identifier hs-var">supportsReals</span></a></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-36"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsApproxReals :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsApproxReals"><span class="hs-identifier hs-var">supportsApproxReals</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-37"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsIEEE754 :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsIEEE754"><span class="hs-identifier hs-var">supportsIEEE754</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-38"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsSets :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsSets"><span class="hs-identifier hs-var">supportsSets</span></a></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-39"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsOptimization :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsOptimization"><span class="hs-identifier hs-var">supportsOptimization</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-40"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsPseudoBooleans :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsPseudoBooleans"><span class="hs-identifier hs-var">supportsPseudoBooleans</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-41"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsCustomQueries :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsCustomQueries"><span class="hs-identifier hs-var">supportsCustomQueries</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-42"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsGlobalDecls :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsGlobalDecls"><span class="hs-identifier hs-var">supportsGlobalDecls</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-43"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsDataTypes :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsDataTypes"><span class="hs-identifier hs-var">supportsDataTypes</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-44"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">supportsFlattenedModels :: Maybe [String]
+</span><a href="Data.SBV.Core.Symbolic.html#supportsFlattenedModels"><span class="hs-identifier hs-var">supportsFlattenedModels</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [String]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-45"></span><span>                              </span><span class="hs-special">}</span><span>
+</span><span id="line-46"></span><span>         </span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span></pre></body></html>

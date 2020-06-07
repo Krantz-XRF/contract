@@ -1,0 +1,987 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- (The sbv library is hosted at &lt;http://github.com/LeventErkok/sbv&gt;.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Comments, bug reports, and patches are always welcome.)</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- SBV: SMT Based Verification</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- Express properties about Haskell programs and automatically prove</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- them using SMT solvers.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; x `shiftL` 2 .== 4 * (x :: SWord8)</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; x `shiftL` 2 .== 2 * (x :: SWord8)</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Falsifiable. Counter-example:</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   s0 = 32 :: Word8</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- The function 'prove' has the following type:</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--     'prove' :: 'Provable' a =&gt; a -&gt; 'IO' 'ThmResult'</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- The class 'Provable' comes with instances for n-ary predicates, for arbitrary n.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- The predicates are just regular Haskell functions over symbolic types listed below.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- Functions for checking satisfiability ('sat' and 'allSat') are also</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- provided.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- The sbv library introduces the following symbolic types:</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   * 'SBool': Symbolic Booleans (bits).</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--   * 'SWord8', 'SWord16', 'SWord32', 'SWord64': Symbolic Words (unsigned).</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   * 'SInt8',  'SInt16',  'SInt32',  'SInt64': Symbolic Ints (signed).</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--   * 'SWord' @n@: Generalized symbolic words of arbitrary bit-size.</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   * 'SInt' @n@: Generalized symbolic ints of arbitrary bit-size.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   * 'SInteger': Unbounded signed integers.</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--   * 'SReal': Algebraic-real numbers</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--   * 'SFloat': IEEE-754 single-precision floating point values</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--   * 'SDouble': IEEE-754 double-precision floating point values</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--   * 'SChar', 'SString', 'RegExp': Characters, strings and regular expressions</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   * 'SList': Symbolic lists (which can be nested)</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--   * 'STuple', 'STuple2', 'STuple3', .., 'STuple8' : Symbolic tuples (upto 8-tuples, can be nested)</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   * 'SEither': Symbolic sums</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--   * 'SMaybe': Symbolic optional values</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--   * 'SSet': Symbolic sets</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   * 'SArray', 'SFunArray': Flat arrays of symbolic values.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--   * Symbolic polynomials over GF(2^n), polynomial arithmetic, and CRCs.</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--   * Uninterpreted constants and functions over symbolic values, with user</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--     defined SMT-Lib axioms.</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   * Uninterpreted sorts, and proofs over such sorts, potentially with axioms.</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   * Model validation: SBV can validate models returned by solvers, which allows</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--     for protection against bugs in SMT solvers and SBV itself. (See the 'validateModel'</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--     parameter.)</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- The user can construct ordinary Haskell programs using these types, which behave</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- very similar to their concrete counterparts. In particular these types belong to the</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- standard classes 'Num', 'Bits', custom versions of 'Eq' ('EqSymbolic')</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- and 'Ord' ('OrdSymbolic'), along with several other custom classes for simplifying</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- programming with symbolic values. The framework takes full advantage of Haskell's type</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- inference to avoid many common mistakes.</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- Furthermore, predicates (i.e., functions that return 'SBool') built out of</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- these types can also be:</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--   * proven correct via an external SMT solver (the 'prove' function)</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--   * checked for satisfiability (the 'sat', 'allSat' functions)</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   * used in synthesis (the `sat` function with existentials)</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--   * quick-checked</span><span>
+</span><span id="line-97"></span><span class="hs-comment">--</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- If a predicate is not valid, 'prove' will return a counterexample: An</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- assignment to inputs such that the predicate fails. The 'sat' function will</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- return a satisfying assignment, if there is one. The 'allSat' function returns</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- all satisfying assignments.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- The sbv library uses third-party SMT solvers via the standard SMT-Lib interface:</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- &lt;http://smtlib.cs.uiowa.edu/&gt;</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- The SBV library is designed to work with any SMT-Lib compliant SMT-solver.</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- Currently, we support the following SMT-Solvers out-of-the box:</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--   * ABC from University of Berkeley: &lt;http://www.eecs.berkeley.edu/~alanmi/abc/&gt;</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--   * CVC4 from Stanford: &lt;http://cvc4.cs.stanford.edu/web/&gt;</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--   * Boolector from Johannes Kepler University: &lt;http://fmv.jku.at/boolector/&gt;</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--   * MathSAT from Fondazione Bruno Kessler and DISI-University of Trento: &lt;http://mathsat.fbk.eu/&gt;</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--   * Yices from SRI: &lt;http://yices.csl.sri.com/&gt;</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--   * Z3 from Microsoft: &lt;http://github.com/Z3Prover/z3/wiki&gt;</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- SBV requires recent versions of these solvers; please see the file</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- @SMTSolverVersions.md@ in the source distribution for specifics.</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- SBV also allows calling these solvers in parallel, either getting results from multiple solvers</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- or returning the fastest one. (See 'proveWithAll', 'proveWithAny', etc.)</span><span>
+</span><span id="line-126"></span><span class="hs-comment">--</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- Support for other compliant solvers can be added relatively easily, please</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- get in touch if there is a solver you'd like to see included.</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-134"></span><span>  </span><span class="annot"><span class="hs-comment">-- $progIntro</span></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Symbolic types</span></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Booleans</span></span><span>
+</span><span id="line-139"></span><span>    </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier">SBool</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="annot"><span class="hs-comment">-- *** Boolean values and functions</span></span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier">sTrue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier">sFalse</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier">sNot</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator">(.&amp;&amp;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator">(.||)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.%3C%2B%3E"><span class="hs-operator">(.&lt;+&gt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.~%26"><span class="hs-operator">(.~&amp;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.~%7C"><span class="hs-operator">(.~|)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator">(.=&gt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#.%3C%3D%3E"><span class="hs-operator">(.&lt;=&gt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#fromBool"><span class="hs-identifier">fromBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#oneIf"><span class="hs-identifier">oneIf</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="annot"><span class="hs-comment">-- *** Logical aggregations</span></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sAnd"><span class="hs-identifier">sAnd</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sOr"><span class="hs-identifier">sOr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier">sAny</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier">sAll</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Bit-vectors</span></span><span>
+</span><span id="line-145"></span><span>  </span><span class="annot"><span class="hs-comment">-- *** Unsigned bit-vectors</span></span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier">SWord8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier">SWord16</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord32"><span class="hs-identifier">SWord32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier">SWord64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier">SWord</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#WordN"><span class="hs-identifier">WordN</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span class="annot"><span class="hs-comment">-- *** Signed bit-vectors</span></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt8"><span class="hs-identifier">SInt8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt16"><span class="hs-identifier">SInt16</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier">SInt32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt64"><span class="hs-identifier">SInt64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SInt"><span class="hs-identifier">SInt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#IntN"><span class="hs-identifier">IntN</span></a></span><span>
+</span><span id="line-149"></span><span>  </span><span class="annot"><span class="hs-comment">-- *** Converting between fixed-size and arbitrary bitvectors</span></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#IsNonZero"><span class="hs-identifier">IsNonZero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#FromSized"><span class="hs-identifier">FromSized</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#ToSized"><span class="hs-identifier">ToSized</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#fromSized"><span class="hs-identifier">fromSized</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#toSized"><span class="hs-identifier">toSized</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Unbounded integers</span></span><span>
+</span><span id="line-152"></span><span>  </span><span class="annot"><span class="hs-comment">-- $unboundedLimitations</span></span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier">SInteger</span></a></span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Floating point numbers</span></span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><span class="hs-comment">-- $floatingPoints</span></span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SFloat"><span class="hs-identifier">SFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SDouble"><span class="hs-identifier">SDouble</span></a></span><span>
+</span><span id="line-157"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Algebraic reals</span></span><span>
+</span><span id="line-158"></span><span>  </span><span class="annot"><span class="hs-comment">-- $algReals</span></span><span>
+</span><span id="line-159"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SReal"><span class="hs-identifier">SReal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.AlgReals.html#AlgReal"><span class="hs-identifier">AlgReal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sRealToSInteger"><span class="hs-identifier">sRealToSInteger</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Characters, Strings and Regular Expressions</span></span><span>
+</span><span id="line-161"></span><span>  </span><span class="annot"><span class="hs-comment">-- $strings</span></span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier">SChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SString"><span class="hs-identifier">SString</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Symbolic lists</span></span><span>
+</span><span id="line-164"></span><span>  </span><span class="annot"><span class="hs-comment">-- $lists</span></span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SList"><span class="hs-identifier">SList</span></a></span><span>
+</span><span id="line-166"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Tuples</span></span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><span class="hs-comment">-- $tuples</span></span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#SymTuple"><span class="hs-identifier">SymTuple</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple"><span class="hs-identifier">STuple</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple2"><span class="hs-identifier">STuple2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple3"><span class="hs-identifier">STuple3</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple4"><span class="hs-identifier">STuple4</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple5"><span class="hs-identifier">STuple5</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple6"><span class="hs-identifier">STuple6</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple7"><span class="hs-identifier">STuple7</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#STuple8"><span class="hs-identifier">STuple8</span></a></span><span>
+</span><span id="line-169"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Sum types</span></span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SMaybe"><span class="hs-identifier">SMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier">SEither</span></a></span><span>
+</span><span id="line-171"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Sets</span></span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#RCSet"><span class="hs-identifier">RCSet</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SSet"><span class="hs-identifier">SSet</span></a></span><span>
+</span><span id="line-173"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Arrays of symbolic values</span></span><span>
+</span><span id="line-174"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymArray"><span class="hs-identifier">SymArray</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#readArray"><span class="hs-identifier">readArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#writeArray"><span class="hs-identifier">writeArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#mergeArrays"><span class="hs-identifier">mergeArrays</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#newArray_"><span class="hs-identifier">newArray_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#newArray"><span class="hs-identifier">newArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SArray"><span class="hs-identifier">SArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SFunArray"><span class="hs-identifier">SFunArray</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Creating symbolic values</span></span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Single value</span></span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><span class="hs-comment">-- $createSym</span></span><span>
+</span><span id="line-179"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sBool"><span class="hs-identifier">sBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sBool_"><span class="hs-identifier">sBool_</span></a></span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord8"><span class="hs-identifier">sWord8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord8_"><span class="hs-identifier">sWord8_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord16"><span class="hs-identifier">sWord16</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord16_"><span class="hs-identifier">sWord16_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord32"><span class="hs-identifier">sWord32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord32_"><span class="hs-identifier">sWord32_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord64"><span class="hs-identifier">sWord64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord64_"><span class="hs-identifier">sWord64_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier">sWord</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord_"><span class="hs-identifier">sWord_</span></a></span><span>
+</span><span id="line-181"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt8"><span class="hs-identifier">sInt8</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt8_"><span class="hs-identifier">sInt8_</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt16"><span class="hs-identifier">sInt16</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt16_"><span class="hs-identifier">sInt16_</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt32"><span class="hs-identifier">sInt32</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt32_"><span class="hs-identifier">sInt32_</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt64"><span class="hs-identifier">sInt64</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt64_"><span class="hs-identifier">sInt64_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt"><span class="hs-identifier">sInt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt_"><span class="hs-identifier">sInt_</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier">sInteger</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInteger_"><span class="hs-identifier">sInteger_</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sReal"><span class="hs-identifier">sReal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sReal_"><span class="hs-identifier">sReal_</span></a></span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sFloat"><span class="hs-identifier">sFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sFloat_"><span class="hs-identifier">sFloat_</span></a></span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sDouble"><span class="hs-identifier">sDouble</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sDouble_"><span class="hs-identifier">sDouble_</span></a></span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sChar"><span class="hs-identifier">sChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sChar_"><span class="hs-identifier">sChar_</span></a></span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sString"><span class="hs-identifier">sString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sString_"><span class="hs-identifier">sString_</span></a></span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sList"><span class="hs-identifier">sList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sList_"><span class="hs-identifier">sList_</span></a></span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sTuple"><span class="hs-identifier">sTuple</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sTuple_"><span class="hs-identifier">sTuple_</span></a></span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sEither"><span class="hs-identifier">sEither</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sEither_"><span class="hs-identifier">sEither_</span></a></span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sMaybe"><span class="hs-identifier">sMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sMaybe_"><span class="hs-identifier">sMaybe_</span></a></span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sSet"><span class="hs-identifier">sSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sSet_"><span class="hs-identifier">sSet_</span></a></span><span>
+</span><span id="line-193"></span><span>
+</span><span id="line-194"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** List of values</span></span><span>
+</span><span id="line-195"></span><span>  </span><span class="annot"><span class="hs-comment">-- $createSyms</span></span><span>
+</span><span id="line-196"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sBools"><span class="hs-identifier">sBools</span></a></span><span>
+</span><span id="line-197"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord8s"><span class="hs-identifier">sWord8s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord16s"><span class="hs-identifier">sWord16s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord32s"><span class="hs-identifier">sWord32s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWord64s"><span class="hs-identifier">sWord64s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sWords"><span class="hs-identifier">sWords</span></a></span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt8s"><span class="hs-identifier">sInt8s</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt16s"><span class="hs-identifier">sInt16s</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt32s"><span class="hs-identifier">sInt32s</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInt64s"><span class="hs-identifier">sInt64s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sInts"><span class="hs-identifier">sInts</span></a></span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sIntegers"><span class="hs-identifier">sIntegers</span></a></span><span>
+</span><span id="line-200"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sReals"><span class="hs-identifier">sReals</span></a></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sFloats"><span class="hs-identifier">sFloats</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sDoubles"><span class="hs-identifier">sDoubles</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sChars"><span class="hs-identifier">sChars</span></a></span><span>
+</span><span id="line-204"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sStrings"><span class="hs-identifier">sStrings</span></a></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sLists"><span class="hs-identifier">sLists</span></a></span><span>
+</span><span id="line-206"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sTuples"><span class="hs-identifier">sTuples</span></a></span><span>
+</span><span id="line-207"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sEithers"><span class="hs-identifier">sEithers</span></a></span><span>
+</span><span id="line-208"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sMaybes"><span class="hs-identifier">sMaybes</span></a></span><span>
+</span><span id="line-209"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sSets"><span class="hs-identifier">sSets</span></a></span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Symbolic Equality and Comparisons</span></span><span>
+</span><span id="line-212"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#EqSymbolic"><span class="hs-identifier">EqSymbolic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#OrdSymbolic"><span class="hs-identifier">OrdSymbolic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#Equality"><span class="hs-identifier">Equality</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-213"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Conditionals: Mergeable values</span></span><span>
+</span><span id="line-214"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#Mergeable"><span class="hs-identifier">Mergeable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier">ite</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#iteLazy"><span class="hs-identifier">iteLazy</span></a></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Symbolic integral numbers</span></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#SIntegral"><span class="hs-identifier">SIntegral</span></a></span><span>
+</span><span id="line-218"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Division and Modulus</span></span><span>
+</span><span id="line-219"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#SDivisible"><span class="hs-identifier">SDivisible</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-220"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Bit-vector operations</span></span><span>
+</span><span id="line-221"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Conversions</span></span><span>
+</span><span id="line-222"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier">sFromIntegral</span></a></span><span>
+</span><span id="line-223"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Shifts and rotates</span></span><span>
+</span><span id="line-224"></span><span>  </span><span class="annot"><span class="hs-comment">-- $shiftRotate</span></span><span>
+</span><span id="line-225"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sShiftLeft"><span class="hs-identifier">sShiftLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sShiftRight"><span class="hs-identifier">sShiftRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sRotateLeft"><span class="hs-identifier">sRotateLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sBarrelRotateLeft"><span class="hs-identifier">sBarrelRotateLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sRotateRight"><span class="hs-identifier">sRotateRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sBarrelRotateRight"><span class="hs-identifier">sBarrelRotateRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sSignedShiftArithRight"><span class="hs-identifier">sSignedShiftArithRight</span></a></span><span>
+</span><span id="line-226"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Finite bit-vector operations</span></span><span>
+</span><span id="line-227"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#SFiniteBits"><span class="hs-identifier">SFiniteBits</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-228"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Splitting, joining, and extending bit-vectors</span></span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#bvExtract"><span class="hs-identifier">bvExtract</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator">(#)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#zeroExtend"><span class="hs-identifier">zeroExtend</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#signExtend"><span class="hs-identifier">signExtend</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#bvDrop"><span class="hs-identifier">bvDrop</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#bvTake"><span class="hs-identifier">bvTake</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#ByteConverter"><span class="hs-identifier">ByteConverter</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-230"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Exponentiation</span></span><span>
+</span><span id="line-231"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#.%5E"><span class="hs-operator">(.^)</span></a></span><span>
+</span><span id="line-232"></span><span>  </span><span class="annot"><span class="hs-comment">-- * IEEE-floating point numbers</span></span><span>
+</span><span id="line-233"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#IEEEFloating"><span class="hs-identifier">IEEEFloating</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RoundingMode"><span class="hs-identifier">RoundingMode</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SRoundingMode"><span class="hs-identifier">SRoundingMode</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#nan"><span class="hs-identifier">nan</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#infinity"><span class="hs-identifier">infinity</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sNaN"><span class="hs-identifier">sNaN</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sInfinity"><span class="hs-identifier">sInfinity</span></a></span><span>
+</span><span id="line-234"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Rounding modes</span></span><span>
+</span><span id="line-235"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRoundNearestTiesToEven"><span class="hs-identifier">sRoundNearestTiesToEven</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRoundNearestTiesToAway"><span class="hs-identifier">sRoundNearestTiesToAway</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRoundTowardPositive"><span class="hs-identifier">sRoundTowardPositive</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRoundTowardNegative"><span class="hs-identifier">sRoundTowardNegative</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRoundTowardZero"><span class="hs-identifier">sRoundTowardZero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRNE"><span class="hs-identifier">sRNE</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRNA"><span class="hs-identifier">sRNA</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRTP"><span class="hs-identifier">sRTP</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRTN"><span class="hs-identifier">sRTN</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#sRTZ"><span class="hs-identifier">sRTZ</span></a></span><span>
+</span><span id="line-236"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Conversion to/from floats</span></span><span>
+</span><span id="line-237"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#IEEEFloatConvertible"><span class="hs-identifier">IEEEFloatConvertible</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-238"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Bit-pattern conversions</span></span><span>
+</span><span id="line-239"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#sFloatAsSWord32"><span class="hs-identifier">sFloatAsSWord32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#sWord32AsSFloat"><span class="hs-identifier">sWord32AsSFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#sDoubleAsSWord64"><span class="hs-identifier">sDoubleAsSWord64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#sWord64AsSDouble"><span class="hs-identifier">sWord64AsSDouble</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#blastSFloat"><span class="hs-identifier">blastSFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html#blastSDouble"><span class="hs-identifier">blastSDouble</span></a></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Enumerations</span></span><span>
+</span><span id="line-242"></span><span>  </span><span class="annot"><span class="hs-comment">-- $enumerations</span></span><span>
+</span><span id="line-243"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#mkSymbolicEnumeration"><span class="hs-identifier">mkSymbolicEnumeration</span></a></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Uninterpreted sorts, constants, and functions</span></span><span>
+</span><span id="line-246"></span><span>  </span><span class="annot"><span class="hs-comment">-- $uninterpreted</span></span><span>
+</span><span id="line-247"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#Uninterpreted"><span class="hs-identifier">Uninterpreted</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#addAxiom"><span class="hs-identifier">addAxiom</span></a></span><span>
+</span><span id="line-248"></span><span>
+</span><span id="line-249"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Properties, proofs, and satisfiability</span></span><span>
+</span><span id="line-250"></span><span>  </span><span class="annot"><span class="hs-comment">-- $proveIntro</span></span><span>
+</span><span id="line-251"></span><span>  </span><span class="annot"><span class="hs-comment">-- $noteOnNestedQuantifiers</span></span><span>
+</span><span id="line-252"></span><span>  </span><span class="annot"><span class="hs-comment">-- $multiIntro</span></span><span>
+</span><span id="line-253"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Predicate"><span class="hs-identifier">Predicate</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier">Goal</span></a></span><span>
+</span><span id="line-254"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Provable"><span class="hs-identifier">Provable</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forAll_"><span class="hs-identifier">forAll_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forAll"><span class="hs-identifier">forAll</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forSome_"><span class="hs-identifier">forSome_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forSome"><span class="hs-identifier">forSome</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier">prove</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#proveWith"><span class="hs-identifier">proveWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sat"><span class="hs-identifier">sat</span></a></span><span>
+</span><span id="line-255"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#satWith"><span class="hs-identifier">satWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier">allSat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#allSatWith"><span class="hs-identifier">allSatWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#optimize"><span class="hs-identifier">optimize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#optimizeWith"><span class="hs-identifier">optimizeWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isVacuous"><span class="hs-identifier">isVacuous</span></a></span><span>
+</span><span id="line-256"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isVacuousWith"><span class="hs-identifier">isVacuousWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isTheorem"><span class="hs-identifier">isTheorem</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isTheoremWith"><span class="hs-identifier">isTheoremWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isSatisfiable"><span class="hs-identifier">isSatisfiable</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#isSatisfiableWith"><span class="hs-identifier">isSatisfiableWith</span></a></span><span>
+</span><span id="line-257"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#proveWithAll"><span class="hs-identifier">proveWithAll</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#proveWithAny"><span class="hs-identifier">proveWithAny</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#satWithAll"><span class="hs-identifier">satWithAll</span></a></span><span>
+</span><span id="line-258"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#satWithAny"><span class="hs-identifier">satWithAny</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#generateSMTBenchmark"><span class="hs-identifier">generateSMTBenchmark</span></a></span><span>
+</span><span id="line-259"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#solve"><span class="hs-identifier">solve</span></a></span><span>
+</span><span id="line-260"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Constraints</span></span><span>
+</span><span id="line-261"></span><span>  </span><span class="hs-comment">-- $constrainIntro</span><span>
+</span><span id="line-262"></span><span>  </span><span class="hs-comment">-- ** General constraints</span><span>
+</span><span id="line-263"></span><span>  </span><span class="annot"><span class="hs-comment">-- $generalConstraints</span></span><span>
+</span><span id="line-264"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier">constrain</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#softConstrain"><span class="hs-identifier">softConstrain</span></a></span><span>
+</span><span id="line-265"></span><span>
+</span><span id="line-266"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Constraint Vacuity</span></span><span>
+</span><span id="line-267"></span><span>  </span><span class="annot"><span class="hs-comment">-- $constraintVacuity</span></span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Named constraints and attributes</span></span><span>
+</span><span id="line-270"></span><span>  </span><span class="annot"><span class="hs-comment">-- $namedConstraints</span></span><span>
+</span><span id="line-271"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#namedConstraint"><span class="hs-identifier">namedConstraint</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#constrainWithAttribute"><span class="hs-identifier">constrainWithAttribute</span></a></span><span>
+</span><span id="line-272"></span><span>
+</span><span id="line-273"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Unsat cores</span></span><span>
+</span><span id="line-274"></span><span>  </span><span class="annot"><span class="hs-comment">-- $unsatCores</span></span><span>
+</span><span id="line-275"></span><span>
+</span><span id="line-276"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Cardinality constraints</span></span><span>
+</span><span id="line-277"></span><span>  </span><span class="annot"><span class="hs-comment">-- $cardIntro</span></span><span>
+</span><span id="line-278"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbAtMost"><span class="hs-identifier">pbAtMost</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbAtLeast"><span class="hs-identifier">pbAtLeast</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbExactly"><span class="hs-identifier">pbExactly</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbLe"><span class="hs-identifier">pbLe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbGe"><span class="hs-identifier">pbGe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbEq"><span class="hs-identifier">pbEq</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbMutexed"><span class="hs-identifier">pbMutexed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#pbStronglyMutexed"><span class="hs-identifier">pbStronglyMutexed</span></a></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Checking safety</span></span><span>
+</span><span id="line-281"></span><span>  </span><span class="annot"><span class="hs-comment">-- $safeIntro</span></span><span>
+</span><span id="line-282"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sAssert"><span class="hs-identifier">sAssert</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isSafe"><span class="hs-identifier">isSafe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#SExecutable"><span class="hs-identifier">SExecutable</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sName_"><span class="hs-identifier">sName_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#sName"><span class="hs-identifier">sName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#safe"><span class="hs-keyword">safe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#safeWith"><span class="hs-identifier">safeWith</span></a></span><span>
+</span><span id="line-283"></span><span>
+</span><span id="line-284"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Quick-checking</span></span><span>
+</span><span id="line-285"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sbvQuickCheck"><span class="hs-identifier">sbvQuickCheck</span></a></span><span>
+</span><span id="line-286"></span><span>
+</span><span id="line-287"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Optimization</span></span><span>
+</span><span id="line-288"></span><span>  </span><span class="annot"><span class="hs-comment">-- $optiIntro</span></span><span>
+</span><span id="line-289"></span><span>
+</span><span id="line-290"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Multiple optimization goals</span></span><span>
+</span><span id="line-291"></span><span>  </span><span class="annot"><span class="hs-comment">-- $multiOpt</span></span><span>
+</span><span id="line-292"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#OptimizeStyle"><span class="hs-identifier">OptimizeStyle</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-293"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Objectives and Metrics</span></span><span>
+</span><span id="line-294"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Objective"><span class="hs-identifier">Objective</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-295"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#Metric"><span class="hs-identifier">Metric</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#minimize"><span class="hs-identifier">minimize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#maximize"><span class="hs-identifier">maximize</span></a></span><span>
+</span><span id="line-296"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Soft assertions</span></span><span>
+</span><span id="line-297"></span><span>  </span><span class="annot"><span class="hs-comment">-- $softAssertions</span></span><span>
+</span><span id="line-298"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#assertWithPenalty"><span class="hs-identifier">assertWithPenalty</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Penalty"><span class="hs-identifier">Penalty</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-299"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Field extensions</span></span><span>
+</span><span id="line-300"></span><span>  </span><span class="annot"><span class="hs-comment">-- | If an optimization results in an infinity/epsilon value, the returned `CV` value will be in the corresponding extension field.</span></span><span>
+</span><span id="line-301"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#ExtCV"><span class="hs-identifier">ExtCV</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#GeneralizedCV"><span class="hs-identifier">GeneralizedCV</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-302"></span><span>
+</span><span id="line-303"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Model extraction</span></span><span>
+</span><span id="line-304"></span><span>  </span><span class="annot"><span class="hs-comment">-- $modelExtraction</span></span><span>
+</span><span id="line-305"></span><span>
+</span><span id="line-306"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Inspecting proof results</span></span><span>
+</span><span id="line-307"></span><span>  </span><span class="annot"><span class="hs-comment">-- $resultTypes</span></span><span>
+</span><span id="line-308"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier">ThmResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SatResult"><span class="hs-identifier">SatResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#AllSatResult"><span class="hs-identifier">AllSatResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SafeResult"><span class="hs-identifier">SafeResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#OptimizeResult"><span class="hs-identifier">OptimizeResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier">SMTResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTReasonUnknown"><span class="hs-identifier">SMTReasonUnknown</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-309"></span><span>
+</span><span id="line-310"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Observing expressions</span></span><span>
+</span><span id="line-311"></span><span>  </span><span class="annot"><span class="hs-comment">-- $observeInternal</span></span><span>
+</span><span id="line-312"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#observe"><span class="hs-identifier">observe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#observeIf"><span class="hs-identifier">observeIf</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sObserve"><span class="hs-identifier">sObserve</span></a></span><span>
+</span><span id="line-313"></span><span>
+</span><span id="line-314"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Programmable model extraction</span></span><span>
+</span><span id="line-315"></span><span>  </span><span class="annot"><span class="hs-comment">-- $programmableExtraction</span></span><span>
+</span><span id="line-316"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SatModel"><span class="hs-identifier">SatModel</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#Modelable"><span class="hs-identifier">Modelable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#displayModels"><span class="hs-identifier">displayModels</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#extractModels"><span class="hs-identifier">extractModels</span></a></span><span>
+</span><span id="line-317"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#getModelDictionaries"><span class="hs-identifier">getModelDictionaries</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#getModelValues"><span class="hs-identifier">getModelValues</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#getModelUninterpretedValues"><span class="hs-identifier">getModelUninterpretedValues</span></a></span><span>
+</span><span id="line-318"></span><span>
+</span><span id="line-319"></span><span>  </span><span class="annot"><span class="hs-comment">-- * SMT Interface</span></span><span>
+</span><span id="line-320"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier">SMTConfig</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Utils.TDiff.html#Timing"><span class="hs-identifier">Timing</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLibVersion"><span class="hs-identifier">SMTLibVersion</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Solver"><span class="hs-identifier">Solver</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTSolver"><span class="hs-identifier">SMTSolver</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-321"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Controlling verbosity</span></span><span>
+</span><span id="line-322"></span><span>  </span><span class="annot"><span class="hs-comment">-- $verbosity</span></span><span>
+</span><span id="line-323"></span><span>
+</span><span id="line-324"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Solvers</span></span><span>
+</span><span id="line-325"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#boolector"><span class="hs-identifier">boolector</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#cvc4"><span class="hs-identifier">cvc4</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#yices"><span class="hs-identifier">yices</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier">z3</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#mathSAT"><span class="hs-identifier">mathSAT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#abc"><span class="hs-identifier">abc</span></a></span><span>
+</span><span id="line-326"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** Configurations</span></span><span>
+</span><span id="line-327"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier">defaultSolverConfig</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#defaultSMTCfg"><span class="hs-identifier">defaultSMTCfg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#sbvCheckSolverInstallation"><span class="hs-identifier">sbvCheckSolverInstallation</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#sbvAvailableSolvers"><span class="hs-identifier">sbvAvailableSolvers</span></a></span><span>
+</span><span id="line-328"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#setLogic"><span class="hs-identifier">setLogic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#Logic"><span class="hs-identifier">Logic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#setOption"><span class="hs-identifier">setOption</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#setInfo"><span class="hs-identifier">setInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#setTimeOut"><span class="hs-identifier">setTimeOut</span></a></span><span>
+</span><span id="line-329"></span><span>  </span><span class="annot"><span class="hs-comment">-- ** SBV exceptions</span></span><span>
+</span><span id="line-330"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SBVException"><span class="hs-identifier">SBVException</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-331"></span><span>
+</span><span id="line-332"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Abstract SBV type</span></span><span>
+</span><span id="line-333"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier">SBV</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier">HasKind</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#Kind"><span class="hs-identifier">Kind</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-334"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier">SymVal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword">forall</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#forall_"><span class="hs-identifier">forall_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#mkForallVars"><span class="hs-identifier">mkForallVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier">exists</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#exists_"><span class="hs-identifier">exists_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#mkExistVars"><span class="hs-identifier">mkExistVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier">free</span></a></span><span>
+</span><span id="line-335"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#free_"><span class="hs-identifier">free_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#mkFreeVars"><span class="hs-identifier">mkFreeVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#symbolic"><span class="hs-identifier">symbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#symbolics"><span class="hs-identifier">symbolics</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier">literal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier">unliteral</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#fromCV"><span class="hs-identifier">fromCV</span></a></span><span>
+</span><span id="line-336"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#isConcrete"><span class="hs-identifier">isConcrete</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#isSymbolic"><span class="hs-identifier">isSymbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#isConcretely"><span class="hs-identifier">isConcretely</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#mkSymVal"><span class="hs-identifier">mkSymVal</span></a></span><span>
+</span><span id="line-337"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#MonadSymbolic"><span class="hs-identifier">MonadSymbolic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier">Symbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SymbolicT"><span class="hs-identifier">SymbolicT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#label"><span class="hs-keyword">label</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#output"><span class="hs-identifier">output</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#runSMT"><span class="hs-identifier">runSMT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html#runSMTWith"><span class="hs-identifier">runSMTWith</span></a></span><span>
+</span><span id="line-338"></span><span>
+</span><span id="line-339"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Module exports</span></span><span>
+</span><span id="line-340"></span><span>  </span><span class="annot"><span class="hs-comment">-- $moduleExportIntro</span></span><span>
+</span><span id="line-341"></span><span>
+</span><span id="line-342"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span>
+</span><span id="line-343"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>
+</span><span id="line-344"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Int</span></span><span>
+</span><span id="line-345"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">Data.Ratio</span></span><span>
+</span><span id="line-346"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-347"></span><span>
+</span><span id="line-348"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.AlgReals.html"><span class="hs-identifier">Data.SBV.Core.AlgReals</span></a></span><span>
+</span><span id="line-349"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>       </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#addAxiom"><span class="hs-identifier">addAxiom</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#forall"><span class="hs-keyword">forall</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#forall_"><span class="hs-identifier">forall_</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-350"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Data.html#mkForallVars"><span class="hs-identifier">mkForallVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#exists"><span class="hs-identifier">exists</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#exists_"><span class="hs-identifier">exists_</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-351"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Data.html#mkExistVars"><span class="hs-identifier">mkExistVars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#free"><span class="hs-identifier">free</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#free_"><span class="hs-identifier">free_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#mkFreeVars"><span class="hs-identifier">mkFreeVars</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-352"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Data.html#output"><span class="hs-identifier">output</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#symbolic"><span class="hs-identifier">symbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#symbolics"><span class="hs-identifier">symbolics</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#mkSymVal"><span class="hs-identifier">mkSymVal</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-353"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Data.html#newArray"><span class="hs-identifier">newArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#newArray_"><span class="hs-identifier">newArray_</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-354"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html"><span class="hs-identifier">Data.SBV.Core.Model</span></a></span><span>      </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Model.html#assertWithPenalty"><span class="hs-identifier">assertWithPenalty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#minimize"><span class="hs-identifier">minimize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#maximize"><span class="hs-identifier">maximize</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-355"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Data.html#forall"><span class="hs-keyword">forall</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#forall_"><span class="hs-identifier">forall_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#exists"><span class="hs-identifier">exists</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#exists_"><span class="hs-identifier">exists_</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-356"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#solve"><span class="hs-identifier">solve</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sBool"><span class="hs-identifier">sBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sBool_"><span class="hs-identifier">sBool_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sBools"><span class="hs-identifier">sBools</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sChar"><span class="hs-identifier">sChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sChar_"><span class="hs-identifier">sChar_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sChars"><span class="hs-identifier">sChars</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-357"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sDouble"><span class="hs-identifier">sDouble</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sDouble_"><span class="hs-identifier">sDouble_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sDoubles"><span class="hs-identifier">sDoubles</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sFloat"><span class="hs-identifier">sFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sFloat_"><span class="hs-identifier">sFloat_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sFloats"><span class="hs-identifier">sFloats</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-358"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt8"><span class="hs-identifier">sInt8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt8_"><span class="hs-identifier">sInt8_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt8s"><span class="hs-identifier">sInt8s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt16"><span class="hs-identifier">sInt16</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt16_"><span class="hs-identifier">sInt16_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt16s"><span class="hs-identifier">sInt16s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt32"><span class="hs-identifier">sInt32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt32_"><span class="hs-identifier">sInt32_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt32s"><span class="hs-identifier">sInt32s</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-359"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt64"><span class="hs-identifier">sInt64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt64_"><span class="hs-identifier">sInt64_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInt64s"><span class="hs-identifier">sInt64s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInteger"><span class="hs-identifier">sInteger</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sInteger_"><span class="hs-identifier">sInteger_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sIntegers"><span class="hs-identifier">sIntegers</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-360"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sList"><span class="hs-identifier">sList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sList_"><span class="hs-identifier">sList_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sLists"><span class="hs-identifier">sLists</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sTuple"><span class="hs-identifier">sTuple</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sTuple_"><span class="hs-identifier">sTuple_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sTuples"><span class="hs-identifier">sTuples</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-361"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sReal"><span class="hs-identifier">sReal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sReal_"><span class="hs-identifier">sReal_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sReals"><span class="hs-identifier">sReals</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sString"><span class="hs-identifier">sString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sString_"><span class="hs-identifier">sString_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sStrings"><span class="hs-identifier">sStrings</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-362"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord8"><span class="hs-identifier">sWord8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord8_"><span class="hs-identifier">sWord8_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord8s"><span class="hs-identifier">sWord8s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord16"><span class="hs-identifier">sWord16</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord16_"><span class="hs-identifier">sWord16_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord16s"><span class="hs-identifier">sWord16s</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-363"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord32"><span class="hs-identifier">sWord32</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord32_"><span class="hs-identifier">sWord32_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord32s"><span class="hs-identifier">sWord32s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord64"><span class="hs-identifier">sWord64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord64_"><span class="hs-identifier">sWord64_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sWord64s"><span class="hs-identifier">sWord64s</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-364"></span><span>                                        </span><span class="annot"><a href="Data.SBV.Core.Model.html#sMaybe"><span class="hs-identifier">sMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sMaybe_"><span class="hs-identifier">sMaybe_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sMaybes"><span class="hs-identifier">sMaybes</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sEither"><span class="hs-identifier">sEither</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sEither_"><span class="hs-identifier">sEither_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sEithers"><span class="hs-identifier">sEithers</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sSet"><span class="hs-identifier">sSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sSet_"><span class="hs-identifier">sSet_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html#sSets"><span class="hs-identifier">sSets</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-365"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html"><span class="hs-identifier">Data.SBV.Core.Sized</span></a></span><span>      </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Sized.html#sWord"><span class="hs-identifier">sWord</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#sWord_"><span class="hs-identifier">sWord_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#sWords"><span class="hs-identifier">sWords</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#sInt"><span class="hs-identifier">sInt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#sInt_"><span class="hs-identifier">sInt_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#sInts"><span class="hs-identifier">sInts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-366"></span><span>
+</span><span id="line-367"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Floating.html"><span class="hs-identifier">Data.SBV.Core.Floating</span></a></span><span>
+</span><span id="line-368"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html"><span class="hs-identifier">Data.SBV.Core.Symbolic</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#MonadSymbolic"><span class="hs-identifier">MonadSymbolic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SymbolicT"><span class="hs-identifier">SymbolicT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-369"></span><span>
+</span><span id="line-370"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html"><span class="hs-identifier">Data.SBV.Provers.Prover</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Provers.Prover.html#forAll_"><span class="hs-identifier">forAll_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#forAll"><span class="hs-identifier">forAll</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#forSome_"><span class="hs-identifier">forSome_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#forSome"><span class="hs-identifier">forSome</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-371"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#prove"><span class="hs-identifier">prove</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#proveWith"><span class="hs-identifier">proveWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#sat"><span class="hs-identifier">sat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#satWith"><span class="hs-identifier">satWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#allSat"><span class="hs-identifier">allSat</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-372"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#allSatWith"><span class="hs-identifier">allSatWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#optimize"><span class="hs-identifier">optimize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#optimizeWith"><span class="hs-identifier">optimizeWith</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-373"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isVacuous"><span class="hs-identifier">isVacuous</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isVacuousWith"><span class="hs-identifier">isVacuousWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isTheorem"><span class="hs-identifier">isTheorem</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-374"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isTheoremWith"><span class="hs-identifier">isTheoremWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isSatisfiable"><span class="hs-identifier">isSatisfiable</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-375"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#isSatisfiableWith"><span class="hs-identifier">isSatisfiableWith</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#runSMT"><span class="hs-identifier">runSMT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#runSMTWith"><span class="hs-identifier">runSMTWith</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-376"></span><span>                                       </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#sName_"><span class="hs-identifier">sName_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#sName"><span class="hs-identifier">sName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#safe"><span class="hs-keyword">safe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#safeWith"><span class="hs-identifier">safeWith</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-377"></span><span>
+</span><span id="line-378"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Client.html"><span class="hs-identifier">Data.SBV.Client</span></a></span><span>
+</span><span id="line-379"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Client.BaseIO.html"><span class="hs-identifier">Data.SBV.Client.BaseIO</span></a></span><span>
+</span><span id="line-380"></span><span>
+</span><span id="line-381"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Utils.TDiff.html"><span class="hs-identifier">Data.SBV.Utils.TDiff</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Utils.TDiff.html#Timing"><span class="hs-identifier">Timing</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-382"></span><span>
+</span><span id="line-383"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span>
+</span><span id="line-384"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Int</span></span><span>
+</span><span id="line-385"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Ratio</span></span><span>
+</span><span id="line-386"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>
+</span><span id="line-387"></span><span>
+</span><span id="line-388"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html"><span class="hs-identifier">Data.SBV.SMT.Utils</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SBVException"><span class="hs-identifier">SBVException</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-389"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html"><span class="hs-identifier">Data.SBV.Control.Types</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTReasonUnknown"><span class="hs-identifier">SMTReasonUnknown</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#Logic"><span class="hs-identifier">Logic</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-390"></span><span>
+</span><span id="line-391"></span><span class="hs-comment">-- Haddock section documentation</span><span>
+</span><span id="line-392"></span><span class="hs-comment">{- $progIntro
+The SBV library is really two things:
+
+  * A framework for writing symbolic programs in Haskell, i.e., programs operating on
+    symbolic values along with the usual concrete counterparts.
+
+  * A framework for proving properties of such programs using SMT solvers.
+
+The programming goal of SBV is to provide a /seamless/ experience, i.e., let people program
+in the usual Haskell style without distractions of symbolic coding. While Haskell helps
+in some aspects (the 'Num' and 'Bits' classes simplify coding), it makes life harder
+in others. For instance, @if-then-else@ only takes 'Bool' as a test in Haskell, and
+comparisons ('&gt;' etc.) only return 'Bool's. Clearly we would like these values to be
+symbolic (i.e., 'SBool'), thus stopping us from using some native Haskell constructs.
+When symbolic versions of operators are needed, they are typically obtained by prepending a dot,
+for instance '==' becomes '.=='. Care has been taken to make the transition painless. In
+particular, any Haskell program you build out of symbolic components is fully concretely
+executable within Haskell, without the need for any custom interpreters. (They are truly
+Haskell programs, not AST's built out of pieces of syntax.) This provides for an integrated
+feel of the system, one of the original design goals for SBV.
+
+Incremental query mode: SBV provides a wide variety of ways to utilize SMT-solvers, without requiring the user to
+deal with the solvers themselves. While this mode is convenient, advanced users might need
+access to the underlying solver at a lower level. For such use cases, SBV allows
+users to have an interactive session: The user can issue commands to the solver, inspect
+the values/results, and formulate new constraints. This advanced feature is available through
+the &quot;Data.SBV.Control&quot; module, where most SMTLib features are made available via a typed-API.
+-}</span><span>
+</span><span id="line-420"></span><span>
+</span><span id="line-421"></span><span class="hs-comment">{- $proveIntro
+The SBV library provides a &quot;push-button&quot; verification system via automated SMT solving. The
+design goal is to let SMT solvers be used without any knowledge of how SMT solvers work
+or how different logics operate. The details are hidden behind the SBV framework, providing
+Haskell programmers with a clean API that is unencumbered by the details of individual solvers.
+To that end, we use the SMT-Lib standard (&lt;http://smtlib.cs.uiowa.edu/&gt;)
+to communicate with arbitrary SMT solvers.
+-}</span><span>
+</span><span id="line-429"></span><span>
+</span><span id="line-430"></span><span class="hs-comment">{- $multiIntro
+=== Using multiple solvers
+On a multi-core machine, it might be desirable to try a given property using multiple SMT solvers,
+using parallel threads. Even with machines with single-cores, threading can be helpful if you
+want to try out multiple-solvers but do not know which one would work the best
+for the problem at hand ahead of time.
+
+SBV allows proving/satisfiability-checking with multiple
+backends at the same time. Each function comes in two variants, one that
+returns the results from all solvers, the other that returns the fastest one.
+
+The @All@ variants, (i.e., 'proveWithAll', 'satWithAll') run all solvers and
+return all the results. SBV internally makes sure that the result is lazily generated; so,
+the order of solvers given does not matter. In other words, the order of results will follow
+the order of the solvers as they finish, not as given by the user. These variants are useful when you
+want to make sure multiple-solvers agree (or disagree!) on a given problem.
+
+The @Any@ variants, (i.e., 'proveWithAny', 'satWithAny') will run all the solvers
+in parallel, and return the results of the first one finishing. The other threads will then be killed. These variants
+are useful when you do not care if the solvers produce the same result, but rather want to get the
+solution as quickly as possible, taking advantage of modern many-core machines.
+
+Note that the function 'sbvAvailableSolvers' will return all the installed solvers, which can be
+used as the first argument to all these functions, if you simply want to try all available solvers on a machine.
+-}</span><span>
+</span><span id="line-455"></span><span>
+</span><span id="line-456"></span><span class="hs-comment">{- $safeIntro
+
+The 'sAssert' function allows users to introduce invariants to make sure
+certain properties hold at all times. This is another mechanism to provide further documentation/contract info
+into SBV code. The functions 'safe' and 'safeWith' can be used to statically discharge these proof assumptions.
+If a violation is found, SBV will print a model showing which inputs lead to the invariant being violated.
+
+Here's a simple example. Let's assume we have a function that does subtraction, and requires its
+first argument to be larger than the second:
+
+&gt;&gt;&gt; let sub x y = sAssert Nothing &quot;sub: x &gt;= y must hold!&quot; (x .&gt;= y) (x - y)
+
+Clearly, this function is not safe, as there's nothing that stops us from passing it a larger second argument.
+We can use 'safe' to statically see if such a violation is possible before we use this function elsewhere.
+
+&gt;&gt;&gt; safe (sub :: SInt8 -&gt; SInt8 -&gt; SInt8)
+[sub: x &gt;= y must hold!: Violated. Model:
+  s0 = 30 :: Int8
+  s1 = 32 :: Int8]
+
+What happens if we make sure to arrange for this invariant? Consider this version:
+
+&gt;&gt;&gt; let safeSub x y = ite (x .&gt;= y) (sub x y) 0
+
+Clearly, @safeSub@ must be safe. And indeed, SBV can prove that:
+
+&gt;&gt;&gt; safe (safeSub :: SInt8 -&gt; SInt8 -&gt; SInt8)
+[sub: x &gt;= y must hold!: No violations detected]
+
+Note how we used @sub@ and @safeSub@ polymorphically. We only need to monomorphise our types when a proof
+attempt is done, as we did in the 'safe' calls.
+
+If required, the user can pass a @CallStack@ through the first argument to 'sAssert', which will be used
+by SBV to print a diagnostic info to pinpoint the failure.
+
+Also see &quot;Documentation.SBV.Examples.Misc.NoDiv0&quot; for the classic div-by-zero example.
+-}</span><span>
+</span><span id="line-493"></span><span>
+</span><span id="line-494"></span><span>
+</span><span id="line-495"></span><span class="hs-comment">{- $optiIntro
+  SBV can optimize metric functions, i.e., those that generate both bounded @SIntN@, @SWordN@, and unbounded 'SInteger'
+  types, along with those produce 'SReal's. That is, it can find models satisfying all the constraints while minimizing
+  or maximizing user given metrics. Currently, optimization requires the use of the z3 SMT solver as the backend,
+  and a good review of these features is given
+  in this paper: &lt;http://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/nbjorner-scss2014.pdf&gt;.
+
+  Goals can be lexicographically (default), independently, or pareto-front optimized. The relevant functions are:
+
+      * 'minimize': Minimize a given arithmetic goal
+      * 'maximize': Minimize a given arithmetic goal
+
+  Goals can be optimized at a regular or an extended value: An extended value is either positive or negative infinity
+  (for unbounded integers and reals) or positive or negative epsilon differential from a real value (for reals).
+
+  For instance, a call of the form
+
+       @ 'minimize' &quot;name-of-goal&quot; $ x + 2*y @
+
+  minimizes the arithmetic goal @x+2*y@, where @x@ and @y@ can be signed\/unsigned bit-vectors, reals,
+  or integers.
+
+== A simple example
+
+  Here's an optimization example in action:
+
+  &gt;&gt;&gt; optimize Lexicographic $ \x y -&gt; minimize &quot;goal&quot; (x+2*(y::SInteger))
+  Optimal in an extension field:
+    goal = -oo :: Integer
+
+  We will describe the role of the constructor 'Lexicographic' shortly.
+
+  Of course, this becomes more useful when the result is not in an extension field:
+
+&gt;&gt;&gt; :{
+    optimize Lexicographic $ do
+                  x &lt;- sInteger &quot;x&quot;
+                  y &lt;- sInteger &quot;y&quot;
+                  constrain $ x .&gt; 0
+                  constrain $ x .&lt; 6
+                  constrain $ y .&gt; 2
+                  constrain $ y .&lt; 12
+                  minimize &quot;goal&quot; $ x + 2 * y
+    :}
+Optimal model:
+  x    = 1 :: Integer
+  y    = 3 :: Integer
+  goal = 7 :: Integer
+
+  As usual, the programmatic API can be used to extract the values of objectives and model-values ('getModelObjectives',
+  'getModelAssignment', etc.) to access these values and program with them further.
+
+  The following examples illustrate the use of basic optimization routines:
+
+     * &quot;Documentation.SBV.Examples.Optimization.LinearOpt&quot;: Simple linear-optimization example.
+     * &quot;Documentation.SBV.Examples.Optimization.Production&quot;: Scheduling machines in a shop
+     * &quot;Documentation.SBV.Examples.Optimization.VM&quot;: Scheduling virtual-machines in a data-center
+-}</span><span>
+</span><span id="line-553"></span><span>
+</span><span id="line-554"></span><span class="hs-comment">{- $multiOpt
+
+  Multiple goals can be specified, using the same syntax. In this case, the user gets to pick what style of
+  optimization to perform, by passing the relevant 'OptimizeStyle' as the first argument to 'optimize'.
+
+    * ['Lexicographic']. The solver will optimize the goals in the given order, optimizing
+      the latter ones under the model that optimizes the previous ones.
+
+    * ['Independent']. The solver will optimize the goals independently of each other. In this case the user will
+      be presented a model for each goal given.
+
+    * ['Pareto']. Finally, the user can query for pareto-fronts. A pareto front is an model such that no goal can be made
+      &quot;better&quot; without making some other goal &quot;worse.&quot;
+
+      Pareto fronts only make sense when the objectives are bounded. If there are unbounded objective values, then the
+      backend solver can loop infinitely. (This is what z3 does currently.) If you are not sure the objectives are
+      bounded, you should first use 'Independent' mode to ensure the objectives are bounded, and then switch to
+      pareto-mode to extract them further.
+
+      The optional number argument to 'Pareto' specifies the maximum number of pareto-fronts the user is asking
+      to get. If 'Nothing', SBV will query for all pareto-fronts. Note that pareto-fronts can be really large,
+      so if 'Nothing' is used, there is a potential for waiting indefinitely for the SBV-solver interaction to finish. (If
+      you suspect this might be the case, run in 'verbose' mode to see the interaction and put a limiting factor
+      appropriately.)
+-}</span><span>
+</span><span id="line-579"></span><span>
+</span><span id="line-580"></span><span class="hs-comment">{- $softAssertions
+
+  Related to optimization, SBV implements soft-asserts via 'assertWithPenalty' calls. A soft assertion
+  is a hint to the SMT solver that we would like a particular condition to hold if **possible*.
+  That is, if there is a solution satisfying it, then we would like it to hold, but it can be violated
+  if there is no way to satisfy it. Each soft-assertion can be associated with a numeric penalty for
+  not satisfying it, hence turning it into an optimization problem.
+
+  Note that 'assertWithPenalty' works well with optimization goals ('minimize'/'maximize' etc.),
+  and are most useful when we are optimizing a metric and thus some of the constraints
+  can be relaxed with a penalty to obtain a good solution. Again
+  see &lt;http://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/nbjorner-scss2014.pdf&gt;
+  for a good overview of the features in Z3 that SBV is providing the bridge for.
+
+  A soft assertion can be specified in one of the following three main ways:
+
+       @
+         'assertWithPenalty' &quot;bounded_x&quot; (x .&lt; 5) 'DefaultPenalty'
+         'assertWithPenalty' &quot;bounded_x&quot; (x .&lt; 5) ('Penalty' 2.3 Nothing)
+         'assertWithPenalty' &quot;bounded_x&quot; (x .&lt; 5) ('Penalty' 4.7 (Just &quot;group-1&quot;)) @
+
+  In the first form, we are saying that the constraint @x .&lt; 5@ must be satisfied, if possible,
+  but if this constraint can not be satisfied to find a model, it can be violated with the default penalty of 1.
+
+  In the second case, we are associating a penalty value of @2.3@.
+
+  Finally in the third case, we are also associating this constraint with a group. The group
+  name is only needed if we have classes of soft-constraints that should be considered together.
+
+-}</span><span>
+</span><span id="line-610"></span><span>
+</span><span id="line-611"></span><span class="hs-comment">{- $modelExtraction
+The default 'Show' instances for prover calls provide all the counter-example information in a
+human-readable form and should be sufficient for most casual uses of sbv. However, tools built
+on top of sbv will inevitably need to look into the constructed models more deeply, programmatically
+extracting their results and performing actions based on them. The API provided in this section
+aims at simplifying this task.
+-}</span><span>
+</span><span id="line-618"></span><span>
+</span><span id="line-619"></span><span class="hs-comment">{- $resultTypes
+'ThmResult', 'SatResult', and 'AllSatResult' are simple newtype wrappers over 'SMTResult'. Their
+main purpose is so that we can provide custom 'Show' instances to print results accordingly.
+-}</span><span>
+</span><span id="line-623"></span><span>
+</span><span id="line-624"></span><span class="hs-comment">{- $programmableExtraction
+While default 'Show' instances are sufficient for most use cases, it is sometimes desirable (especially
+for library construction) that the SMT-models are reinterpreted in terms of domain types. Programmable
+extraction allows getting arbitrarily typed models out of SMT models.
+-}</span><span>
+</span><span id="line-629"></span><span>
+</span><span id="line-630"></span><span class="hs-comment">{- $moduleExportIntro
+The SBV library exports the following modules wholesale, as user programs will have to import these
+modules to make any sensible use of the SBV functionality.
+-}</span><span>
+</span><span id="line-634"></span><span>
+</span><span id="line-635"></span><span class="hs-comment">{- $createSym
+These functions simplify declaring symbolic variables of various types. Strictly speaking, they are just synonyms
+for 'free' (specialized at the given type), but they might be easier to use. We provide both the named and anonymous
+versions, latter with the underscore suffix.
+-}</span><span>
+</span><span id="line-640"></span><span>
+</span><span id="line-641"></span><span class="hs-comment">{- $createSyms
+These functions simplify declaring a sequence symbolic variables of various types. Strictly speaking, they are just synonyms
+for 'mapM' 'free' (specialized at the given type), but they might be easier to use.
+-}</span><span>
+</span><span id="line-645"></span><span>
+</span><span id="line-646"></span><span class="hs-comment">{- $unboundedLimitations
+The SBV library supports unbounded signed integers with the type 'SInteger', which are not subject to
+overflow/underflow as it is the case with the bounded types, such as 'SWord8', 'SInt16', etc. However,
+some bit-vector based operations are /not/ supported for the 'SInteger' type while in the verification mode. That
+is, you can use these operations on 'SInteger' values during normal programming/simulation.
+but the SMT translation will not support these operations since there corresponding operations are not supported in SMT-Lib.
+Note that this should rarely be a problem in practice, as these operations are mostly meaningful on fixed-size
+bit-vectors. The operations that are restricted to bounded word/int sizes are:
+
+   * Rotations and shifts: 'rotateL', 'rotateR', 'shiftL', 'shiftR'
+
+   * Bitwise logical ops: '.&amp;.', '.|.', 'xor', 'complement'
+
+   * Extraction and concatenation: 'bvExtract', '#', 'zeroExtend', 'signExtend', 'bvDrop', and 'bvTake'
+
+Usual arithmetic ('+', '-', '*', 'sQuotRem', 'sQuot', 'sRem', 'sDivMod', 'sDiv', 'sMod') and logical operations ('.&lt;', '.&lt;=', '.&gt;', '.&gt;=', '.==', './=') operations are
+supported for 'SInteger' fully, both in programming and verification modes.
+-}</span><span>
+</span><span id="line-664"></span><span>
+</span><span id="line-665"></span><span class="hs-comment">{- $algReals
+Algebraic reals are roots of single-variable polynomials with rational coefficients. (See
+&lt;http://en.wikipedia.org/wiki/Algebraic_number&gt;.) Note that algebraic reals are infinite
+precision numbers, but they do not cover all /real/ numbers. (In particular, they cannot
+represent transcendentals.) Some irrational numbers are algebraic (such as @sqrt 2@), while
+others are not (such as pi and e).
+
+SBV can deal with real numbers just fine, since the theory of reals is decidable. (See
+&lt;http://smtlib.cs.uiowa.edu/theories-Reals.shtml&gt;.) In addition, by leveraging backend
+solver capabilities, SBV can also represent and solve non-linear equations involving real-variables.
+(For instance, the Z3 SMT solver, supports polynomial constraints on reals starting with v4.0.)
+-}</span><span>
+</span><span id="line-677"></span><span>
+</span><span id="line-678"></span><span class="hs-comment">{- $floatingPoints
+Floating point numbers are defined by the IEEE-754 standard; and correspond to Haskell's
+'Float' and 'Double' types. For SMT support with floating-point numbers, see the paper
+by Rummer and Wahl: &lt;http://www.philipp.ruemmer.org/publications/smt-fpa.pdf&gt;.
+-}</span><span>
+</span><span id="line-683"></span><span>
+</span><span id="line-684"></span><span class="hs-comment">{- $strings
+Support for characters, strings, and regular expressions (intial version contributed by Joel Burget)
+adds support for QF_S logic, described here: &lt;http://smtlib.cs.uiowa.edu/theories-UnicodeStrings.shtml&gt;
+and here: &lt;http://rise4fun.com/z3/tutorialcontent/sequences&gt;. Note
+that this logic is still not part of official SMTLib (as of March 2018), so it should be considered
+experimental.
+
+See &quot;Data.SBV.Char&quot;, &quot;Data.SBV.String&quot;, &quot;Data.SBV.RegExp&quot; for related functions.
+-}</span><span>
+</span><span id="line-693"></span><span>
+</span><span id="line-694"></span><span class="hs-comment">{- $lists
+Support for symbolic lists (intial version contributed by Joel Burget)
+adds support for sequence support, described here: &lt;http://rise4fun.com/z3/tutorialcontent/sequences&gt;. Note
+that this logic is still not part of official SMTLib (as of March 2018), so it should be considered
+experimental.
+
+See &quot;Data.SBV.List&quot; for related functions.
+-}</span><span>
+</span><span id="line-702"></span><span>
+</span><span id="line-703"></span><span class="hs-comment">{- $tuples
+Tuples can be used as symbolic values. This is useful in combination with lists, for example @SBV [(Integer, String)]@ is a valid type. These types can be arbitrarily nested, eg @SBV [(Integer, [(Char, (Integer, String))])]@. Instances of upto 8-tuples are provided.
+-}</span><span>
+</span><span id="line-706"></span><span>
+</span><span id="line-707"></span><span class="hs-comment">{- $shiftRotate
+Symbolic words (both signed and unsigned) are an instance of Haskell's 'Bits' class, so regular
+bitwise operations are automatically available for them. Shifts and rotates, however, require
+specialized type-signatures since Haskell insists on an 'Int' second argument for them.
+-}</span><span>
+</span><span id="line-712"></span><span>
+</span><span id="line-713"></span><span class="hs-comment">{- $constrainIntro
+A constraint is a means for restricting the input domain of a formula. Here's a simple
+example:
+
+@
+   do x &lt;- 'exists' \&quot;x\&quot;
+      y &lt;- 'exists' \&quot;y\&quot;
+      'constrain' $ x .&gt; y
+      'constrain' $ x + y .&gt;= 12
+      'constrain' $ y .&gt;= 3
+      ...
+@
+
+The first constraint requires @x@ to be larger than @y@. The scond one says that
+sum of @x@ and @y@ must be at least @12@, and the final one says that @y@ to be at least @3@.
+Constraints provide an easy way to assert additional properties on the input domain, right at the point of
+the introduction of variables.
+
+Note that the proper reading of a constraint
+depends on the context:
+
+  * In a 'sat' (or 'allSat') call: The constraint added is asserted
+    conjunctively. That is, the resulting satisfying model (if any) will
+    always satisfy all the constraints given.
+
+  * In a 'prove' call: In this case, the constraint acts as an implication.
+    The property is proved under the assumption that the constraint
+    holds. In other words, the constraint says that we only care about
+    the input space that satisfies the constraint.
+
+  * In a @quickCheck@ call: The constraint acts as a filter for @quickCheck@;
+    if the constraint does not hold, then the input value is considered to be irrelevant
+    and is skipped. Note that this is similar to 'prove', but is stronger: We do not
+    accept a test case to be valid just because the constraints fail on them, although
+    semantically the implication does hold. We simply skip that test case as a /bad/
+    test vector.
+
+  * In a 'Data.SBV.Tools.GenTest.genTest' call: Similar to @quickCheck@ and 'prove': If a constraint
+    does not hold, the input value is ignored and is not included in the test
+    set.
+-}</span><span>
+</span><span id="line-754"></span><span>
+</span><span id="line-755"></span><span class="hs-comment">{- $generalConstraints
+A good use case (in fact the motivating use case) for 'constrain' is attaching a
+constraint to a 'forall' or 'exists' variable at the time of its creation.
+Also, the conjunctive semantics for 'sat' and the implicative
+semantics for 'prove' simplify programming by choosing the correct interpretation
+automatically. However, one should be aware of the semantic difference. For instance, in
+the presence of constraints, formulas that are /provable/ are not necessarily
+/satisfiable/. To wit, consider:
+
+ @
+    do x &lt;- 'exists' \&quot;x\&quot;
+       'constrain' $ x .&lt; x
+       return $ x .&lt; (x :: 'SWord8')
+ @
+
+This predicate is unsatisfiable since no element of 'SWord8' is less than itself. But
+it's (vacuously) true, since it excludes the entire domain of values, thus making the proof
+trivial. Hence, this predicate is provable, but is not satisfiable. To make sure the given
+constraints are not vacuous, the functions 'isVacuous' (and 'isVacuousWith') can be used.
+
+Also note that this semantics imply that test case generation ('Data.SBV.Tools.GenTest.genTest') and
+quick-check can take arbitrarily long in the presence of constraints, if the random input values generated
+rarely satisfy the constraints. (As an extreme case, consider @'constrain' 'sFalse'@.)
+-}</span><span>
+</span><span id="line-779"></span><span>
+</span><span id="line-780"></span><span class="hs-comment">{- $constraintVacuity
+
+When adding constraints, one has to be careful about
+making sure they are not inconsistent. The function 'isVacuous' can be use for this purpose.
+Here is an example. Consider the following predicate:
+
+    &gt;&gt;&gt; let pred = do { x &lt;- free &quot;x&quot;; constrain $ x .&lt; x; return $ x .&gt;= (5 :: SWord8) }
+
+This predicate asserts that all 8-bit values are larger than 5, subject to the constraint that the
+values considered satisfy @x .&lt; x@, i.e., they are less than themselves. Since there are no values that
+satisfy this constraint, the proof will pass vacuously:
+
+    &gt;&gt;&gt; prove pred
+    Q.E.D.
+
+We can use 'isVacuous' to make sure to see that the pass was vacuous:
+
+    &gt;&gt;&gt; isVacuous pred
+    True
+
+While the above example is trivial, things can get complicated if there are multiple constraints with
+non-straightforward relations; so if constraints are used one should make sure to check the predicate
+is not vacuously true. Here's an example that is not vacuous:
+
+     &gt;&gt;&gt; let pred' = do { x &lt;- free &quot;x&quot;; constrain $ x .&gt; 6; return $ x .&gt;= (5 :: SWord8) }
+
+This time the proof passes as expected:
+
+     &gt;&gt;&gt; prove pred'
+     Q.E.D.
+
+And the proof is not vacuous:
+
+     &gt;&gt;&gt; isVacuous pred'
+     False
+-}</span><span>
+</span><span id="line-816"></span><span>
+</span><span id="line-817"></span><span class="hs-comment">{- $namedConstraints
+
+Constraints can be given names:
+
+  @ 'namedConstraint' &quot;a is at least 5&quot; $ a .&gt;= 5@
+
+Similarly, arbitrary term attributes can also be associated:
+
+  @ 'constrainWithAttribute' [(&quot;:solver-specific-attribute&quot;, &quot;value&quot;)] $ a .&gt;= 5@
+
+Note that a 'namedConstraint' is equivalent to a 'constrainWithAttribute' call, setting the `&quot;:named&quot;' attribute.
+-}</span><span>
+</span><span id="line-829"></span><span>
+</span><span id="line-830"></span><span class="hs-comment">{- $unsatCores
+Named constraints are useful when used in conjunction with 'Data.SBV.Control.getUnsatCore' function
+where the backend solver can be queried to obtain an unsat core in case the constraints are unsatisfiable.
+See 'Data.SBV.Control.getUnsatCore' for details and &quot;Documentation.SBV.Examples.Queries.UnsatCore&quot; for an example use case.
+-}</span><span>
+</span><span id="line-835"></span><span>
+</span><span id="line-836"></span><span class="hs-comment">{- $uninterpreted
+Users can introduce new uninterpreted sorts simply by defining a data-type in Haskell and registering it as such. The
+following example demonstrates:
+
+  @
+     data B = B () deriving (Eq, Ord, Show, Read, Data, SymVal, HasKind, SatModel)
+  @
+
+(Note that you'll also need to use the language pragmas @DeriveDataTypeable@, @DeriveAnyClass@, and import @Data.Generics@ for the above to work.)
+
+This is all it takes to introduce @B@ as an uninterpreted sort in SBV, which makes the type @SBV B@ automagically become available as the type
+of symbolic values that ranges over @B@ values. Note that the @()@ argument is important to distinguish it from enumerations, which will be
+translated to proper SMT data-types.
+
+
+Uninterpreted functions over both uninterpreted and regular sorts can be declared using the facilities introduced by
+the 'Data.SBV.Core.Model.Uninterpreted' class.
+-}</span><span>
+</span><span id="line-854"></span><span>
+</span><span id="line-855"></span><span class="hs-comment">{- $enumerations
+If the uninterpreted sort definition takes the form of an enumeration (i.e., a simple data type with all nullary constructors), then SBV will actually
+translate that as just such a data-type to SMT-Lib, and will use the constructors as the inhabitants of the said sort. A simple example is:
+
+@
+    data X = A | B | C
+    mkSymbolicEnumeration ''X
+@
+
+Note the magic incantation @mkSymbolicEnumeration ''X@. For this to work, you need to have the following
+options turned on:
+
+&gt;   LANGUAGE TemplateHaskell
+&gt;   LANGUAGE StandaloneDeriving
+&gt;   LANGUAGE DeriveDataTypeable
+&gt;   LANGUAGE DeriveAnyClass
+
+Now, the user can define
+
+@
+    type SX = SBV X
+@
+
+and treat @SX@ as a regular symbolic type ranging over the values @A@, @B@, and @C@. Such values can be compared for equality, and with the usual
+other comparison operators, such as @.==@, @./=@, @.&gt;@, @.&gt;=@, @&lt;@, and @&lt;=@.
+
+Note that in this latter case the type is no longer uninterpreted, but is properly represented as a simple enumeration of the said elements. A simple
+query would look like:
+
+@
+     allSat $ \x -&gt; x .== (x :: SX)
+@
+
+which would list all three elements of this domain as satisfying solutions.
+
+@
+     Solution #1:
+       s0 = A :: X
+     Solution #2:
+       s0 = B :: X
+     Solution #3:
+       s0 = C :: X
+     Found 3 different solutions.
+@
+
+Note that the result is properly typed as @X@ elements; these are not mere strings. So, in a 'getModelAssignment' scenario, the user can recover actual
+elements of the domain and program further with those values as usual.
+
+See &quot;Documentation.SBV.Examples.Misc.Enumerate&quot; for an extended example on how to use symbolic enumerations.
+-}</span><span>
+</span><span id="line-905"></span><span>
+</span><span id="line-906"></span><span class="hs-comment">{- $noteOnNestedQuantifiers
+=== A note on reasoning in the presence of quantifers
+
+Note that SBV allows reasoning with quantifiers: Inputs can be existentially or universally quantified. Predicates can be built
+with arbitrary nesting of such quantifiers as well. However, SBV always /assumes/ that the input is in
+prenex-normal form: &lt;http://en.wikipedia.org/wiki/Prenex_normal_form&gt;. That is,
+all the input declarations are treated as happening at the beginning of a predicate, followed by the actual formula. Unfortunately,
+the way predicates are written can be misleading at times, since symbolic inputs can be created at arbitrary points; interleaving them
+with other code. The rule is simple, however: All inputs are assumed at the top, in the order declared, regardless of their quantifiers.
+SBV will apply skolemization to get rid of existentials before sending predicates to backend solvers. However, if you do want nested
+quantification, you will manually have to first convert to prenex-normal form (which produces an equisatisfiable but not necessarily
+equivalent formula), and code that explicitly in SBV. See &lt;http://github.com/LeventErkok/sbv/issues/256&gt; for a detailed discussion
+of this issue.
+-}</span><span>
+</span><span id="line-920"></span><span>
+</span><span id="line-921"></span><span class="hs-comment">{- $cardIntro
+A pseudo-boolean function (&lt;http://en.wikipedia.org/wiki/Pseudo-Boolean_function&gt;) is a
+function from booleans to reals, basically treating 'True' as @1@ and 'False' as @0@. They
+are typically expressed in polynomial form. Such functions can be used to express cardinality
+constraints, where we want to /count/ how many things satisfy a certain condition.
+
+One can code such constraints using regular SBV programming: Simply
+walk over the booleans and the corresponding coefficients, and assert the required relation.
+For instance:
+
+   &gt; [b0, b1, b2, b3] `pbAtMost` 2
+
+is precisely equivalent to:
+
+   &gt; sum (map (\b -&gt; ite b 1 0) [b0, b1, b2, b3]) .&lt;= 2
+
+and they both express that at most /two/ of @b0@, @b1@, @b2@, and @b3@ can be 'sTrue'.
+However, the equivalent forms give rise to long formulas and the cardinality constraint
+can get lost in the translation. The idea here is that if you use these functions instead, SBV will
+produce better translations to SMTLib for more efficient solving of cardinality constraints, assuming
+the backend solver supports them. Currently, only Z3 supports pseudo-booleans directly. For all other solvers,
+SBV will translate these to equivalent terms that do not require special functions.
+-}</span><span>
+</span><span id="line-944"></span><span>
+</span><span id="line-945"></span><span class="hs-comment">{- $verbosity
+
+SBV provides various levels of verbosity to aid in debugging, by using the 'SMTConfig' fields:
+
+  * ['verbose'] Print on stdout a shortened account of what is sent/received. This is specifically trimmed to reduce noise
+    and is good for quick debugging. The output is not supposed to be machine-readable.
+  * ['redirectVerbose'] Send the verbose output to a file. Note that you still have to set `verbose=True` for redirection to
+    take effect. Otherwise, the output is the same as what you would see in `verbose`.
+  * ['transcript'] Produce a file that is valid SMTLib2 format, containing everything sent and received. In particular, one can
+    directly feed this file to the SMT-solver outside of the SBV since it is machine-readable. This is good for offline analysis
+    situations, where you want to have a full account of what happened. For instance, it will print time-stamps at every interaction
+    point, so you can see how long each command took.
+-}</span><span>
+</span><span id="line-958"></span><span>
+</span><span id="line-959"></span><span class="hs-comment">{- $observeInternal
+
+The 'observe' command can be used to trace values of arbitrary expressions during a 'sat', 'prove', or perhaps more
+importantly, in a @quickCheck@ call with the 'sObserve' variant.. This is useful for, for instance, recording expected vs. obtained expressions
+as a symbolic program is executing.
+
+&gt;&gt;&gt; :{
+prove $ do a1 &lt;- free &quot;i1&quot;
+           a2 &lt;- free &quot;i2&quot;
+           let spec, res :: SWord8
+               spec = a1 + a2
+               res  = ite (a1 .== 12 .&amp;&amp; a2 .== 22)   -- insert a malicious bug!
+                          1
+                          (a1 + a2)
+           return $ observe &quot;Expected&quot; spec .== observe &quot;Result&quot; res
+:}
+Falsifiable. Counter-example:
+  Expected = 34 :: Word8
+  Result   =  1 :: Word8
+  i1       = 12 :: Word8
+  i2       = 22 :: Word8
+
+The 'observeIf' variant allows the user to specify a boolean condition when the value is interesting to observe. Useful when
+you have lots of &quot;debugging&quot; points, but not all are of interest. Use the 'sObserve' variant when you are at the 'Symbolic'
+monad, which also supports quick-check applications.
+-}</span><span>
+</span><span id="line-985"></span><span>
+</span><span id="line-986"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="hs-pragma">module</span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Use import/export shortcut&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-987"></span></pre></body></html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.SendMoreMoney</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Solves the classic @send + more = money@ puzzle.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.SendMoreMoney</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | Solve the puzzle. We have:</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- &gt;&gt;&gt; sendMoreMoney</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   s = 9 :: Integer</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--   e = 5 :: Integer</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--   n = 6 :: Integer</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   d = 7 :: Integer</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   m = 1 :: Integer</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--   o = 0 :: Integer</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   r = 8 :: Integer</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--   y = 2 :: Integer</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- This is the only solution.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- That is:</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- &gt;&gt;&gt; 9567 + 1085 == 10652</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.SendMoreMoney.html#sendMoreMoney"><span class="hs-identifier hs-type">sendMoreMoney</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#AllSatResult"><span class="hs-identifier hs-type">AllSatResult</span></a></span><span>
+</span><span id="line-37"></span><span id="sendMoreMoney"><span class="annot"><span class="annottext">sendMoreMoney :: IO AllSatResult
+</span><a href="Documentation.SBV.Examples.Puzzles.SendMoreMoney.html#sendMoreMoney"><span class="hs-identifier hs-var hs-var">sendMoreMoney</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO AllSatResult)
+-&gt; SymbolicT IO SBool -&gt; IO AllSatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-38"></span><span>        </span><span id="local-6989586621681166666"><span class="annot"><span class="annottext">ds :: [SInteger]
+</span><a href="#local-6989586621681166666"><span class="hs-identifier hs-var">ds</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">[</span><span id="local-6989586621681166665"><span class="annot"><span class="annottext">s :: SInteger
+</span><a href="#local-6989586621681166665"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166664"><span class="annot"><span class="annottext">e :: SInteger
+</span><a href="#local-6989586621681166664"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166663"><span class="annot"><span class="annottext">n :: SInteger
+</span><a href="#local-6989586621681166663"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166662"><span class="annot"><span class="annottext">d :: SInteger
+</span><a href="#local-6989586621681166662"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166661"><span class="annot"><span class="annottext">m :: SInteger
+</span><a href="#local-6989586621681166661"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166660"><span class="annot"><span class="annottext">o :: SInteger
+</span><a href="#local-6989586621681166660"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166659"><span class="annot"><span class="annottext">r :: SInteger
+</span><a href="#local-6989586621681166659"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681166658"><span class="annot"><span class="annottext">y :: SInteger
+</span><a href="#local-6989586621681166658"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(String -&gt; SymbolicT IO SInteger)
+-&gt; [String] -&gt; SymbolicT IO [SInteger]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;s&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;e&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;n&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;d&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;m&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;o&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;r&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-39"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681166655"><span class="annot"><span class="annottext">isDigit :: a -&gt; SBool
+</span><a href="#local-6989586621681166655"><span class="hs-identifier hs-var hs-var">isDigit</span></a></span></span><span> </span><span id="local-6989586621681166654"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681166654"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681166654"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681166654"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">9</span></span><span>
+</span><span id="line-40"></span><span>            </span><span id="local-6989586621681166650"><span class="annot"><span class="annottext">val :: [a] -&gt; a
+</span><a href="#local-6989586621681166650"><span class="hs-identifier hs-var hs-var">val</span></a></span></span><span> </span><span id="local-6989586621681166649"><span class="annot"><span class="annottext">xs :: [a]
+</span><a href="#local-6989586621681166649"><span class="hs-identifier hs-var">xs</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; a) -&gt; [a] -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a) -&gt; [a] -&gt; [a] -&gt; [a]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a] -&gt; [a]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681166649"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; a -&gt; [a]
+forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>            </span><span id="local-6989586621681166643"><span class="annot"><span class="annottext">send :: SInteger
+</span><a href="#local-6989586621681166643"><span class="hs-identifier hs-var hs-var">send</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall a. Num a =&gt; [a] -&gt; a
+</span><a href="#local-6989586621681166650"><span class="hs-identifier hs-var">val</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166665"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166664"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166663"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166662"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-42"></span><span>            </span><span id="local-6989586621681166642"><span class="annot"><span class="annottext">more :: SInteger
+</span><a href="#local-6989586621681166642"><span class="hs-identifier hs-var hs-var">more</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall a. Num a =&gt; [a] -&gt; a
+</span><a href="#local-6989586621681166650"><span class="hs-identifier hs-var">val</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166661"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166660"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166659"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166664"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-43"></span><span>            </span><span id="local-6989586621681166641"><span class="annot"><span class="annottext">money :: SInteger
+</span><a href="#local-6989586621681166641"><span class="hs-identifier hs-var hs-var">money</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall a. Num a =&gt; [a] -&gt; a
+</span><a href="#local-6989586621681166650"><span class="hs-identifier hs-var">val</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166661"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166660"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166663"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166664"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166658"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span>        </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SInteger -&gt; SBool) -&gt; [SInteger] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SBool
+forall a. (OrdSymbolic a, Num a) =&gt; a -&gt; SBool
+</span><a href="#local-6989586621681166655"><span class="hs-identifier hs-var">isDigit</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681166666"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-45"></span><span>        </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SBool
+forall a. EqSymbolic a =&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#distinct"><span class="hs-identifier hs-var">distinct</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681166666"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-46"></span><span>        </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166665"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166661"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-47"></span><span>        </span><span class="annot"><span class="annottext">[SBool] -&gt; SymbolicT IO SBool
+</span><a href="Data.SBV.Client.BaseIO.html#solve"><span class="hs-identifier hs-var">solve</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166643"><span class="hs-identifier hs-var">send</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166642"><span class="hs-identifier hs-var">more</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681166641"><span class="hs-identifier hs-var">money</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span></pre></body></html>

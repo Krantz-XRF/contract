@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.NQueens</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Solves the NQueens puzzle: &lt;http://en.wikipedia.org/wiki/Eight_queens_puzzle&gt;</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.NQueens</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | A solution is a sequence of row-numbers where queens should be placed</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">type</span><span> </span><span id="Solution"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#Solution"><span class="hs-identifier hs-var">Solution</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | Checks that a given solution of @n@-queens is valid, i.e., no queen</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- captures any other.</span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#isValid"><span class="hs-identifier hs-type">isValid</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#Solution"><span class="hs-identifier hs-type">Solution</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-24"></span><span id="isValid"><span class="annot"><span class="annottext">isValid :: Int -&gt; Solution -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#isValid"><span class="hs-identifier hs-var hs-var">isValid</span></a></span></span><span> </span><span id="local-6989586621681166585"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681166585"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681166584"><span class="annot"><span class="annottext">s :: Solution
+</span><a href="#local-6989586621681166584"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; Solution -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+forall a. (OrdSymbolic a, Num a) =&gt; a -&gt; SBool
+</span><a href="#local-6989586621681166582"><span class="hs-identifier hs-var">rangeFine</span></a></span><span> </span><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681166584"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Solution -&gt; SBool
+forall a. EqSymbolic a =&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#distinct"><span class="hs-identifier hs-var">distinct</span></a></span><span> </span><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681166584"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">((Int, Int) -&gt; SBool) -&gt; [(Int, Int)] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="annot"><span class="annottext">(Int, Int) -&gt; SBool
+</span><a href="#local-6989586621681166579"><span class="hs-identifier hs-var">checkDiag</span></a></span><span> </span><span class="annot"><span class="annottext">[(Int, Int)]
+</span><a href="#local-6989586621681166578"><span class="hs-identifier hs-var">ijs</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681166582"><span class="annot"><span class="annottext">rangeFine :: a -&gt; SBool
+</span><a href="#local-6989586621681166582"><span class="hs-identifier hs-var hs-var">rangeFine</span></a></span></span><span> </span><span id="local-6989586621681166577"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681166577"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681166577"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681166577"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; a
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166585"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-26"></span><span>        </span><span id="local-6989586621681166578"><span class="annot"><span class="annottext">ijs :: [(Int, Int)]
+</span><a href="#local-6989586621681166578"><span class="hs-identifier hs-var hs-var">ijs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166574"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166573"><span class="hs-identifier hs-var">j</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681166574"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166574"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166585"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681166573"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166573"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166574"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166585"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>        </span><span id="local-6989586621681166579"><span class="annot"><span class="annottext">checkDiag :: (Int, Int) -&gt; SBool
+</span><a href="#local-6989586621681166579"><span class="hs-identifier hs-var hs-var">checkDiag</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681166571"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621681166571"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681166570"><span class="annot"><span class="annottext">j :: Int
+</span><a href="#local-6989586621681166570"><span class="hs-identifier hs-var">j</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166569"><span class="hs-identifier hs-var">diffR</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166567"><span class="hs-identifier hs-var">diffC</span></a></span><span>
+</span><span id="line-28"></span><span>           </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681166566"><span class="annot"><span class="annottext">qi :: SWord8
+</span><a href="#local-6989586621681166566"><span class="hs-identifier hs-var hs-var">qi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681166584"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Solution -&gt; Int -&gt; SWord8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166571"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>                 </span><span id="local-6989586621681166564"><span class="annot"><span class="annottext">qj :: SWord8
+</span><a href="#local-6989586621681166564"><span class="hs-identifier hs-var hs-var">qj</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681166584"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Solution -&gt; Int -&gt; SWord8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166570"><span class="hs-identifier hs-var">j</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>                 </span><span id="local-6989586621681166569"><span class="annot"><span class="annottext">diffR :: SWord8
+</span><a href="#local-6989586621681166569"><span class="hs-identifier hs-var hs-var">diffR</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166566"><span class="hs-identifier hs-var">qi</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166564"><span class="hs-identifier hs-var">qj</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166566"><span class="hs-identifier hs-var">qi</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166564"><span class="hs-identifier hs-var">qj</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166564"><span class="hs-identifier hs-var">qj</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681166566"><span class="hs-identifier hs-var">qi</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>                 </span><span id="local-6989586621681166567"><span class="annot"><span class="annottext">diffC :: SWord8
+</span><a href="#local-6989586621681166567"><span class="hs-identifier hs-var hs-var">diffC</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; SWord8
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166570"><span class="hs-identifier hs-var">j</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166571"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Given @n@, it solves the @n-queens@ puzzle, printing all possible solutions.</span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#nQueens"><span class="hs-identifier hs-type">nQueens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span id="nQueens"><span class="annot"><span class="annottext">nQueens :: Int -&gt; IO ()
+</span><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#nQueens"><span class="hs-identifier hs-var hs-var">nQueens</span></a></span></span><span> </span><span id="local-6989586621681166561"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span></span><span>
+</span><span id="line-36"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;n must be non-negative, received: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-37"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Finding all &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;-queens solutions..&quot;</span></span><span>
+</span><span id="line-38"></span><span>              </span><span id="local-6989586621681166557"><span class="annot"><span class="annottext">AllSatResult
+</span><a href="#local-6989586621681166557"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO AllSatResult)
+-&gt; SymbolicT IO SBool -&gt; IO AllSatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Solution -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#isValid"><span class="hs-identifier hs-var">isValid</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(Solution -&gt; SBool) -&gt; SymbolicT IO Solution -&gt; SymbolicT IO SBool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">`fmap`</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SymbolicT IO Solution
+forall a. SymVal a =&gt; Int -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#mkExistVars"><span class="hs-identifier hs-var">mkExistVars</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-39"></span><span>              </span><span id="local-6989586621681166554"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166554"><span class="hs-identifier hs-var">cnt</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">([(Bool, [Word8])] -&gt; [(Bool, [Word8])])
+-&gt; (Int -&gt; (Bool, [Word8]) -&gt; IO ()) -&gt; AllSatResult -&gt; IO Int
+forall a.
+SatModel a =&gt;
+([(Bool, a)] -&gt; [(Bool, a)])
+-&gt; (Int -&gt; (Bool, a) -&gt; IO ()) -&gt; AllSatResult -&gt; IO Int
+</span><a href="Data.SBV.SMT.SMT.html#displayModels"><span class="hs-identifier hs-var">displayModels</span></a></span><span> </span><span class="annot"><span class="annottext">[(Bool, [Word8])] -&gt; [(Bool, [Word8])]
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; (Bool, [Word8]) -&gt; IO ()
+forall a a. Show a =&gt; a -&gt; (a, [Word8]) -&gt; IO ()
+</span><a href="#local-6989586621681166551"><span class="hs-identifier hs-var">disp</span></a></span><span> </span><span class="annot"><span class="annottext">AllSatResult
+</span><a href="#local-6989586621681166557"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-40"></span><span>              </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Found: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166554"><span class="hs-identifier hs-var">cnt</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; solution(s).&quot;</span></span><span>
+</span><span id="line-41"></span><span>   </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681166551"><span class="annot"><span class="annottext">disp :: a -&gt; (a, [Word8]) -&gt; IO ()
+</span><a href="#local-6989586621681166551"><span class="hs-identifier hs-var hs-var">disp</span></a></span></span><span> </span><span id="local-6989586621681166550"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681166550"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681166549"><span class="annot"><span class="annottext">s :: [Word8]
+</span><a href="#local-6989586621681166549"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Solution #&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681166550"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;: &quot;</span></span><span>
+</span><span id="line-42"></span><span>                            </span><span class="annot"><span class="annottext">[Word8] -&gt; IO ()
+</span><a href="#local-6989586621681166547"><span class="hs-identifier hs-var">dispSolution</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681166549"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-43"></span><span>         </span><span class="annot"><a href="#local-6989586621681166547"><span class="hs-identifier hs-type">dispSolution</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>         </span><span id="local-6989586621681166547"><span class="annot"><span class="annottext">dispSolution :: [Word8] -&gt; IO ()
+</span><a href="#local-6989586621681166547"><span class="hs-identifier hs-var hs-var">dispSolution</span></a></span></span><span> </span><span id="local-6989586621681166546"><span class="annot"><span class="annottext">model :: [Word8]
+</span><a href="#local-6989586621681166546"><span class="hs-identifier hs-var">model</span></a></span></span><span>
+</span><span id="line-45"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166545"><span class="hs-identifier hs-var">lmod</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Impossible! Backend solver returned &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166545"><span class="hs-identifier hs-var">lmod</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; values, was expecting: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-46"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681166546"><span class="hs-identifier hs-var">model</span></a></span><span>
+</span><span id="line-47"></span><span>                            </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot; (Valid: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Solution -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.NQueens.html#isValid"><span class="hs-identifier hs-var">isValid</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681166561"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Word8 -&gt; SWord8) -&gt; [Word8] -&gt; Solution
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; SWord8
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681166546"><span class="hs-identifier hs-var">model</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-48"></span><span>           </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681166545"><span class="annot"><span class="annottext">lmod :: Int
+</span><a href="#local-6989586621681166545"><span class="hs-identifier hs-var hs-var">lmod</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681166546"><span class="hs-identifier hs-var">model</span></a></span><span>
+</span><span id="line-49"></span></pre></body></html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.Counts</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Consider the sentence:</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--    In this sentence, the number of occurrences of 0 is _, of 1 is _, of 2 is _,</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--    of 3 is _, of 4 is _, of 5 is _, of 6 is _, of 7 is _, of 8 is _, and of 9 is _.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- The puzzle is to fill the blanks with numbers, such that the sentence</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- will be correct. There are precisely two solutions to this puzzle, both of</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- which are found by SBV successfully.</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--  References:</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--    * Douglas Hofstadter, Metamagical Themes, pg. 27.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--    * &lt;http://mathcentral.uregina.ca/mp/archives/previous2002/dec02sol.html&gt;</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.Counts</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">sortOn</span></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | We will assume each number can be represented by an 8-bit word, i.e., can be at most 128.</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">type</span><span> </span><span id="Count"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#Count"><span class="hs-identifier hs-var">Count</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Given a number, increment the count array depending on the digits of the number</span><span>
+</span><span id="line-39"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#count"><span class="hs-identifier hs-type">count</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-40"></span><span id="count"><span class="annot"><span class="annottext">count :: Count -&gt; [Count] -&gt; [Count]
+</span><a href="Documentation.SBV.Examples.Puzzles.Counts.html#count"><span class="hs-identifier hs-var hs-var">count</span></a></span></span><span> </span><span id="local-6989586621681164420"><span class="annot"><span class="annottext">n :: Count
+</span><a href="#local-6989586621681164420"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681164419"><span class="annot"><span class="annottext">cnts :: [Count]
+</span><a href="#local-6989586621681164419"><span class="hs-identifier hs-var">cnts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; [Count] -&gt; [Count] -&gt; [Count]
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164420"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Count -&gt; Count -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164420"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164419"><span class="hs-identifier hs-var">cnts</span></a></span><span class="hs-special">)</span><span>                           </span><span class="hs-comment">-- only one digit</span><span>
+</span><span id="line-42"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool -&gt; [Count] -&gt; [Count] -&gt; [Count]
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164420"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Count -&gt; Count -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="hs-number">100</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>                        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164415"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164414"><span class="hs-identifier hs-var">d2</span></a></span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164419"><span class="hs-identifier hs-var">cnts</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>            </span><span class="hs-comment">-- two digits</span><span>
+</span><span id="line-44"></span><span>                        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164415"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164414"><span class="hs-identifier hs-var">d2</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+forall c a.
+(Mergeable c, Num c, Num a, Enum a, EqSymbolic a) =&gt;
+a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var">upd</span></a></span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164413"><span class="hs-identifier hs-var">d3</span></a></span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164419"><span class="hs-identifier hs-var">cnts</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>  </span><span class="hs-comment">-- three digits</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681164412"><span class="annot"><span class="annottext">r1 :: Count
+</span><a href="#local-6989586621681164412"><span class="hs-identifier hs-var">r1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681164415"><span class="annot"><span class="annottext">d1 :: Count
+</span><a href="#local-6989586621681164415"><span class="hs-identifier hs-var">d1</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164420"><span class="hs-identifier hs-var">n</span></a></span><span>  </span><span class="annot"><span class="annottext">Count -&gt; Count -&gt; (Count, Count)
+forall a. SDivisible a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Core.Model.html#sQuotRem"><span class="hs-operator hs-var">`sQuotRem`</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-46"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621681164413"><span class="annot"><span class="annottext">d3 :: Count
+</span><a href="#local-6989586621681164413"><span class="hs-identifier hs-var">d3</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681164414"><span class="annot"><span class="annottext">d2 :: Count
+</span><a href="#local-6989586621681164414"><span class="hs-identifier hs-var">d2</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Count
+</span><a href="#local-6989586621681164412"><span class="hs-identifier hs-var">r1</span></a></span><span> </span><span class="annot"><span class="annottext">Count -&gt; Count -&gt; (Count, Count)
+forall a. SDivisible a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Core.Model.html#sQuotRem"><span class="hs-operator hs-var">`sQuotRem`</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-47"></span><span>        </span><span id="local-6989586621681164416"><span class="annot"><span class="annottext">upd :: a -&gt; [c] -&gt; [c]
+</span><a href="#local-6989586621681164416"><span class="hs-identifier hs-var hs-var">upd</span></a></span></span><span> </span><span id="local-6989586621681164410"><span class="annot"><span class="annottext">d :: a
+</span><a href="#local-6989586621681164410"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; c -&gt; c) -&gt; [a] -&gt; [c] -&gt; [c]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; c -&gt; c
+forall a. (Mergeable a, Num a) =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621681164408"><span class="hs-identifier hs-var">inc</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>          </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164408"><span class="annot"><span class="annottext">inc :: a -&gt; a -&gt; a
+</span><a href="#local-6989586621681164408"><span class="hs-identifier hs-var hs-var">inc</span></a></span></span><span> </span><span id="local-6989586621681164407"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681164407"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164406"><span class="annot"><span class="annottext">c :: a
+</span><a href="#local-6989586621681164406"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; a -&gt; a -&gt; a
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164407"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164410"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164406"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164406"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | Encoding of the puzzle. The solution is a sequence of 10 numbers</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- for the occurrences of the digits such that if we count each digit,</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- we find these numbers.</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#puzzle"><span class="hs-identifier hs-type">puzzle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-54"></span><span id="puzzle"><span class="annot"><span class="annottext">puzzle :: [Count] -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Counts.html#puzzle"><span class="hs-identifier hs-var hs-var">puzzle</span></a></span></span><span> </span><span id="local-6989586621681164402"><span class="annot"><span class="annottext">cnt :: [Count]
+</span><a href="#local-6989586621681164402"><span class="hs-identifier hs-var">cnt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164402"><span class="hs-identifier hs-var">cnt</span></a></span><span> </span><span class="annot"><span class="annottext">[Count] -&gt; [Count] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">[[Count]] -&gt; [Count]
+forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">last</span></span><span> </span><span class="annot"><span class="annottext">[[Count]]
+</span><a href="#local-6989586621681164400"><span class="hs-identifier hs-var">css</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164399"><span class="annot"><span class="annottext">ones :: [Count]
+</span><a href="#local-6989586621681164399"><span class="hs-identifier hs-var hs-var">ones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Count -&gt; [Count]
+forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>  </span><span class="hs-comment">-- all digits occur once to start with</span><span>
+</span><span id="line-56"></span><span>        </span><span id="local-6989586621681164400"><span class="annot"><span class="annottext">css :: [[Count]]
+</span><a href="#local-6989586621681164400"><span class="hs-identifier hs-var hs-var">css</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164399"><span class="hs-identifier hs-var">ones</span></a></span><span> </span><span class="annot"><span class="annottext">[Count] -&gt; [[Count]] -&gt; [[Count]]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">(Count -&gt; [Count] -&gt; [Count]) -&gt; [Count] -&gt; [[Count]] -&gt; [[Count]]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">Count -&gt; [Count] -&gt; [Count]
+</span><a href="Documentation.SBV.Examples.Puzzles.Counts.html#count"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="annot"><span class="annottext">[Count]
+</span><a href="#local-6989586621681164402"><span class="hs-identifier hs-var">cnt</span></a></span><span> </span><span class="annot"><span class="annottext">[[Count]]
+</span><a href="#local-6989586621681164400"><span class="hs-identifier hs-var">css</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | Finds all two known solutions to this puzzle. We have:</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- &gt;&gt;&gt; counts</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- Solution #1</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- In this sentence, the number of occurrences of 0 is 1, of 1 is 11, of 2 is 2, of 3 is 1, of 4 is 1, of 5 is 1, of 6 is 1, of 7 is 1, of 8 is 1, of 9 is 1.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- Solution #2</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- In this sentence, the number of occurrences of 0 is 1, of 1 is 7, of 2 is 3, of 3 is 2, of 4 is 1, of 5 is 1, of 6 is 1, of 7 is 2, of 8 is 1, of 9 is 1.</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- Found: 2 solution(s).</span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#counts"><span class="hs-identifier hs-type">counts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span id="counts"><span class="annot"><span class="annottext">counts :: IO ()
+</span><a href="Documentation.SBV.Examples.Puzzles.Counts.html#counts"><span class="hs-identifier hs-var hs-var">counts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681164396"><span class="annot"><span class="annottext">AllSatResult
+</span><a href="#local-6989586621681164396"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO AllSatResult)
+-&gt; SymbolicT IO SBool -&gt; IO AllSatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Count] -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Counts.html#puzzle"><span class="hs-identifier hs-var">puzzle</span></a></span><span> </span><span class="annot"><span class="annottext">([Count] -&gt; SBool) -&gt; SymbolicT IO [Count] -&gt; SymbolicT IO SBool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">`fmap`</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SymbolicT IO [Count]
+forall a. SymVal a =&gt; Int -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#mkExistVars"><span class="hs-identifier hs-var">mkExistVars</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-68"></span><span>            </span><span id="local-6989586621681164393"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681164393"><span class="hs-identifier hs-var">cnt</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">([(Bool, [Word8])] -&gt; [(Bool, [Word8])])
+-&gt; (Int -&gt; (Bool, [Word8]) -&gt; IO ()) -&gt; AllSatResult -&gt; IO Int
+forall a.
+SatModel a =&gt;
+([(Bool, a)] -&gt; [(Bool, a)])
+-&gt; (Int -&gt; (Bool, a) -&gt; IO ()) -&gt; AllSatResult -&gt; IO Int
+</span><a href="Data.SBV.SMT.SMT.html#displayModels"><span class="hs-identifier hs-var">displayModels</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((Bool, [Word8]) -&gt; String)
+-&gt; [(Bool, [Word8])] -&gt; [(Bool, [Word8])]
+forall b a. Ord b =&gt; (a -&gt; b) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">sortOn</span></span><span> </span><span class="annot"><span class="annottext">(Bool, [Word8]) -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int -&gt; (Bool, [Word8]) -&gt; IO ()
+forall a a. Show a =&gt; a -&gt; (a, [Word8]) -&gt; IO ()
+</span><a href="#local-6989586621681164390"><span class="hs-identifier hs-var">disp</span></a></span><span> </span><span class="annot"><span class="annottext">AllSatResult
+</span><a href="#local-6989586621681164396"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-69"></span><span>            </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Found: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681164393"><span class="hs-identifier hs-var">cnt</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; solution(s).&quot;</span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164390"><span class="annot"><span class="annottext">disp :: a -&gt; (a, [Word8]) -&gt; IO ()
+</span><a href="#local-6989586621681164390"><span class="hs-identifier hs-var hs-var">disp</span></a></span></span><span> </span><span id="local-6989586621681164388"><span class="annot"><span class="annottext">n :: a
+</span><a href="#local-6989586621681164388"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681164387"><span class="annot"><span class="annottext">s :: [Word8]
+</span><a href="#local-6989586621681164387"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Solution #&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164388"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-71"></span><span>                           </span><span class="annot"><span class="annottext">[Word8] -&gt; IO ()
+</span><a href="#local-6989586621681164386"><span class="hs-identifier hs-var">dispSolution</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164387"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-72"></span><span>        </span><span class="annot"><a href="#local-6989586621681164386"><span class="hs-identifier hs-type">dispSolution</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>        </span><span id="local-6989586621681164386"><span class="annot"><span class="annottext">dispSolution :: [Word8] -&gt; IO ()
+</span><a href="#local-6989586621681164386"><span class="hs-identifier hs-var hs-var">dispSolution</span></a></span></span><span> </span><span id="local-6989586621681164385"><span class="annot"><span class="annottext">ns :: [Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681164384"><span class="hs-identifier hs-var">soln</span></a></span><span>
+</span><span id="line-74"></span><span>          </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164384"><span class="annot"><span class="annottext">soln :: String
+</span><a href="#local-6989586621681164384"><span class="hs-identifier hs-var hs-var">soln</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="hs-string">&quot;In this sentence, the number of occurrences&quot;</span></span><span>
+</span><span id="line-75"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>  </span><span class="annot"><span class="hs-string">&quot; of 0 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 1 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 2 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 3 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 4 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 5 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 6 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">6</span></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 7 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">7</span></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 8 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, of 9 is &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621681164385"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; Int -&gt; Word8
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="hs-number">9</span></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>                     </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;.&quot;</span></span><span>
+</span><span id="line-86"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Counts.html#counts"><span class="hs-pragma hs-type">counts</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Use head&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-87"></span></pre></body></html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Client</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Cross-cutting toplevel client functions</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE PackageImports      #-}</span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE QuasiQuotes         #-}</span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving  #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell     #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Client</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#sbvCheckSolverInstallation"><span class="hs-identifier">sbvCheckSolverInstallation</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier">defaultSolverConfig</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#sbvAvailableSolvers"><span class="hs-identifier">sbvAvailableSolvers</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Client.html#mkSymbolicEnumeration"><span class="hs-identifier">mkSymbolicEnumeration</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">filterM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Generics</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-string">&quot;template-haskell&quot;</span><span> </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">TH</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html"><span class="hs-identifier">Data.SBV.Core.Model</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html"><span class="hs-identifier">Data.SBV.Control.Utils</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html"><span class="hs-identifier">Data.SBV.Provers.Prover</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Check whether the given solver is installed and is ready to go. This call does a</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- simple call to the solver to ensure all is well.</span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Data.SBV.Client.html#sbvCheckSolverInstallation"><span class="hs-identifier hs-type">sbvCheckSolverInstallation</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-42"></span><span id="sbvCheckSolverInstallation"><span class="annot"><span class="annottext">sbvCheckSolverInstallation :: SMTConfig -&gt; IO Bool
+</span><a href="Data.SBV.Client.html#sbvCheckSolverInstallation"><span class="hs-identifier hs-var hs-var">sbvCheckSolverInstallation</span></a></span></span><span> </span><span id="local-6989586621681153481"><span class="annot"><span class="annottext">cfg :: SMTConfig
+</span><a href="#local-6989586621681153481"><span class="hs-identifier hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO Bool
+</span><a href="#local-6989586621681153480"><span class="hs-identifier hs-var">check</span></a></span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; (SomeException -&gt; IO Bool) -&gt; IO Bool
+forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
+</span><span class="hs-operator hs-var">`C.catch`</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SomeException
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">C.SomeException</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153480"><span class="annot"><span class="annottext">check :: IO Bool
+</span><a href="#local-6989586621681153480"><span class="hs-identifier hs-var hs-var">check</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span> </span><span id="local-6989586621681153477"><span class="annot"><span class="annottext">r :: SMTResult
+</span><a href="#local-6989586621681153477"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; (SWord8 -&gt; SBool) -&gt; IO ThmResult
+forall (m :: * -&gt; *) a.
+MProvable m a =&gt;
+SMTConfig -&gt; a -&gt; m ThmResult
+</span><a href="Data.SBV.Provers.Prover.html#proveWith"><span class="hs-identifier hs-var">proveWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="#local-6989586621681153481"><span class="hs-identifier hs-var">cfg</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SWord8 -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681153475"><span class="annot"><span class="annottext">x :: SWord8
+</span><a href="#local-6989586621681153475"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681153475"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681153475"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681153475"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>                   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SMTResult
+</span><a href="#local-6989586621681153477"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-45"></span><span>                     </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Unsatisfiable"><span class="hs-identifier hs-type">Unsatisfiable</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-46"></span><span>                     </span><span class="hs-identifier">_</span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | The default configs corresponding to supported SMT solvers</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-type">defaultSolverConfig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Solver"><span class="hs-identifier hs-type">Solver</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span>
+</span><span id="line-50"></span><span id="defaultSolverConfig"><span class="annot"><span class="annottext">defaultSolverConfig :: Solver -&gt; SMTConfig
+</span><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var hs-var">defaultSolverConfig</span></a></span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Z3"><span class="hs-identifier hs-type">Z3</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Yices"><span class="hs-identifier hs-type">Yices</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#yices"><span class="hs-identifier hs-var">yices</span></a></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Boolector"><span class="hs-identifier hs-type">Boolector</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#boolector"><span class="hs-identifier hs-var">boolector</span></a></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#CVC4"><span class="hs-identifier hs-type">CVC4</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#cvc4"><span class="hs-identifier hs-var">cvc4</span></a></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#MathSAT"><span class="hs-identifier hs-type">MathSAT</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#mathSAT"><span class="hs-identifier hs-var">mathSAT</span></a></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#ABC"><span class="hs-identifier hs-type">ABC</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#abc"><span class="hs-identifier hs-var">abc</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Return the known available solver configs, installed on your machine.</span><span>
+</span><span id="line-58"></span><span class="annot"><a href="Data.SBV.Client.html#sbvAvailableSolvers"><span class="hs-identifier hs-type">sbvAvailableSolvers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span id="sbvAvailableSolvers"><span class="annot"><span class="annottext">sbvAvailableSolvers :: IO [SMTConfig]
+</span><a href="Data.SBV.Client.html#sbvAvailableSolvers"><span class="hs-identifier hs-var hs-var">sbvAvailableSolvers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SMTConfig -&gt; IO Bool) -&gt; [SMTConfig] -&gt; IO [SMTConfig]
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+(a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+</span><span class="hs-identifier hs-var">filterM</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; IO Bool
+</span><a href="Data.SBV.Client.html#sbvCheckSolverInstallation"><span class="hs-identifier hs-var">sbvCheckSolverInstallation</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Solver -&gt; SMTConfig) -&gt; [Solver] -&gt; [SMTConfig]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Solver -&gt; SMTConfig
+</span><a href="Data.SBV.Client.html#defaultSolverConfig"><span class="hs-identifier hs-var">defaultSolverConfig</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Solver
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Solver
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | Make an enumeration a symbolic type.</span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Data.SBV.Client.html#mkSymbolicEnumeration"><span class="hs-identifier hs-type">mkSymbolicEnumeration</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">TH.Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">TH.Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">TH.Dec</span></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="mkSymbolicEnumeration"><span class="annot"><span class="annottext">mkSymbolicEnumeration :: Name -&gt; Q [Dec]
+</span><a href="Data.SBV.Client.html#mkSymbolicEnumeration"><span class="hs-identifier hs-var hs-var">mkSymbolicEnumeration</span></a></span></span><span> </span><span id="local-6989586621681153456"><span class="annot"><span class="annottext">typeName :: Name
+</span><a href="#local-6989586621681153456"><span class="hs-identifier hs-var">typeName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681153455"><span class="annot"><span class="annottext">typeCon :: TypeQ
+</span><a href="#local-6989586621681153455"><span class="hs-identifier hs-var hs-var">typeCon</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; TypeQ
+</span><span class="hs-identifier hs-var">TH.conT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681153456"><span class="hs-identifier hs-var">typeName</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-special">[d|</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Eq</span><span>       </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Show</span><span>     </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Ord</span><span>      </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Read</span><span>     </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Data</span><span>     </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">SymVal</span><span>   </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">HasKind</span><span>  </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">SMTValue</span><span> </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>        </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">SatModel</span><span> </span><span class="hs-special">$(</span><span class="hs-identifier">typeCon</span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-special">|]</span><span>
+</span><span id="line-75"></span></pre></body></html>

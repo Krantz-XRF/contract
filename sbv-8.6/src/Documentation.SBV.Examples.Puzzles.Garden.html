@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_7ubtEHVaLs7KOO98afw3zs"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.Garden</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- The origin of this puzzle is Raymond Smullyan's &quot;The Flower Garden&quot; riddle:</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--     In a certain flower garden, each flower was either red, yellow,</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--     or blue, and all three colors were represented. A statistician</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--     once visited the garden and made the observation that whatever</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--     three flowers you picked, at least one of them was bound to be red.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--     A second statistician visited the garden and made the observation</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--     that whatever three flowers you picked, at least one was bound to</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--     be yellow.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--     Two logic students heard about this and got into an argument.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--     The first student said: &#8220;It therefore follows that whatever</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--     three flowers you pick, at least one is bound to be blue, doesn&#8217;t</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--     it?&#8221; The second student said: &#8220;Of course not!&#8221;</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--     Which student was right, and why?</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- We slightly modify the puzzle. Assuming the first student is right, we use</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- SBV to show that the garden must contain exactly 3 flowers. In any other</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- case, the second student would be right.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass      #-}</span><span>
+</span><span id="line-32"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable  #-}</span><span>
+</span><span id="line-33"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving  #-}</span><span>
+</span><span id="line-34"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell     #-}</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.Garden</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isSuffixOf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Colors of the flowers</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">data</span><span> </span><span id="Color"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Color"><span class="hs-identifier hs-var">Color</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Red"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Red"><span class="hs-identifier hs-var">Red</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Yellow"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Blue"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | Make 'Color' a symbolic value.</span><span>
+</span><span id="line-47"></span><span id="%24cBlue"><span id="%24cYellow"><span id="%24cRed"><span id="%24tColor"><span id="local-6989586621681165719"><span id="local-6989586621681165721"><span id="local-6989586621681165723"><span id="local-6989586621681165725"><span id="local-6989586621681165727"><span id="local-6989586621681165729"><span id="local-6989586621681165731"><span id="local-6989586621681165733"><span id="local-6989586621681165735"><span id="local-6989586621681165737"><span id="local-6989586621681165739"><span id="local-6989586621681165741"><span id="local-6989586621681165744"><span id="local-6989586621681165746"><span id="local-6989586621681165748"><span id="local-6989586621681165750"><span id="local-6989586621681165752"><span id="local-6989586621681165754"><span id="local-6989586621681165756"><span id="local-6989586621681165758"><span id="local-6989586621681165760"><span id="local-6989586621681165762"><span id="local-6989586621681165764"><span id="local-6989586621681165766"><span id="local-6989586621681165768"><span id="local-6989586621681165770"><span id="local-6989586621681165772"><span id="local-6989586621681165774"><span id="local-6989586621681165776"><span id="local-6989586621681165778"><span id="local-6989586621681165781"><span id="local-6989586621681165783"><span id="local-6989586621681165785"><span id="local-6989586621681165787"><span id="local-6989586621681165789"><span id="local-6989586621681165791"><span id="local-6989586621681165793"><span id="local-6989586621681165795"><span id="local-6989586621681165797"><span id="local-6989586621681165799"><span id="local-6989586621681165801"><span id="local-6989586621681165803"><span id="local-6989586621681165805"><span id="local-6989586621681165807"><span id="local-6989586621681165809"><span id="local-6989586621681165811"><span id="local-6989586621681165813"><span id="local-6989586621681165815"><span id="local-6989586621681165819"><span id="local-6989586621681165821"><span id="local-6989586621681165823"><span id="local-6989586621681165825"><span id="local-6989586621681165827"><span id="local-6989586621681165829"><span id="local-6989586621681165831"><span id="local-6989586621681165833"><span id="local-6989586621681165835"><span id="local-6989586621681165837"><span id="local-6989586621681165839"><span id="local-6989586621681165841"><span id="local-6989586621681165843"><span id="local-6989586621681165845"><span id="local-6989586621681165847"><span id="local-6989586621681165849"><span id="local-6989586621681165851"><span id="local-6989586621681165853"><span id="local-6989586621681165855"><span id="local-6989586621681165857"><span id="local-6989586621681165859"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Color</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- | Represent flowers by symbolic integers</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">type</span><span> </span><span id="Flower"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-var">Flower</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | The uninterpreted function 'col' assigns a color to each flower.</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#col"><span class="hs-identifier hs-type">col</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-type">Flower</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span>
+</span><span id="line-54"></span><span id="col"><span class="annot"><span class="annottext">col :: Flower -&gt; SBV Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#col"><span class="hs-identifier hs-var hs-var">col</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Flower -&gt; SBV Color
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;col&quot;</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Describe a valid pick of three flowers @i@, @j@, @k@, assuming</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- we have @n@ flowers to start with. Essentially the numbers should</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- be within bounds and distinct.</span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#validPick"><span class="hs-identifier hs-type">validPick</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-type">Flower</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-type">Flower</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-type">Flower</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-60"></span><span id="validPick"><span class="annot"><span class="annottext">validPick :: Flower -&gt; Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#validPick"><span class="hs-identifier hs-var hs-var">validPick</span></a></span></span><span> </span><span id="local-6989586621681165701"><span class="annot"><span class="annottext">n :: Flower
+</span><a href="#local-6989586621681165701"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681165700"><span class="annot"><span class="annottext">i :: Flower
+</span><a href="#local-6989586621681165700"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681165699"><span class="annot"><span class="annottext">j :: Flower
+</span><a href="#local-6989586621681165699"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span id="local-6989586621681165698"><span class="annot"><span class="annottext">k :: Flower
+</span><a href="#local-6989586621681165698"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Flower] -&gt; SBool
+forall a. EqSymbolic a =&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#distinct"><span class="hs-identifier hs-var">distinct</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165700"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165699"><span class="hs-identifier hs-var">j</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165698"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(Flower -&gt; SBool) -&gt; [Flower] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; SBool
+</span><a href="#local-6989586621681165694"><span class="hs-identifier hs-var">ok</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165700"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165699"><span class="hs-identifier hs-var">j</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165698"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681165694"><span class="annot"><span class="annottext">ok :: Flower -&gt; SBool
+</span><a href="#local-6989586621681165694"><span class="hs-identifier hs-var hs-var">ok</span></a></span></span><span> </span><span id="local-6989586621681165693"><span class="annot"><span class="annottext">x :: Flower
+</span><a href="#local-6989586621681165693"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flower -&gt; (Flower, Flower) -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; (a, a) -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#inRange"><span class="hs-identifier hs-var">inRange</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165693"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165701"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Count the number of flowers that occur in a given set of flowers.</span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#count"><span class="hs-identifier hs-type">count</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Flower"><span class="hs-identifier hs-type">Flower</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-65"></span><span id="count"><span class="annot"><span class="annottext">count :: Color -&gt; [Flower] -&gt; Flower
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#count"><span class="hs-identifier hs-var hs-var">count</span></a></span></span><span> </span><span id="local-6989586621681165690"><span class="annot"><span class="annottext">c :: Color
+</span><a href="#local-6989586621681165690"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681165689"><span class="annot"><span class="annottext">fs :: [Flower]
+</span><a href="#local-6989586621681165689"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Flower] -&gt; Flower
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool -&gt; Flower -&gt; Flower -&gt; Flower
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flower -&gt; SBV Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#col"><span class="hs-identifier hs-var">col</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165686"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; SBV Color -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Color -&gt; SBV Color
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="#local-6989586621681165690"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681165686"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165686"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Flower]
+</span><a href="#local-6989586621681165689"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | Smullyan's puzzle.</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#puzzle"><span class="hs-identifier hs-type">puzzle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span>
+</span><span id="line-69"></span><span id="puzzle"><span class="annot"><span class="annottext">puzzle :: Goal
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#puzzle"><span class="hs-identifier hs-var hs-var">puzzle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681165682"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165682"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;N&quot;</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681165680"><span class="annot"><span class="annottext">valid :: Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="#local-6989586621681165680"><span class="hs-identifier hs-var hs-var">valid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#validPick"><span class="hs-identifier hs-var">validPick</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165682"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>            </span><span class="hs-comment">-- Declare three existential flowers. We declar these with</span><span>
+</span><span id="line-74"></span><span>            </span><span class="hs-comment">-- _modelIgnore suffix, because we don't care different assignments</span><span>
+</span><span id="line-75"></span><span>            </span><span class="hs-comment">-- to them to be a different model. See 'isNonModelVar' below.</span><span>
+</span><span id="line-76"></span><span>            </span><span id="local-6989586621681165679"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165679"><span class="hs-identifier hs-var">ef1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ef1_modelIgnore&quot;</span></span><span>
+</span><span id="line-77"></span><span>            </span><span id="local-6989586621681165677"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165677"><span class="hs-identifier hs-var">ef2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ef2_modelIgnore&quot;</span></span><span>
+</span><span id="line-78"></span><span>            </span><span id="local-6989586621681165676"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165676"><span class="hs-identifier hs-var">ef3</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ef3_modelIgnore&quot;</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>            </span><span class="hs-comment">-- Declare three universal flowers to aid in encoding the</span><span>
+</span><span id="line-81"></span><span>            </span><span class="hs-comment">-- statements made by students.</span><span>
+</span><span id="line-82"></span><span>            </span><span id="local-6989586621681165675"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;af1&quot;</span></span><span>
+</span><span id="line-83"></span><span>            </span><span id="local-6989586621681165673"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;af2&quot;</span></span><span>
+</span><span id="line-84"></span><span>            </span><span id="local-6989586621681165672"><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Flower
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;af3&quot;</span></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>            </span><span class="hs-comment">-- Each color is represented:</span><span>
+</span><span id="line-87"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="#local-6989586621681165680"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165679"><span class="hs-identifier hs-var">ef1</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165677"><span class="hs-identifier hs-var">ef2</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165676"><span class="hs-identifier hs-var">ef3</span></a></span><span>
+</span><span id="line-88"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Flower -&gt; SBV Color) -&gt; [Flower] -&gt; [SBV Color]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; SBV Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#col"><span class="hs-identifier hs-var">col</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165679"><span class="hs-identifier hs-var">ef1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165677"><span class="hs-identifier hs-var">ef2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165676"><span class="hs-identifier hs-var">ef3</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[SBV Color] -&gt; [SBV Color] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">(Color -&gt; SBV Color) -&gt; [Color] -&gt; [SBV Color]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Color -&gt; SBV Color
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span>            </span><span class="hs-comment">-- Pick any three, at least one is Red</span><span>
+</span><span id="line-91"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="#local-6989586621681165680"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Color -&gt; [Flower] -&gt; Flower
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#count"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span>    </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span>            </span><span class="hs-comment">-- Pick any three, at least one is Yellow</span><span>
+</span><span id="line-94"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="#local-6989586621681165680"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Color -&gt; [Flower] -&gt; Flower
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#count"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>            </span><span class="hs-comment">-- Pick any three, at least one is Blue</span><span>
+</span><span id="line-97"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; Flower -&gt; SBool
+</span><a href="#local-6989586621681165680"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Color -&gt; [Flower] -&gt; Flower
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#count"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span>   </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165675"><span class="hs-identifier hs-var">af1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165673"><span class="hs-identifier hs-var">af2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flower
+</span><a href="#local-6989586621681165672"><span class="hs-identifier hs-var">af3</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Flower -&gt; Flower -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- | Solve the puzzle. We have:</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- &gt;&gt;&gt; flowerCount</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--   N = 3 :: Integer</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- This is the only solution. (Unique up to prefix existentials.)</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- So, a garden with 3 flowers is the only solution. (Note that we simply skip</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- over the prefix existentials and the assignments to uninterpreted function 'col'</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- for model purposes here, as they don't represent a different solution.)</span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Garden.html#flowerCount"><span class="hs-identifier hs-type">flowerCount</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span id="flowerCount"><span class="annot"><span class="annottext">flowerCount :: IO ()
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#flowerCount"><span class="hs-identifier hs-var hs-var">flowerCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AllSatResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(AllSatResult -&gt; IO ()) -&gt; IO AllSatResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; Goal -&gt; IO AllSatResult
+forall a. Provable a =&gt; SMTConfig -&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSatWith"><span class="hs-identifier hs-var">allSatWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">satTrackUFs :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#satTrackUFs"><span class="hs-identifier hs-var">satTrackUFs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">isNonModelVar :: String -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#isNonModelVar"><span class="hs-identifier hs-var">isNonModelVar</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;_modelIgnore&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`isSuffixOf`</span></span><span class="hs-special">)</span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Goal
+</span><a href="Documentation.SBV.Examples.Puzzles.Garden.html#puzzle"><span class="hs-identifier hs-var">puzzle</span></a></span><span>
+</span><span id="line-111"></span></pre></body></html>

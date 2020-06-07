@@ -1,0 +1,412 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Utils.Numeric</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Various number related utilities</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Utils.Numeric</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- | The SMT-Lib (in particular Z3) implementation for min/max for floats does not agree with</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Haskell's; and also it does not agree with what the hardware does. Sigh.. See:</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--      &lt;http://ghc.haskell.org/trac/ghc/ticket/10378&gt;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--      &lt;http://github.com/Z3Prover/z3/issues/68&gt;</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- So, we codify here what the Z3 (SMTLib) is implementing for fpMax.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- The discrepancy with Haskell is that the NaN propagation doesn't work in Haskell</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- The discrepancy with x86 is that given +0/-0, x86 returns the second argument; SMTLib is non-deterministic</span><span>
+</span><span id="line-23"></span><span id="local-6989586621681127066"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpMaxH"><span class="hs-identifier hs-type">fpMaxH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127066"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127066"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127066"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127066"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-24"></span><span id="fpMaxH"><span class="annot"><span class="annottext">fpMaxH :: a -&gt; a -&gt; a
+</span><a href="Data.SBV.Utils.Numeric.html#fpMaxH"><span class="hs-identifier hs-var hs-var">fpMaxH</span></a></span></span><span> </span><span id="local-6989586621681127064"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681127063"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-25"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span>                                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-26"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span>                                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-27"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127061"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127059"><span class="hs-identifier hs-var">isP0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127061"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127059"><span class="hs-identifier hs-var">isP0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;fpMaxH: Called with alternating-sign 0's. Not supported&quot;</span></span><span>
+</span><span id="line-28"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span>                                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127064"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-29"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>                                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127063"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-30"></span><span>   </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681127061"><span class="annot"><span class="annottext">isN0 :: a -&gt; Bool
+</span><a href="#local-6989586621681127061"><span class="hs-identifier hs-var hs-var">isN0</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span>
+</span><span id="line-31"></span><span>         </span><span id="local-6989586621681127059"><span class="annot"><span class="annottext">isP0 :: a -&gt; Bool
+</span><a href="#local-6989586621681127059"><span class="hs-identifier hs-var hs-var">isP0</span></a></span></span><span> </span><span id="local-6989586621681127054"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681127054"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127054"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127061"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127054"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | SMTLib compliant definition for 'Data.SBV.fpMin'. See the comments for 'Data.SBV.fpMax'.</span><span>
+</span><span id="line-34"></span><span id="local-6989586621681127052"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpMinH"><span class="hs-identifier hs-type">fpMinH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127052"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127052"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127052"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127052"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-35"></span><span id="fpMinH"><span class="annot"><span class="annottext">fpMinH :: a -&gt; a -&gt; a
+</span><a href="Data.SBV.Utils.Numeric.html#fpMinH"><span class="hs-identifier hs-var hs-var">fpMinH</span></a></span></span><span> </span><span id="local-6989586621681127050"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681127049"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-36"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span>                                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-37"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span>                                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-38"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127048"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127047"><span class="hs-identifier hs-var">isP0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127048"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127047"><span class="hs-identifier hs-var">isP0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;fpMinH: Called with alternating-sign 0's. Not supported&quot;</span></span><span>
+</span><span id="line-39"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span>                                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127050"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-40"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>                                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127049"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-41"></span><span>   </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681127048"><span class="annot"><span class="annottext">isN0 :: a -&gt; Bool
+</span><a href="#local-6989586621681127048"><span class="hs-identifier hs-var hs-var">isN0</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span>
+</span><span id="line-42"></span><span>         </span><span id="local-6989586621681127047"><span class="annot"><span class="annottext">isP0 :: a -&gt; Bool
+</span><a href="#local-6989586621681127047"><span class="hs-identifier hs-var hs-var">isP0</span></a></span></span><span> </span><span id="local-6989586621681127045"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681127045"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127045"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621681127048"><span class="hs-identifier hs-var">isN0</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127045"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Convert double to float and back. Essentially @fromRational . toRational@</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- except careful on NaN, Infinities, and -0.</span><span>
+</span><span id="line-46"></span><span id="local-6989586621681127043"><span id="local-6989586621681127044"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fp2fp"><span class="hs-identifier hs-type">fp2fp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127044"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127043"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127044"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127043"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-47"></span><span id="fp2fp"><span class="annot"><span class="annottext">fp2fp :: a -&gt; b
+</span><a href="Data.SBV.Utils.Numeric.html#fp2fp"><span class="hs-identifier hs-var hs-var">fp2fp</span></a></span></span><span> </span><span id="local-6989586621681127041"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-48"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span>               </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; b -&gt; b
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-49"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; b -&gt; b
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-50"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span>          </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; b -&gt; b
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-51"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; b
+forall a. Num a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">negate</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-52"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational -&gt; b
+forall a. Fractional a =&gt; Rational -&gt; a
+</span><span class="hs-identifier hs-var">fromRational</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Rational
+forall a. Real a =&gt; a -&gt; Rational
+</span><span class="hs-identifier hs-var">toRational</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127041"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | Compute the &quot;floating-point&quot; remainder function, the float/double value that</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- remains from the division of @x@ and @y@. There are strict rules around 0's, Infinities,</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- and NaN's as coded below, See &lt;http://smt-lib.org/papers/BTRW14.pdf&gt;, towards the</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- end of section 4.c.</span><span>
+</span><span id="line-58"></span><span id="local-6989586621681127038"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpRemH"><span class="hs-identifier hs-type">fpRemH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127038"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127038"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127038"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127038"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-59"></span><span id="fpRemH"><span class="annot"><span class="annottext">fpRemH :: a -&gt; a -&gt; a
+</span><a href="Data.SBV.Utils.Numeric.html#fpRemH"><span class="hs-identifier hs-var hs-var">fpRemH</span></a></span></span><span> </span><span id="local-6989586621681127036"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681127035"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621681127035"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127035"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>       </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127035"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127035"><span class="hs-identifier hs-var">y</span></a></span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall p. (Eq p, Fractional p) =&gt; p -&gt; p
+</span><a href="#local-6989586621681127034"><span class="hs-identifier hs-var">pSign</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Rational -&gt; a
+forall a. Fractional a =&gt; Rational -&gt; a
+</span><span class="hs-identifier hs-var">fromRational</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Rational
+forall a. Num a =&gt; Integer -&gt; a
+</span><span class="hs-identifier hs-var">fromInteger</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127033"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">Rational -&gt; Rational -&gt; Rational
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621681127031"><span class="hs-identifier hs-var">ry</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681127030"><span class="hs-identifier hs-type">rx</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681127031"><span class="hs-identifier hs-type">ry</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681127029"><span class="hs-identifier hs-type">rd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
+</span><span id="line-65"></span><span>        </span><span id="local-6989586621681127030"><span class="annot"><span class="annottext">rx :: Rational
+</span><a href="#local-6989586621681127030"><span class="hs-identifier hs-var hs-var">rx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Rational
+forall a. Real a =&gt; a -&gt; Rational
+</span><span class="hs-identifier hs-var">toRational</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-66"></span><span>        </span><span id="local-6989586621681127031"><span class="annot"><span class="annottext">ry :: Rational
+</span><a href="#local-6989586621681127031"><span class="hs-identifier hs-var hs-var">ry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Rational
+forall a. Real a =&gt; a -&gt; Rational
+</span><span class="hs-identifier hs-var">toRational</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127035"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-67"></span><span>        </span><span id="local-6989586621681127029"><span class="annot"><span class="annottext">rd :: Rational
+</span><a href="#local-6989586621681127029"><span class="hs-identifier hs-var hs-var">rd</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621681127030"><span class="hs-identifier hs-var">rx</span></a></span><span> </span><span class="annot"><span class="annottext">Rational -&gt; Rational -&gt; Rational
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621681127031"><span class="hs-identifier hs-var">ry</span></a></span><span>
+</span><span id="line-68"></span><span>        </span><span class="annot"><a href="#local-6989586621681127033"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-69"></span><span>        </span><span id="local-6989586621681127033"><span class="annot"><span class="annottext">d :: Integer
+</span><a href="#local-6989586621681127033"><span class="hs-identifier hs-var hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational -&gt; Integer
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621681127029"><span class="hs-identifier hs-var">rd</span></a></span><span>
+</span><span id="line-70"></span><span>        </span><span class="hs-comment">-- If the result is 0, make sure we preserve the sign of x</span><span>
+</span><span id="line-71"></span><span>        </span><span id="local-6989586621681127034"><span class="annot"><span class="annottext">pSign :: p -&gt; p
+</span><a href="#local-6989586621681127034"><span class="hs-identifier hs-var hs-var">pSign</span></a></span></span><span> </span><span id="local-6989586621681127027"><span class="annot"><span class="annottext">r :: p
+</span><a href="#local-6989586621681127027"><span class="hs-identifier hs-var">r</span></a></span></span><span>
+</span><span id="line-72"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">p
+</span><a href="#local-6989586621681127027"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">p -&gt; p -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127036"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">0.0</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="hs-number">0.0</span></span><span>
+</span><span id="line-73"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">p
+</span><a href="#local-6989586621681127027"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | Convert a float to the nearest integral representable in that type</span><span>
+</span><span id="line-76"></span><span id="local-6989586621681127026"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpRoundToIntegralH"><span class="hs-identifier hs-type">fpRoundToIntegralH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127026"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127026"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127026"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-77"></span><span id="fpRoundToIntegralH"><span class="annot"><span class="annottext">fpRoundToIntegralH :: a -&gt; a
+</span><a href="Data.SBV.Utils.Numeric.html#fpRoundToIntegralH"><span class="hs-identifier hs-var hs-var">fpRoundToIntegralH</span></a></span></span><span> </span><span id="local-6989586621681127024"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127023"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">0.0</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="hs-number">0.0</span></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; a
+forall a. Num a =&gt; Integer -&gt; a
+</span><span class="hs-identifier hs-var">fromInteger</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127023"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681127023"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-84"></span><span>        </span><span id="local-6989586621681127023"><span class="annot"><span class="annottext">i :: Integer
+</span><a href="#local-6989586621681127023"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Integer
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127024"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- | Check that two floats are the exact same values, i.e., +0/-0 does not</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- compare equal, and NaN's compare equal to themselves.</span><span>
+</span><span id="line-88"></span><span id="local-6989586621681127068"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpIsEqualObjectH"><span class="hs-identifier hs-type">fpIsEqualObjectH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127068"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127068"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127068"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-89"></span><span id="fpIsEqualObjectH"><span class="annot"><span class="annottext">fpIsEqualObjectH :: a -&gt; a -&gt; Bool
+</span><a href="Data.SBV.Utils.Numeric.html#fpIsEqualObjectH"><span class="hs-identifier hs-var hs-var">fpIsEqualObjectH</span></a></span></span><span> </span><span id="local-6989586621681127021"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681127021"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681127020"><span class="annot"><span class="annottext">b :: a
+</span><a href="#local-6989586621681127020"><span class="hs-identifier hs-var">b</span></a></span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127021"><span class="hs-identifier hs-var">a</span></a></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127020"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127021"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127020"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127020"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127021"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127021"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127020"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | Ordering for floats, avoiding the +0/-0/NaN issues. Note that this is</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- essentially used for indexing into a map, so we need to be total. Thus,</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- the order we pick is:</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--    NaN -oo -0 +0 +oo</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- The placement of NaN here is questionable, but immaterial.</span><span>
+</span><span id="line-100"></span><span id="local-6989586621681127019"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpCompareObjectH"><span class="hs-identifier hs-type">fpCompareObjectH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span><span>
+</span><span id="line-101"></span><span id="fpCompareObjectH"><span class="annot"><span class="annottext">fpCompareObjectH :: a -&gt; a -&gt; Ordering
+</span><a href="Data.SBV.Utils.Numeric.html#fpCompareObjectH"><span class="hs-identifier hs-var hs-var">fpCompareObjectH</span></a></span></span><span> </span><span id="local-6989586621681127017"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681127016"><span class="annot"><span class="annottext">b :: a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; a -&gt; Bool
+</span><a href="Data.SBV.Utils.Numeric.html#fpIsEqualObjectH"><span class="hs-operator hs-var">`fpIsEqualObjectH`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNegativeZero</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127017"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-operator hs-var">`compare`</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127016"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Check if a number is &quot;normal.&quot; Note that +0/-0 is not considered a normal-number</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- and also this is not simply the negation of isDenormalized!</span><span>
+</span><span id="line-111"></span><span id="local-6989586621681127014"><span class="annot"><a href="Data.SBV.Utils.Numeric.html#fpIsNormalizedH"><span class="hs-identifier hs-type">fpIsNormalizedH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RealFloat</span></span><span> </span><span class="annot"><a href="#local-6989586621681127014"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681127014"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-112"></span><span id="fpIsNormalizedH"><span class="annot"><span class="annottext">fpIsNormalizedH :: a -&gt; Bool
+</span><a href="Data.SBV.Utils.Numeric.html#fpIsNormalizedH"><span class="hs-identifier hs-var hs-var">fpIsNormalizedH</span></a></span></span><span> </span><span id="local-6989586621681127012"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681127012"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isDenormalized</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127012"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isInfinite</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127012"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+forall a. RealFloat a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNaN</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127012"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681127012"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span></pre></body></html>

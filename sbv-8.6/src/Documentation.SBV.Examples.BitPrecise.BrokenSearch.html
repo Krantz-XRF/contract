@@ -1,0 +1,283 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.BitPrecise.BrokenSearch</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- The classic &quot;binary-searches are broken&quot; example:</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--     &lt;http://ai.googleblog.com/2006/06/extra-extra-read-all-about-it-nearly.html&gt;</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.BitPrecise.BrokenSearch</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.Overflow.html"><span class="hs-identifier">Data.SBV.Tools.Overflow</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- | Model the mid-point computation of the binary search, which is broken due to arithmetic overflow.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Note how we use the overflow checking variants of the arithmetic operators. We have:</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- &gt;&gt;&gt; checkArithOverflow midPointBroken</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- Documentation/SBV/Examples/BitPrecise/BrokenSearch.hs:35:28:+!: SInt32 addition overflows: Violated. Model:</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   low  = 2147475457 :: Int32</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   high = 2147483645 :: Int32</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- Indeed:</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- &gt;&gt;&gt; (2147475457 + 2147483645) `div` (2::Int32)</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- -4097</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- giving us a negative mid-point value!</span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointBroken"><span class="hs-identifier hs-type">midPointBroken</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span>
+</span><span id="line-35"></span><span id="midPointBroken"><span class="annot"><span class="annottext">midPointBroken :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointBroken"><span class="hs-identifier hs-var hs-var">midPointBroken</span></a></span></span><span> </span><span id="local-6989586621681159670"><span class="annot"><span class="annottext">low :: SInt32
+</span><a href="#local-6989586621681159670"><span class="hs-identifier hs-var">low</span></a></span></span><span> </span><span id="local-6989586621681159669"><span class="annot"><span class="annottext">high :: SInt32
+</span><a href="#local-6989586621681159669"><span class="hs-identifier hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159670"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#%2B%21"><span class="hs-operator hs-var">+!</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159669"><span class="hs-identifier hs-var">high</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#%2F%21"><span class="hs-operator hs-var">/!</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- | The correct version of how to compute the mid-point. As expected, this version doesn't have any</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- underflow or overflow issues:</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- &gt;&gt;&gt; checkArithOverflow midPointFixed</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- No violations detected.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- As expected, the value is computed correctly too:</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- &gt;&gt;&gt; checkCorrectMidValue midPointFixed</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointFixed"><span class="hs-identifier hs-type">midPointFixed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span>
+</span><span id="line-48"></span><span id="midPointFixed"><span class="annot"><span class="annottext">midPointFixed :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointFixed"><span class="hs-identifier hs-var hs-var">midPointFixed</span></a></span></span><span> </span><span id="local-6989586621681159665"><span class="annot"><span class="annottext">low :: SInt32
+</span><a href="#local-6989586621681159665"><span class="hs-identifier hs-var">low</span></a></span></span><span> </span><span id="local-6989586621681159664"><span class="annot"><span class="annottext">high :: SInt32
+</span><a href="#local-6989586621681159664"><span class="hs-identifier hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159665"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#%2B%21"><span class="hs-operator hs-var">+!</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159664"><span class="hs-identifier hs-var">high</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#-%21"><span class="hs-operator hs-var">-!</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159665"><span class="hs-identifier hs-var">low</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#%2F%21"><span class="hs-operator hs-var">/!</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | Show that the variant suggested by the blog post is good as well:</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--       @mid = ((unsigned int)low + (unsigned int)high) &gt;&gt; 1;@</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- In this case the overflow is eliminated by doing the computation at a wider</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- range:</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &gt;&gt;&gt; checkArithOverflow midPointAlternative</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- No violations detected.</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- And the value computed is indeed correct:</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- &gt;&gt;&gt; checkCorrectMidValue midPointAlternative</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointAlternative"><span class="hs-identifier hs-type">midPointAlternative</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span>
+</span><span id="line-65"></span><span id="midPointAlternative"><span class="annot"><span class="annottext">midPointAlternative :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#midPointAlternative"><span class="hs-identifier hs-var hs-var">midPointAlternative</span></a></span></span><span> </span><span id="local-6989586621681159661"><span class="annot"><span class="annottext">low :: SInt32
+</span><a href="#local-6989586621681159661"><span class="hs-identifier hs-var">low</span></a></span></span><span> </span><span id="local-6989586621681159660"><span class="annot"><span class="annottext">high :: SInt32
+</span><a href="#local-6989586621681159660"><span class="hs-identifier hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Word32 -&gt; SInt32
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word32
+</span><a href="#local-6989586621681159658"><span class="hs-identifier hs-var">low'</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word32 -&gt; SBV Word32 -&gt; SBV Word32
+forall a.
+(CheckedArithmetic a, ?loc::CallStack) =&gt;
+SBV a -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Tools.Overflow.html#%2B%21"><span class="hs-operator hs-var">+!</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word32
+</span><a href="#local-6989586621681159657"><span class="hs-identifier hs-var">high'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV Word32 -&gt; Int -&gt; SBV Word32
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftR`</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681159658"><span class="hs-identifier hs-type">low'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681159657"><span class="hs-identifier hs-type">high'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord32"><span class="hs-identifier hs-type">SWord32</span></a></span><span>
+</span><span id="line-67"></span><span>        </span><span id="local-6989586621681159658"><span class="annot"><span class="annottext">low' :: SBV Word32
+</span><a href="#local-6989586621681159658"><span class="hs-identifier hs-var hs-var">low'</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SBV Word32
+forall a b.
+(?loc::CallStack, Integral a, HasKind a, HasKind b, Num a,
+ SymVal a, HasKind b, Num b, SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Tools.Overflow.html#sFromIntegralChecked"><span class="hs-identifier hs-var">sFromIntegralChecked</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159661"><span class="hs-identifier hs-var">low</span></a></span><span>
+</span><span id="line-68"></span><span>        </span><span id="local-6989586621681159657"><span class="annot"><span class="annottext">high' :: SBV Word32
+</span><a href="#local-6989586621681159657"><span class="hs-identifier hs-var hs-var">high'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SBV Word32
+forall a b.
+(?loc::CallStack, Integral a, HasKind a, HasKind b, Num a,
+ SymVal a, HasKind b, Num b, SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Tools.Overflow.html#sFromIntegralChecked"><span class="hs-identifier hs-var">sFromIntegralChecked</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159660"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-------------------------------------------------------------------------------------</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- * Helpers</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-------------------------------------------------------------------------------------</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | A helper predicate to check safety under the conditions that @low@ is at least 0</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- and @high@ is at least @low@.</span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#checkArithOverflow"><span class="hs-identifier hs-type">checkArithOverflow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span id="checkArithOverflow"><span class="annot"><span class="annottext">checkArithOverflow :: (SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO ()
+</span><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#checkArithOverflow"><span class="hs-identifier hs-var hs-var">checkArithOverflow</span></a></span></span><span> </span><span id="local-6989586621681159652"><span class="annot"><span class="annottext">f :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="#local-6989586621681159652"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681159651"><span class="annot"><span class="annottext">[SafeResult]
+</span><a href="#local-6989586621681159651"><span class="hs-identifier hs-var">sr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SInt32 -&gt; IO [SafeResult]
+forall a. SExecutable IO a =&gt; a -&gt; IO [SafeResult]
+</span><a href="Data.SBV.Client.BaseIO.html#safe"><span class="hs-keyword hs-var">safe</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SInt32 -&gt; IO [SafeResult])
+-&gt; SymbolicT IO SInt32 -&gt; IO [SafeResult]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681159649"><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159649"><span class="hs-identifier hs-var">low</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SInt32
+</span><a href="Data.SBV.Client.BaseIO.html#sInt32"><span class="hs-identifier hs-var">sInt32</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;low&quot;</span></span><span>
+</span><span id="line-78"></span><span>                                          </span><span id="local-6989586621681159647"><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159647"><span class="hs-identifier hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SInt32
+</span><a href="Data.SBV.Client.BaseIO.html#sInt32"><span class="hs-identifier hs-var">sInt32</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;high&quot;</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>                                          </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159649"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-81"></span><span>                                          </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159649"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159647"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>                                          </span><span class="annot"><span class="annottext">SInt32 -&gt; SymbolicT IO SInt32
+forall a. Outputtable a =&gt; a -&gt; Symbolic a
+</span><a href="Data.SBV.Client.BaseIO.html#output"><span class="hs-identifier hs-var">output</span></a></span><span> </span><span class="annot"><span class="annottext">(SInt32 -&gt; SymbolicT IO SInt32) -&gt; SInt32 -&gt; SymbolicT IO SInt32
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="#local-6989586621681159652"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159649"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159647"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>                          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">(SafeResult -&gt; Bool) -&gt; [SafeResult] -&gt; [SafeResult]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (SafeResult -&gt; Bool) -&gt; SafeResult -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SafeResult -&gt; Bool
+</span><a href="Data.SBV.Provers.Prover.html#isSafe"><span class="hs-identifier hs-var">isSafe</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SafeResult]
+</span><a href="#local-6989586621681159651"><span class="hs-identifier hs-var">sr</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-86"></span><span>                                 </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="hs-string">&quot;No violations detected.&quot;</span></span><span>
+</span><span id="line-87"></span><span>                                 </span><span id="local-6989586621681159638"><span class="annot"><span class="annottext">xs :: [SafeResult]
+</span><a href="#local-6989586621681159638"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SafeResult -&gt; IO ()) -&gt; [SafeResult] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">SafeResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">[SafeResult]
+</span><a href="#local-6989586621681159638"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- | Another helper to show that the result is actually the correct value, if it was done over</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- 64-bit integers, which is sufficiently large enough.</span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#checkCorrectMidValue"><span class="hs-identifier hs-type">checkCorrectMidValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-92"></span><span id="checkCorrectMidValue"><span class="annot"><span class="annottext">checkCorrectMidValue :: (SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO ThmResult
+</span><a href="Documentation.SBV.Examples.BitPrecise.BrokenSearch.html#checkCorrectMidValue"><span class="hs-identifier hs-var hs-var">checkCorrectMidValue</span></a></span></span><span> </span><span id="local-6989586621681159635"><span class="annot"><span class="annottext">f :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="#local-6989586621681159635"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO ThmResult)
+-&gt; SymbolicT IO SBool -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681159633"><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159633"><span class="hs-identifier hs-var">low</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SInt32
+</span><a href="Data.SBV.Client.BaseIO.html#sInt32"><span class="hs-identifier hs-var">sInt32</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;low&quot;</span></span><span>
+</span><span id="line-93"></span><span>                                    </span><span id="local-6989586621681159632"><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159632"><span class="hs-identifier hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SInt32
+</span><a href="Data.SBV.Client.BaseIO.html#sInt32"><span class="hs-identifier hs-var">sInt32</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;high&quot;</span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span>                                    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159633"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-96"></span><span>                                    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159633"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159632"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span>                                    </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="#local-6989586621681159631"><span class="hs-identifier hs-type">low'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681159630"><span class="hs-identifier hs-type">high'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt64"><span class="hs-identifier hs-type">SInt64</span></a></span><span>
+</span><span id="line-99"></span><span>                                        </span><span id="local-6989586621681159631"><span class="annot"><span class="annottext">low' :: SInt64
+</span><a href="#local-6989586621681159631"><span class="hs-identifier hs-var hs-var">low'</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt64
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159633"><span class="hs-identifier hs-var">low</span></a></span><span>
+</span><span id="line-100"></span><span>                                        </span><span id="local-6989586621681159630"><span class="annot"><span class="annottext">high' :: SInt64
+</span><a href="#local-6989586621681159630"><span class="hs-identifier hs-var hs-var">high'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt64
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159632"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-101"></span><span>                                        </span><span id="local-6989586621681159629"><span class="annot"><span class="annottext">mid' :: SInt64
+</span><a href="#local-6989586621681159629"><span class="hs-identifier hs-var hs-var">mid'</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt64
+</span><a href="#local-6989586621681159631"><span class="hs-identifier hs-var">low'</span></a></span><span> </span><span class="annot"><span class="annottext">SInt64 -&gt; SInt64 -&gt; SInt64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInt64
+</span><a href="#local-6989586621681159630"><span class="hs-identifier hs-var">high'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInt64 -&gt; SInt64 -&gt; SInt64
+forall a. SDivisible a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#sDiv"><span class="hs-operator hs-var">`sDiv`</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span>                                        </span><span id="local-6989586621681159626"><span class="annot"><span class="annottext">mid :: SInt32
+</span><a href="#local-6989586621681159626"><span class="hs-identifier hs-var hs-var">mid</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="#local-6989586621681159635"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159633"><span class="hs-identifier hs-var">low</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159632"><span class="hs-identifier hs-var">high</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span>                                    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt64
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681159626"><span class="hs-identifier hs-var">mid</span></a></span><span> </span><span class="annot"><span class="annottext">SInt64 -&gt; SInt64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SInt64
+</span><a href="#local-6989586621681159629"><span class="hs-identifier hs-var">mid'</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="hs-pragma">module</span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Reduce duplication&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-108"></span></pre></body></html>

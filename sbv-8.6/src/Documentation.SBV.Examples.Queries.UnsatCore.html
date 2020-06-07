@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Queries.UnsatCore</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates extraction of unsat-cores via queries.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Queries.UnsatCore</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | A simple goal with three constraints, two of which are</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- conflicting with each other. The third is irrelevant, in the sense</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- that it does not contribute to the fact that the goal is unsatisfiable.</span><span>
+</span><span id="line-22"></span><span class="annot"><a href="Documentation.SBV.Examples.Queries.UnsatCore.html#p"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span id="p"><span class="annot"><span class="annottext">p :: Symbolic (Maybe [String])
+</span><a href="Documentation.SBV.Examples.Queries.UnsatCore.html#p"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169155"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169155"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;a&quot;</span></span><span>
+</span><span id="line-24"></span><span>       </span><span id="local-6989586621681169153"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169153"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;b&quot;</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>       </span><span class="hs-comment">-- tell the solver we want unsat-cores</span><span>
+</span><span id="line-27"></span><span>       </span><span class="annot"><span class="annottext">SMTOption -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SMTOption -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#setOption"><span class="hs-identifier hs-var">setOption</span></a></span><span> </span><span class="annot"><span class="annottext">(SMTOption -&gt; SymbolicT IO ()) -&gt; SMTOption -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; SMTOption
+</span><a href="Data.SBV.Control.Types.html#ProduceUnsatCores"><span class="hs-identifier hs-var">ProduceUnsatCores</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>       </span><span class="hs-comment">-- create named constraints, which will allow</span><span>
+</span><span id="line-30"></span><span>       </span><span class="hs-comment">-- unsat-core extraction with the given names</span><span>
+</span><span id="line-31"></span><span>       </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; String -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#namedConstraint"><span class="hs-identifier hs-var">namedConstraint</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;less than 5&quot;</span></span><span>  </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169155"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span>
+</span><span id="line-32"></span><span>       </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; String -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#namedConstraint"><span class="hs-identifier hs-var">namedConstraint</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;more than 10&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169155"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-33"></span><span>       </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; String -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#namedConstraint"><span class="hs-identifier hs-var">namedConstraint</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;irrelevant&quot;</span></span><span>   </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169155"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169153"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>       </span><span class="hs-comment">-- To obtain the unsat-core, we run a query</span><span>
+</span><span id="line-36"></span><span>       </span><span class="annot"><span class="annottext">Query (Maybe [String]) -&gt; Symbolic (Maybe [String])
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query (Maybe [String]) -&gt; Symbolic (Maybe [String]))
+-&gt; Query (Maybe [String]) -&gt; Symbolic (Maybe [String])
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169146"><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169146"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-var">checkSat</span></a></span><span>
+</span><span id="line-37"></span><span>                  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169146"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-38"></span><span>                    </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unsat"><span class="hs-identifier hs-type">Unsat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Maybe [String]
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; Maybe [String])
+-&gt; QueryT IO [String] -&gt; Query (Maybe [String])
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO [String]
+</span><a href="Data.SBV.Control.BaseIO.html#getUnsatCore"><span class="hs-identifier hs-var">getUnsatCore</span></a></span><span>
+</span><span id="line-39"></span><span>                    </span><span class="hs-identifier">_</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe [String] -&gt; Query (Maybe [String])
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe [String]
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Extract the unsat-core of 'p'. We have:</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- &gt;&gt;&gt; ucCore</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- Unsat core is: [&quot;less than 5&quot;,&quot;more than 10&quot;]</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- Demonstrating that the constraint @a .&gt; b@ is /not/ needed for unsatisfiablity in this case.</span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Documentation.SBV.Examples.Queries.UnsatCore.html#ucCore"><span class="hs-identifier hs-type">ucCore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span id="ucCore"><span class="annot"><span class="annottext">ucCore :: IO ()
+</span><a href="Documentation.SBV.Examples.Queries.UnsatCore.html#ucCore"><span class="hs-identifier hs-var hs-var">ucCore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169140"><span class="annot"><span class="annottext">Maybe [String]
+</span><a href="#local-6989586621681169140"><span class="hs-identifier hs-var">mbCore</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Symbolic (Maybe [String]) -&gt; IO (Maybe [String])
+forall a. Symbolic a -&gt; IO a
+</span><a href="Data.SBV.Client.BaseIO.html#runSMT"><span class="hs-identifier hs-var">runSMT</span></a></span><span> </span><span class="annot"><span class="annottext">Symbolic (Maybe [String])
+</span><a href="Documentation.SBV.Examples.Queries.UnsatCore.html#p"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-50"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe [String]
+</span><a href="#local-6989586621681169140"><span class="hs-identifier hs-var">mbCore</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-51"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Problem is satisfiable.&quot;</span></span><span>
+</span><span id="line-52"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681169137"><span class="annot"><span class="annottext">core :: [String]
+</span><a href="#local-6989586621681169137"><span class="hs-identifier hs-var">core</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Unsat core is: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681169137"><span class="hs-identifier hs-var">core</span></a></span><span>
+</span><span id="line-53"></span></pre></body></html>

@@ -1,0 +1,746 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Control.BaseIO</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Brian Schroeder</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--                 Levent Erkok</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Monomorphized versions of functions for simplified client use via</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- @Data.SBV.Control@, where we restrict the underlying monad to be IO.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Control.BaseIO</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html"><span class="hs-identifier">Data.SBV.Control.Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Query.html#Assignment"><span class="hs-identifier">Assignment</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html"><span class="hs-identifier">Data.SBV.Control.Types</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier">CheckSatResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoFlag"><span class="hs-identifier">SMTInfoFlag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoResponse"><span class="hs-identifier">SMTInfoResponse</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTOption"><span class="hs-identifier">SMTOption</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTReasonUnknown"><span class="hs-identifier">SMTReasonUnknown</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html"><span class="hs-identifier">Data.SBV.Control.Utils</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTValue"><span class="hs-identifier">SMTValue</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html"><span class="hs-identifier">Data.SBV.Core.Concrete</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier">CV</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier">HasKind</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier">Symbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymArray"><span class="hs-identifier">SymArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier">SymVal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier">SBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier">SBV</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SBVType"><span class="hs-identifier">SBVType</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html"><span class="hs-identifier">Data.SBV.Core.Symbolic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier">Query</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryContext"><span class="hs-identifier">QueryContext</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryState"><span class="hs-identifier">QueryState</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#State"><span class="hs-identifier">State</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTModel"><span class="hs-identifier">SMTModel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier">SMTResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SV"><span class="hs-identifier">SV</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html"><span class="hs-identifier">Data.SBV.Control.Query</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html"><span class="hs-identifier">Data.SBV.Control.Utils</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- Data.SBV.Control.Query</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | Ask solver for info.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getInfo'</span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInfo"><span class="hs-identifier hs-type">getInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoFlag"><span class="hs-identifier hs-type">SMTInfoFlag</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoResponse"><span class="hs-identifier hs-type">SMTInfoResponse</span></a></span><span>
+</span><span id="line-34"></span><span id="getInfo"><span class="annot"><span class="annottext">getInfo :: SMTInfoFlag -&gt; Query SMTInfoResponse
+</span><a href="Data.SBV.Control.BaseIO.html#getInfo"><span class="hs-identifier hs-var hs-var">getInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTInfoFlag -&gt; Query SMTInfoResponse
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+SMTInfoFlag -&gt; m SMTInfoResponse
+</span><a href="Data.SBV.Control.Query.html#getInfo"><span class="hs-identifier hs-var">Trans.getInfo</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Retrieve the value of an 'SMTOption.' The curious function argument is on purpose here,</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- simply pass the constructor name. Example: the call @'getOption' 'Data.SBV.Control.ProduceUnsatCores'@ will return</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- either @Nothing@ or @Just (ProduceUnsatCores True)@ or @Just (ProduceUnsatCores False)@.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- Result will be 'Nothing' if the solver does not support this option.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getOption'</span><span>
+</span><span id="line-43"></span><span id="local-6989586621681153631"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getOption"><span class="hs-identifier hs-type">getOption</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681153631"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTOption"><span class="hs-identifier hs-type">SMTOption</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTOption"><span class="hs-identifier hs-type">SMTOption</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-44"></span><span id="getOption"><span class="annot"><span class="annottext">getOption :: (a -&gt; SMTOption) -&gt; Query (Maybe SMTOption)
+</span><a href="Data.SBV.Control.BaseIO.html#getOption"><span class="hs-identifier hs-var hs-var">getOption</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; SMTOption) -&gt; Query (Maybe SMTOption)
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m) =&gt;
+(a -&gt; SMTOption) -&gt; m (Maybe SMTOption)
+</span><a href="Data.SBV.Control.Query.html#getOption"><span class="hs-identifier hs-var">Trans.getOption</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | Get the reason unknown. Only internally used.</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUnknownReason'</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUnknownReason"><span class="hs-identifier hs-type">getUnknownReason</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTReasonUnknown"><span class="hs-identifier hs-type">SMTReasonUnknown</span></a></span><span>
+</span><span id="line-50"></span><span id="getUnknownReason"><span class="annot"><span class="annottext">getUnknownReason :: Query SMTReasonUnknown
+</span><a href="Data.SBV.Control.BaseIO.html#getUnknownReason"><span class="hs-identifier hs-var hs-var">getUnknownReason</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query SMTReasonUnknown
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+m SMTReasonUnknown
+</span><a href="Data.SBV.Control.Query.html#getUnknownReason"><span class="hs-identifier hs-var">Trans.getUnknownReason</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | Get the observables recorded during a query run.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getObservables'</span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getObservables"><span class="hs-identifier hs-type">getObservables</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier hs-type">CV</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-56"></span><span id="getObservables"><span class="annot"><span class="annottext">getObservables :: Query [(String, CV)]
+</span><a href="Data.SBV.Control.BaseIO.html#getObservables"><span class="hs-identifier hs-var hs-var">getObservables</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query [(String, CV)]
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m [(String, CV)]
+</span><a href="Data.SBV.Control.Utils.html#getObservables"><span class="hs-identifier hs-var">Trans.getObservables</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | Get the uinterpreted constants/functions recorded during a run.</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUIs'</span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUIs"><span class="hs-identifier hs-type">getUIs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SBVType"><span class="hs-identifier hs-type">SBVType</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-62"></span><span id="getUIs"><span class="annot"><span class="annottext">getUIs :: Query [(String, SBVType)]
+</span><a href="Data.SBV.Control.BaseIO.html#getUIs"><span class="hs-identifier hs-var hs-var">getUIs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query [(String, SBVType)]
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+m [(String, SBVType)]
+</span><a href="Data.SBV.Control.Utils.html#getUIs"><span class="hs-identifier hs-var">Trans.getUIs</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- | Issue check-sat and get an SMT Result out.</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getSMTResult'</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getSMTResult"><span class="hs-identifier hs-type">getSMTResult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span>
+</span><span id="line-68"></span><span id="getSMTResult"><span class="annot"><span class="annottext">getSMTResult :: Query SMTResult
+</span><a href="Data.SBV.Control.BaseIO.html#getSMTResult"><span class="hs-identifier hs-var hs-var">getSMTResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query SMTResult
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m SMTResult
+</span><a href="Data.SBV.Control.Query.html#getSMTResult"><span class="hs-identifier hs-var">Trans.getSMTResult</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | Issue check-sat and get results of a lexicographic optimization.</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getLexicographicOptResults'</span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getLexicographicOptResults"><span class="hs-identifier hs-type">getLexicographicOptResults</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span>
+</span><span id="line-74"></span><span id="getLexicographicOptResults"><span class="annot"><span class="annottext">getLexicographicOptResults :: Query SMTResult
+</span><a href="Data.SBV.Control.BaseIO.html#getLexicographicOptResults"><span class="hs-identifier hs-var hs-var">getLexicographicOptResults</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query SMTResult
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m SMTResult
+</span><a href="Data.SBV.Control.Query.html#getLexicographicOptResults"><span class="hs-identifier hs-var">Trans.getLexicographicOptResults</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Issue check-sat and get results of an independent (boxed) optimization.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getIndependentOptResults'</span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getIndependentOptResults"><span class="hs-identifier hs-type">getIndependentOptResults</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-80"></span><span id="getIndependentOptResults"><span class="annot"><span class="annottext">getIndependentOptResults :: [String] -&gt; Query [(String, SMTResult)]
+</span><a href="Data.SBV.Control.BaseIO.html#getIndependentOptResults"><span class="hs-identifier hs-var hs-var">getIndependentOptResults</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Query [(String, SMTResult)]
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[String] -&gt; m [(String, SMTResult)]
+</span><a href="Data.SBV.Control.Query.html#getIndependentOptResults"><span class="hs-identifier hs-var">Trans.getIndependentOptResults</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- | Construct a pareto-front optimization result</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getParetoOptResults'</span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getParetoOptResults"><span class="hs-identifier hs-type">getParetoOptResults</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span id="getParetoOptResults"><span class="annot"><span class="annottext">getParetoOptResults :: Maybe Int -&gt; Query (Bool, [SMTResult])
+</span><a href="Data.SBV.Control.BaseIO.html#getParetoOptResults"><span class="hs-identifier hs-var hs-var">getParetoOptResults</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; Query (Bool, [SMTResult])
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+Maybe Int -&gt; m (Bool, [SMTResult])
+</span><a href="Data.SBV.Control.Query.html#getParetoOptResults"><span class="hs-identifier hs-var">Trans.getParetoOptResults</span></a></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- | Collect model values. It is implicitly assumed that we are in a check-sat</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- context. See 'getSMTResult' for a variant that issues a check-sat first and</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- returns an 'SMTResult'.</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getModel'</span><span>
+</span><span id="line-93"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getModel"><span class="hs-identifier hs-type">getModel</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTModel"><span class="hs-identifier hs-type">SMTModel</span></a></span><span>
+</span><span id="line-94"></span><span id="getModel"><span class="annot"><span class="annottext">getModel :: Query SMTModel
+</span><a href="Data.SBV.Control.BaseIO.html#getModel"><span class="hs-identifier hs-var hs-var">getModel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query SMTModel
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m SMTModel
+</span><a href="Data.SBV.Control.Query.html#getModel"><span class="hs-identifier hs-var">Trans.getModel</span></a></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- | Check for satisfiability, under the given conditions. Similar to 'Data.SBV.Control.checkSat' except it allows making</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- further assumptions as captured by the first argument of booleans. (Also see 'checkSatAssumingWithUnsatisfiableSet'</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- for a variant that returns the subset of the given assumptions that led to the 'Data.SBV.Control.Unsat' conclusion.)</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.checkSatAssuming'</span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatAssuming"><span class="hs-identifier hs-type">checkSatAssuming</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier hs-type">CheckSatResult</span></a></span><span>
+</span><span id="line-102"></span><span id="checkSatAssuming"><span class="annot"><span class="annottext">checkSatAssuming :: [SBool] -&gt; Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSatAssuming"><span class="hs-identifier hs-var hs-var">checkSatAssuming</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; Query CheckSatResult
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[SBool] -&gt; m CheckSatResult
+</span><a href="Data.SBV.Control.Query.html#checkSatAssuming"><span class="hs-identifier hs-var">Trans.checkSatAssuming</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- | Check for satisfiability, under the given conditions. Returns the unsatisfiable</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- set of assumptions. Similar to 'Data.SBV.Control.checkSat' except it allows making further assumptions</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- as captured by the first argument of booleans. If the result is 'Data.SBV.Control.Unsat', the user will</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- also receive a subset of the given assumptions that led to the 'Data.SBV.Control.Unsat' conclusion. Note</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- that while this set will be a subset of the inputs, it is not necessarily guaranteed to be minimal.</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- You must have arranged for the production of unsat assumptions</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- first via</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceUnsatAssumptions' 'True'</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- Usage note: 'getUnsatCore' is usually easier to use than 'checkSatAssumingWithUnsatisfiableSet', as it</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- allows the use of named assertions, as obtained by 'Data.SBV.namedConstraint'. If 'getUnsatCore'</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- fills your needs, you should definitely prefer it over 'checkSatAssumingWithUnsatisfiableSet'.</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.checkSatAssumingWithUnsatisfiableSet'</span><span>
+</span><span id="line-124"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatAssumingWithUnsatisfiableSet"><span class="hs-identifier hs-type">checkSatAssumingWithUnsatisfiableSet</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier hs-type">CheckSatResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span id="checkSatAssumingWithUnsatisfiableSet"><span class="annot"><span class="annottext">checkSatAssumingWithUnsatisfiableSet :: [SBool] -&gt; Query (CheckSatResult, Maybe [SBool])
+</span><a href="Data.SBV.Control.BaseIO.html#checkSatAssumingWithUnsatisfiableSet"><span class="hs-identifier hs-var hs-var">checkSatAssumingWithUnsatisfiableSet</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; Query (CheckSatResult, Maybe [SBool])
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[SBool] -&gt; m (CheckSatResult, Maybe [SBool])
+</span><a href="Data.SBV.Control.Query.html#checkSatAssumingWithUnsatisfiableSet"><span class="hs-identifier hs-var">Trans.checkSatAssumingWithUnsatisfiableSet</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- | The current assertion stack depth, i.e., #push - #pops after start. Always non-negative.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getAssertionStackDepth'</span><span>
+</span><span id="line-130"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssertionStackDepth"><span class="hs-identifier hs-type">getAssertionStackDepth</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-131"></span><span id="getAssertionStackDepth"><span class="annot"><span class="annottext">getAssertionStackDepth :: Query Int
+</span><a href="Data.SBV.Control.BaseIO.html#getAssertionStackDepth"><span class="hs-identifier hs-var hs-var">getAssertionStackDepth</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query Int
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m Int
+</span><a href="Data.SBV.Control.Query.html#getAssertionStackDepth"><span class="hs-identifier hs-var">Trans.getAssertionStackDepth</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- | Run the query in a new assertion stack. That is, we push the context, run the query</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- commands, and pop it back.</span><span>
+</span><span id="line-135"></span><span class="hs-comment">--</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.inNewAssertionStack'</span><span>
+</span><span id="line-137"></span><span id="local-6989586621681153606"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#inNewAssertionStack"><span class="hs-identifier hs-type">inNewAssertionStack</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153606"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153606"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-138"></span><span id="inNewAssertionStack"><span class="annot"><span class="annottext">inNewAssertionStack :: Query a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#inNewAssertionStack"><span class="hs-identifier hs-var hs-var">inNewAssertionStack</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query a -&gt; Query a
+forall (m :: * -&gt; *) a. (MonadIO m, MonadQuery m) =&gt; m a -&gt; m a
+</span><a href="Data.SBV.Control.Query.html#inNewAssertionStack"><span class="hs-identifier hs-var">Trans.inNewAssertionStack</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- | Push the context, entering a new one. Pushes multiple levels if /n/ &gt; 1.</span><span>
+</span><span id="line-141"></span><span class="hs-comment">--</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.push'</span><span>
+</span><span id="line-143"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#push"><span class="hs-identifier hs-type">push</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span id="push"><span class="annot"><span class="annottext">push :: Int -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#push"><span class="hs-identifier hs-var hs-var">push</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; Int -&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#push"><span class="hs-identifier hs-var">Trans.push</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- | Pop the context, exiting a new one. Pops multiple levels if /n/ &gt; 1. It's an error to pop levels that don't exist.</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.pop'</span><span>
+</span><span id="line-149"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#pop"><span class="hs-identifier hs-type">pop</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span id="pop"><span class="annot"><span class="annottext">pop :: Int -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#pop"><span class="hs-identifier hs-var hs-var">pop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; Int -&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#pop"><span class="hs-identifier hs-var">Trans.pop</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- | Search for a result via a sequence of case-splits, guided by the user. If one of</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- the conditions lead to a satisfiable result, returns @Just@ that result. If none of them</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- do, returns @Nothing@. Note that we automatically generate a coverage case and search</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- for it automatically as well. In that latter case, the string returned will be &quot;Coverage&quot;.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- The first argument controls printing progress messages  See &quot;Documentation.SBV.Examples.Queries.CaseSplit&quot;</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- for an example use case.</span><span>
+</span><span id="line-158"></span><span class="hs-comment">--</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.caseSplit'</span><span>
+</span><span id="line-160"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#caseSplit"><span class="hs-identifier hs-type">caseSplit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span id="caseSplit"><span class="annot"><span class="annottext">caseSplit :: Bool -&gt; [(String, SBool)] -&gt; Query (Maybe (String, SMTResult))
+</span><a href="Data.SBV.Control.BaseIO.html#caseSplit"><span class="hs-identifier hs-var hs-var">caseSplit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; [(String, SBool)] -&gt; Query (Maybe (String, SMTResult))
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+Bool -&gt; [(String, SBool)] -&gt; m (Maybe (String, SMTResult))
+</span><a href="Data.SBV.Control.Query.html#caseSplit"><span class="hs-identifier hs-var">Trans.caseSplit</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- | Reset the solver, by forgetting all the assertions. However, bindings are kept as is,</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- as opposed to a full reset of the solver. Use this variant to clean-up the solver</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- state while leaving the bindings intact. Pops all assertion levels. Declarations and</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- definitions resulting from the 'Data.SBV.setLogic' command are unaffected. Note that SBV</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- implicitly uses global-declarations, so bindings will remain intact.</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.resetAssertions'</span><span>
+</span><span id="line-170"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#resetAssertions"><span class="hs-identifier hs-type">resetAssertions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-171"></span><span id="resetAssertions"><span class="annot"><span class="annottext">resetAssertions :: Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#resetAssertions"><span class="hs-identifier hs-var hs-var">resetAssertions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#resetAssertions"><span class="hs-identifier hs-var">Trans.resetAssertions</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- | Echo a string. Note that the echoing is done by the solver, not by SBV.</span><span>
+</span><span id="line-174"></span><span class="hs-comment">--</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.echo'</span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#echo"><span class="hs-identifier hs-type">echo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-177"></span><span id="echo"><span class="annot"><span class="annottext">echo :: String -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#echo"><span class="hs-identifier hs-var hs-var">echo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; String -&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#echo"><span class="hs-identifier hs-var">Trans.echo</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- | Exit the solver. This action will cause the solver to terminate. Needless to say,</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- trying to communicate with the solver after issuing &quot;exit&quot; will simply fail.</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.exit'</span><span>
+</span><span id="line-183"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#exit"><span class="hs-identifier hs-type">exit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span id="exit"><span class="annot"><span class="annottext">exit :: Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#exit"><span class="hs-identifier hs-var hs-var">exit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#exit"><span class="hs-identifier hs-var">Trans.exit</span></a></span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- | Retrieve the unsat-core. Note you must have arranged for</span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- unsat cores to be produced first via</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceUnsatCores' 'True'</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-192"></span><span class="hs-comment">--</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-194"></span><span class="hs-comment">--</span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- NB. There is no notion of a minimal unsat-core, in case unsatisfiability can be derived</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- in multiple ways. Furthermore, Z3 does not guarantee that the generated unsat</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- core does not have any redundant assertions either, as doing so can incur a performance penalty.</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- (There might be assertions in the set that is not needed.) To ensure all the assertions</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- in the core are relevant, use:</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--</span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.OptionKeyword' &quot;:smt.core.minimize&quot; [&quot;true&quot;]</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-204"></span><span class="hs-comment">--</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- Note that this only works with Z3.</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUnsatCore'</span><span>
+</span><span id="line-208"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUnsatCore"><span class="hs-identifier hs-type">getUnsatCore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-209"></span><span id="getUnsatCore"><span class="annot"><span class="annottext">getUnsatCore :: Query [String]
+</span><a href="Data.SBV.Control.BaseIO.html#getUnsatCore"><span class="hs-identifier hs-var hs-var">getUnsatCore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query [String]
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m [String]
+</span><a href="Data.SBV.Control.Query.html#getUnsatCore"><span class="hs-identifier hs-var">Trans.getUnsatCore</span></a></span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- | Retrieve the proof. Note you must have arranged for</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- proofs to be produced first via</span><span>
+</span><span id="line-213"></span><span class="hs-comment">--</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceProofs' 'True'</span><span>
+</span><span id="line-216"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-217"></span><span class="hs-comment">--</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-219"></span><span class="hs-comment">--</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- A proof is simply a 'String', as returned by the solver. In the future, SBV might</span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- provide a better datatype, depending on the use cases. Please get in touch if you</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- use this function and can suggest a better API.</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getProof'</span><span>
+</span><span id="line-225"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getProof"><span class="hs-identifier hs-type">getProof</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-226"></span><span id="getProof"><span class="annot"><span class="annottext">getProof :: Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getProof"><span class="hs-identifier hs-var hs-var">getProof</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query String
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m String
+</span><a href="Data.SBV.Control.Query.html#getProof"><span class="hs-identifier hs-var">Trans.getProof</span></a></span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span class="hs-comment">-- | Interpolant extraction for MathSAT. Compare with 'getInterpolantZ3', which performs</span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- similar function (but with a different use model) in Z3.</span><span>
+</span><span id="line-230"></span><span class="hs-comment">--</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- Retrieve an interpolant after an 'Data.SBV.Control.Unsat' result is obtained. Note you must have arranged for</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- interpolants to be produced first via</span><span>
+</span><span id="line-233"></span><span class="hs-comment">--</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-235"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceInterpolants' 'True'</span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-237"></span><span class="hs-comment">--</span><span>
+</span><span id="line-238"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-239"></span><span class="hs-comment">--</span><span>
+</span><span id="line-240"></span><span class="hs-comment">-- To get an interpolant for a pair of formulas @A@ and @B@, use a 'Data.SBV.constrainWithAttribute' call to attach</span><span>
+</span><span id="line-241"></span><span class="hs-comment">-- interplation groups to @A@ and @B@. Then call 'getInterpolantMathSAT' @[\&quot;A\&quot;]@, assuming those are the names</span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- you gave to the formulas in the @A@ group.</span><span>
+</span><span id="line-243"></span><span class="hs-comment">--</span><span>
+</span><span id="line-244"></span><span class="hs-comment">-- An interpolant for @A@ and @B@ is a formula @I@ such that:</span><span>
+</span><span id="line-245"></span><span class="hs-comment">--</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--        A .=&gt; I</span><span>
+</span><span id="line-248"></span><span class="hs-comment">--    and B .=&gt; sNot I</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- That is, it's evidence that @A@ and @B@ cannot be true together</span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- since @A@ implies @I@ but @B@ implies @not I@; establishing that @A@ and @B@ cannot</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- be satisfied at the same time. Furthermore, @I@ will have only the symbols that are common</span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- to @A@ and @B@.</span><span>
+</span><span id="line-255"></span><span class="hs-comment">--</span><span>
+</span><span id="line-256"></span><span class="hs-comment">-- NB. Interpolant extraction isn't standardized well in SMTLib. Currently both MathSAT and Z3</span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- support them, but with slightly differing APIs. So, we support two APIs with slightly</span><span>
+</span><span id="line-258"></span><span class="hs-comment">-- differing types to accommodate both. See &quot;Documentation.SBV.Examples.Queries.Interpolants&quot; for example</span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- usages in these solvers.</span><span>
+</span><span id="line-260"></span><span class="hs-comment">--</span><span>
+</span><span id="line-261"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getInterpolantMathSAT'</span><span>
+</span><span id="line-262"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInterpolantMathSAT"><span class="hs-identifier hs-type">getInterpolantMathSAT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-263"></span><span id="getInterpolantMathSAT"><span class="annot"><span class="annottext">getInterpolantMathSAT :: [String] -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getInterpolantMathSAT"><span class="hs-identifier hs-var hs-var">getInterpolantMathSAT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Query String
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[String] -&gt; m String
+</span><a href="Data.SBV.Control.Query.html#getInterpolantMathSAT"><span class="hs-identifier hs-var">Trans.getInterpolantMathSAT</span></a></span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- | Interpolant extraction for z3. Compare with 'getInterpolantMathSAT', which performs</span><span>
+</span><span id="line-266"></span><span class="hs-comment">-- similar function (but with a different use model) in MathSAT.</span><span>
+</span><span id="line-267"></span><span class="hs-comment">--</span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- Unlike the MathSAT variant, you should simply call 'getInterpolantZ3' on symbolic booleans</span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- to retrieve the interpolant. Do not call `checkSat` or create named constraints. This makes it</span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- harder to identify formulas, but the current state of affairs in interpolant API requires this kludge.</span><span>
+</span><span id="line-271"></span><span class="hs-comment">--</span><span>
+</span><span id="line-272"></span><span class="hs-comment">-- An interpolant for @A@ and @B@ is a formula @I@ such that:</span><span>
+</span><span id="line-273"></span><span class="hs-comment">--</span><span>
+</span><span id="line-274"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-275"></span><span class="hs-comment">--        A ==&gt; I</span><span>
+</span><span id="line-276"></span><span class="hs-comment">--    and B ==&gt; not I</span><span>
+</span><span id="line-277"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-278"></span><span class="hs-comment">--</span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- That is, it's evidence that @A@ and @B@ cannot be true together</span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- since @A@ implies @I@ but @B@ implies @not I@; establishing that @A@ and @B@ cannot</span><span>
+</span><span id="line-281"></span><span class="hs-comment">-- be satisfied at the same time. Furthermore, @I@ will have only the symbols that are common</span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- to @A@ and @B@.</span><span>
+</span><span id="line-283"></span><span class="hs-comment">--</span><span>
+</span><span id="line-284"></span><span class="hs-comment">-- In Z3, interpolants generalize to sequences: If you pass more than two formulas, then you will get</span><span>
+</span><span id="line-285"></span><span class="hs-comment">-- a sequence of interpolants. In general, for @N@ formulas that are not satisfiable together, you will be</span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- returned @N-1@ interpolants. If formulas are @A1 .. An@, then interpolants will be @I1 .. I(N-1)@, such</span><span>
+</span><span id="line-287"></span><span class="hs-comment">-- that @A1 ==&gt; I1@, @A2 /\\ I1 ==&gt; I2@, @A3 /\\ I2 ==&gt; I3@, ..., and finally @AN ===&gt; not I(N-1)@.</span><span>
+</span><span id="line-288"></span><span class="hs-comment">--</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- Currently, SBV only returns simple and sequence interpolants, and does not support tree-interpolants.</span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- If you need these, please get in touch. Furthermore, the result will be a list of mere strings representing the</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- interpolating formulas, as opposed to a more structured type. Please get in touch if you use this function and can</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- suggest a better API.</span><span>
+</span><span id="line-293"></span><span class="hs-comment">--</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- NB. Interpolant extraction isn't standardized well in SMTLib. Currently both MathSAT and Z3</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- support them, but with slightly differing APIs. So, we support two APIs with slightly</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- differing types to accommodate both. See &quot;Documentation.SBV.Examples.Queries.Interpolants&quot; for example</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- usages in these solvers.</span><span>
+</span><span id="line-298"></span><span class="hs-comment">--</span><span>
+</span><span id="line-299"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getInterpolantZ3'</span><span>
+</span><span id="line-300"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInterpolantZ3"><span class="hs-identifier hs-type">getInterpolantZ3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-301"></span><span id="getInterpolantZ3"><span class="annot"><span class="annottext">getInterpolantZ3 :: [SBool] -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getInterpolantZ3"><span class="hs-identifier hs-var hs-var">getInterpolantZ3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; Query String
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[SBool] -&gt; m String
+</span><a href="Data.SBV.Control.Query.html#getInterpolantZ3"><span class="hs-identifier hs-var">Trans.getInterpolantZ3</span></a></span><span>
+</span><span id="line-302"></span><span>
+</span><span id="line-303"></span><span class="hs-comment">-- | Retrieve assertions. Note you must have arranged for</span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- assertions to be available first via</span><span>
+</span><span id="line-305"></span><span class="hs-comment">--</span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-307"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceAssertions' 'True'</span><span>
+</span><span id="line-308"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-309"></span><span class="hs-comment">--</span><span>
+</span><span id="line-310"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-311"></span><span class="hs-comment">--</span><span>
+</span><span id="line-312"></span><span class="hs-comment">-- Note that the set of assertions returned is merely a list of strings, just like the</span><span>
+</span><span id="line-313"></span><span class="hs-comment">-- case for 'getProof'. In the future, SBV might provide a better datatype, depending</span><span>
+</span><span id="line-314"></span><span class="hs-comment">-- on the use cases. Please get in touch if you use this function and can suggest</span><span>
+</span><span id="line-315"></span><span class="hs-comment">-- a better API.</span><span>
+</span><span id="line-316"></span><span class="hs-comment">--</span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getAssertions'</span><span>
+</span><span id="line-318"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssertions"><span class="hs-identifier hs-type">getAssertions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-319"></span><span id="getAssertions"><span class="annot"><span class="annottext">getAssertions :: Query [String]
+</span><a href="Data.SBV.Control.BaseIO.html#getAssertions"><span class="hs-identifier hs-var hs-var">getAssertions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query [String]
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m [String]
+</span><a href="Data.SBV.Control.Query.html#getAssertions"><span class="hs-identifier hs-var">Trans.getAssertions</span></a></span><span>
+</span><span id="line-320"></span><span>
+</span><span id="line-321"></span><span class="hs-comment">-- | Retrieve the assignment. This is a lightweight version of 'getValue', where the</span><span>
+</span><span id="line-322"></span><span class="hs-comment">-- solver returns the truth value for all named subterms of type 'Bool'.</span><span>
+</span><span id="line-323"></span><span class="hs-comment">--</span><span>
+</span><span id="line-324"></span><span class="hs-comment">-- You must have first arranged for assignments to be produced via</span><span>
+</span><span id="line-325"></span><span class="hs-comment">--</span><span>
+</span><span id="line-326"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-327"></span><span class="hs-comment">--     'Data.SBV.setOption' $ 'Data.SBV.Control.ProduceAssignments' 'True'</span><span>
+</span><span id="line-328"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-329"></span><span class="hs-comment">--</span><span>
+</span><span id="line-330"></span><span class="hs-comment">-- for this call to not error out!</span><span>
+</span><span id="line-331"></span><span class="hs-comment">--</span><span>
+</span><span id="line-332"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getAssignment'</span><span>
+</span><span id="line-333"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssignment"><span class="hs-identifier hs-type">getAssignment</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-334"></span><span id="getAssignment"><span class="annot"><span class="annottext">getAssignment :: Query [(String, Bool)]
+</span><a href="Data.SBV.Control.BaseIO.html#getAssignment"><span class="hs-identifier hs-var hs-var">getAssignment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query [(String, Bool)]
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+m [(String, Bool)]
+</span><a href="Data.SBV.Control.Query.html#getAssignment"><span class="hs-identifier hs-var">Trans.getAssignment</span></a></span><span>
+</span><span id="line-335"></span><span>
+</span><span id="line-336"></span><span class="hs-comment">-- | Produce the query result from an assignment.</span><span>
+</span><span id="line-337"></span><span class="hs-comment">--</span><span>
+</span><span id="line-338"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.mkSMTResult'</span><span>
+</span><span id="line-339"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#mkSMTResult"><span class="hs-identifier hs-type">mkSMTResult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Control.Query.html#Assignment"><span class="hs-identifier hs-type">Assignment</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTResult"><span class="hs-identifier hs-type">SMTResult</span></a></span><span>
+</span><span id="line-340"></span><span id="mkSMTResult"><span class="annot"><span class="annottext">mkSMTResult :: [Assignment] -&gt; Query SMTResult
+</span><a href="Data.SBV.Control.BaseIO.html#mkSMTResult"><span class="hs-identifier hs-var hs-var">mkSMTResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Assignment] -&gt; Query SMTResult
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+[Assignment] -&gt; m SMTResult
+</span><a href="Data.SBV.Control.Query.html#mkSMTResult"><span class="hs-identifier hs-var">Trans.mkSMTResult</span></a></span><span>
+</span><span id="line-341"></span><span>
+</span><span id="line-342"></span><span class="hs-comment">-- Data.SBV.Control.Utils</span><span>
+</span><span id="line-343"></span><span>
+</span><span id="line-344"></span><span class="hs-comment">-- | Perform an arbitrary IO action.</span><span>
+</span><span id="line-345"></span><span class="hs-comment">--</span><span>
+</span><span id="line-346"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.io'</span><span>
+</span><span id="line-347"></span><span id="local-6989586621681153577"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#io"><span class="hs-identifier hs-type">io</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681153577"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153577"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-348"></span><span id="io"><span class="annot"><span class="annottext">io :: IO a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#io"><span class="hs-identifier hs-var hs-var">io</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; Query a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#io"><span class="hs-identifier hs-var">Trans.io</span></a></span><span>
+</span><span id="line-349"></span><span>
+</span><span id="line-350"></span><span class="hs-comment">-- | Modify the query state</span><span>
+</span><span id="line-351"></span><span class="hs-comment">--</span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.modifyQueryState'</span><span>
+</span><span id="line-353"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#modifyQueryState"><span class="hs-identifier hs-type">modifyQueryState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryState"><span class="hs-identifier hs-type">QueryState</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryState"><span class="hs-identifier hs-type">QueryState</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-354"></span><span id="modifyQueryState"><span class="annot"><span class="annottext">modifyQueryState :: (QueryState -&gt; QueryState) -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#modifyQueryState"><span class="hs-identifier hs-var hs-var">modifyQueryState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(QueryState -&gt; QueryState) -&gt; Query ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+(QueryState -&gt; QueryState) -&gt; m ()
+</span><a href="Data.SBV.Control.Utils.html#modifyQueryState"><span class="hs-identifier hs-var">Trans.modifyQueryState</span></a></span><span>
+</span><span id="line-355"></span><span>
+</span><span id="line-356"></span><span class="hs-comment">-- | Execute in a new incremental context</span><span>
+</span><span id="line-357"></span><span class="hs-comment">--</span><span>
+</span><span id="line-358"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.inNewContext'</span><span>
+</span><span id="line-359"></span><span id="local-6989586621681153572"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#inNewContext"><span class="hs-identifier hs-type">inNewContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681153572"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153572"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-360"></span><span id="inNewContext"><span class="annot"><span class="annottext">inNewContext :: (State -&gt; IO a) -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#inNewContext"><span class="hs-identifier hs-var hs-var">inNewContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO a) -&gt; Query a
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m) =&gt;
+(State -&gt; IO a) -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#inNewContext"><span class="hs-identifier hs-var">Trans.inNewContext</span></a></span><span>
+</span><span id="line-361"></span><span>
+</span><span id="line-362"></span><span class="hs-comment">-- | Similar to 'freshVar', except creates unnamed variable.</span><span>
+</span><span id="line-363"></span><span class="hs-comment">--</span><span>
+</span><span id="line-364"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.freshVar_'</span><span>
+</span><span id="line-365"></span><span id="local-6989586621681153569"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-type">freshVar_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153569"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153569"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-366"></span><span id="freshVar_"><span class="annot"><span class="annottext">freshVar_ :: Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var hs-var">freshVar_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query (SBV a)
+forall a (m :: * -&gt; *).
+(MonadIO m, MonadQuery m, SymVal a) =&gt;
+m (SBV a)
+</span><a href="Data.SBV.Control.Utils.html#freshVar_"><span class="hs-identifier hs-var">Trans.freshVar_</span></a></span><span>
+</span><span id="line-367"></span><span>
+</span><span id="line-368"></span><span class="hs-comment">-- | Create a fresh variable in query mode. You should prefer</span><span>
+</span><span id="line-369"></span><span class="hs-comment">-- creating input variables using 'Data.SBV.sBool', 'Data.SBV.sInt32', etc., which act</span><span>
+</span><span id="line-370"></span><span class="hs-comment">-- as primary inputs to the model and can be existential or universal.</span><span>
+</span><span id="line-371"></span><span class="hs-comment">-- Use 'freshVar' only in query mode for anonymous temporary variables.</span><span>
+</span><span id="line-372"></span><span class="hs-comment">-- Such variables are always existential. Note that 'freshVar' should hardly be</span><span>
+</span><span id="line-373"></span><span class="hs-comment">-- needed: Your input variables and symbolic expressions should suffice for</span><span>
+</span><span id="line-374"></span><span class="hs-comment">-- most major use cases.</span><span>
+</span><span id="line-375"></span><span class="hs-comment">--</span><span>
+</span><span id="line-376"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.freshVar'</span><span>
+</span><span id="line-377"></span><span id="local-6989586621681153566"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshVar"><span class="hs-identifier hs-type">freshVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153566"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153566"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-378"></span><span id="freshVar"><span class="annot"><span class="annottext">freshVar :: String -&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar"><span class="hs-identifier hs-var hs-var">freshVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query (SBV a)
+forall a (m :: * -&gt; *).
+(MonadIO m, MonadQuery m, SymVal a) =&gt;
+String -&gt; m (SBV a)
+</span><a href="Data.SBV.Control.Utils.html#freshVar"><span class="hs-identifier hs-var">Trans.freshVar</span></a></span><span>
+</span><span id="line-379"></span><span>
+</span><span id="line-380"></span><span class="hs-comment">-- | Similar to 'freshArray', except creates unnamed array.</span><span>
+</span><span id="line-381"></span><span class="hs-comment">--</span><span>
+</span><span id="line-382"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.freshArray_'</span><span>
+</span><span id="line-383"></span><span id="local-6989586621681153561"><span id="local-6989586621681153562"><span id="local-6989586621681153563"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshArray_"><span class="hs-identifier hs-type">freshArray_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymArray"><span class="hs-identifier hs-type">SymArray</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153563"><span class="hs-identifier hs-type">array</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153562"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153561"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153561"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681153563"><span class="hs-identifier hs-type">array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153562"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153561"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-384"></span><span id="freshArray_"><span class="annot"><span class="annottext">freshArray_ :: Maybe (SBV b) -&gt; Query (array a b)
+</span><a href="Data.SBV.Control.BaseIO.html#freshArray_"><span class="hs-identifier hs-var hs-var">freshArray_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (SBV b) -&gt; Query (array a b)
+forall (m :: * -&gt; *) (array :: * -&gt; * -&gt; *) a b.
+(MonadIO m, MonadQuery m, SymArray array, HasKind a, HasKind b) =&gt;
+Maybe (SBV b) -&gt; m (array a b)
+</span><a href="Data.SBV.Control.Utils.html#freshArray_"><span class="hs-identifier hs-var">Trans.freshArray_</span></a></span><span>
+</span><span id="line-385"></span><span>
+</span><span id="line-386"></span><span class="hs-comment">-- | Create a fresh array in query mode. Again, you should prefer</span><span>
+</span><span id="line-387"></span><span class="hs-comment">-- creating arrays before the queries start using 'Data.SBV.newArray', but this</span><span>
+</span><span id="line-388"></span><span class="hs-comment">-- method can come in handy in occasional cases where you need a new array</span><span>
+</span><span id="line-389"></span><span class="hs-comment">-- after you start the query based interaction.</span><span>
+</span><span id="line-390"></span><span class="hs-comment">--</span><span>
+</span><span id="line-391"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.freshArray'</span><span>
+</span><span id="line-392"></span><span id="local-6989586621681153556"><span id="local-6989586621681153557"><span id="local-6989586621681153558"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshArray"><span class="hs-identifier hs-type">freshArray</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymArray"><span class="hs-identifier hs-type">SymArray</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153558"><span class="hs-identifier hs-type">array</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153557"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153556"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153556"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681153558"><span class="hs-identifier hs-type">array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153557"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153556"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-393"></span><span id="freshArray"><span class="annot"><span class="annottext">freshArray :: String -&gt; Maybe (SBV b) -&gt; Query (array a b)
+</span><a href="Data.SBV.Control.BaseIO.html#freshArray"><span class="hs-identifier hs-var hs-var">freshArray</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe (SBV b) -&gt; Query (array a b)
+forall (m :: * -&gt; *) (array :: * -&gt; * -&gt; *) a b.
+(MonadIO m, MonadQuery m, SymArray array, HasKind a, HasKind b) =&gt;
+String -&gt; Maybe (SBV b) -&gt; m (array a b)
+</span><a href="Data.SBV.Control.Utils.html#freshArray"><span class="hs-identifier hs-var">Trans.freshArray</span></a></span><span>
+</span><span id="line-394"></span><span>
+</span><span id="line-395"></span><span class="hs-comment">-- | If 'Data.SBV.verbose' is 'True', print the message, useful for debugging messages</span><span>
+</span><span id="line-396"></span><span class="hs-comment">-- in custom queries. Note that 'Data.SBV.redirectVerbose' will be respected: If a</span><span>
+</span><span id="line-397"></span><span class="hs-comment">-- file redirection is given, the output will go to the file.</span><span>
+</span><span id="line-398"></span><span class="hs-comment">--</span><span>
+</span><span id="line-399"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.queryDebug'</span><span>
+</span><span id="line-400"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#queryDebug"><span class="hs-identifier hs-type">queryDebug</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-401"></span><span id="queryDebug"><span class="annot"><span class="annottext">queryDebug :: [String] -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#queryDebug"><span class="hs-identifier hs-var hs-var">queryDebug</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; [String] -&gt; m ()
+</span><a href="Data.SBV.Control.Utils.html#queryDebug"><span class="hs-identifier hs-var">Trans.queryDebug</span></a></span><span>
+</span><span id="line-402"></span><span>
+</span><span id="line-403"></span><span class="hs-comment">-- | Send a string to the solver, and return the response</span><span>
+</span><span id="line-404"></span><span class="hs-comment">--</span><span>
+</span><span id="line-405"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.ask'</span><span>
+</span><span id="line-406"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#ask"><span class="hs-identifier hs-type">ask</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-407"></span><span id="ask"><span class="annot"><span class="annottext">ask :: String -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#ask"><span class="hs-identifier hs-var hs-var">ask</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query String
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+String -&gt; m String
+</span><a href="Data.SBV.Control.Utils.html#ask"><span class="hs-identifier hs-var">Trans.ask</span></a></span><span>
+</span><span id="line-408"></span><span>
+</span><span id="line-409"></span><span class="hs-comment">-- | Send a string to the solver. If the first argument is 'True', we will require</span><span>
+</span><span id="line-410"></span><span class="hs-comment">-- a &quot;success&quot; response as well. Otherwise, we'll fire and forget.</span><span>
+</span><span id="line-411"></span><span class="hs-comment">--</span><span>
+</span><span id="line-412"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.send'</span><span>
+</span><span id="line-413"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#send"><span class="hs-identifier hs-type">send</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-414"></span><span id="send"><span class="annot"><span class="annottext">send :: Bool -&gt; String -&gt; Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#send"><span class="hs-identifier hs-var hs-var">send</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; String -&gt; Query ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+Bool -&gt; String -&gt; m ()
+</span><a href="Data.SBV.Control.Utils.html#send"><span class="hs-identifier hs-var">Trans.send</span></a></span><span>
+</span><span id="line-415"></span><span>
+</span><span id="line-416"></span><span class="hs-comment">-- | Retrieve a responses from the solver until it produces a synchronization tag. We make the tag</span><span>
+</span><span id="line-417"></span><span class="hs-comment">-- unique by attaching a time stamp, so no need to worry about getting the wrong tag unless it happens</span><span>
+</span><span id="line-418"></span><span class="hs-comment">-- in the very same picosecond! We return multiple valid s-expressions till the solver responds with the tag.</span><span>
+</span><span id="line-419"></span><span class="hs-comment">-- Should only be used for internal tasks or when we want to synchronize communications, and not on a</span><span>
+</span><span id="line-420"></span><span class="hs-comment">-- regular basis! Use 'send'/'ask' for that purpose. This comes in handy, however, when solvers respond</span><span>
+</span><span id="line-421"></span><span class="hs-comment">-- multiple times as in optimization for instance, where we both get a check-sat answer and some objective values.</span><span>
+</span><span id="line-422"></span><span class="hs-comment">--</span><span>
+</span><span id="line-423"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.retrieveResponse'</span><span>
+</span><span id="line-424"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#retrieveResponse"><span class="hs-identifier hs-type">retrieveResponse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-425"></span><span id="retrieveResponse"><span class="annot"><span class="annottext">retrieveResponse :: String -&gt; Maybe Int -&gt; Query [String]
+</span><a href="Data.SBV.Control.BaseIO.html#retrieveResponse"><span class="hs-identifier hs-var hs-var">retrieveResponse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe Int -&gt; Query [String]
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+String -&gt; Maybe Int -&gt; m [String]
+</span><a href="Data.SBV.Control.Utils.html#retrieveResponse"><span class="hs-identifier hs-var">Trans.retrieveResponse</span></a></span><span>
+</span><span id="line-426"></span><span>
+</span><span id="line-427"></span><span class="hs-comment">-- | Get the value of a term.</span><span>
+</span><span id="line-428"></span><span class="hs-comment">--</span><span>
+</span><span id="line-429"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getValue'</span><span>
+</span><span id="line-430"></span><span id="local-6989586621681153545"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-type">getValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTValue"><span class="hs-identifier hs-type">SMTValue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153545"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153545"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153545"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-431"></span><span id="getValue"><span class="annot"><span class="annottext">getValue :: SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var hs-var">getValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Query a
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m, SMTValue a) =&gt;
+SBV a -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#getValue"><span class="hs-identifier hs-var">Trans.getValue</span></a></span><span>
+</span><span id="line-432"></span><span>
+</span><span id="line-433"></span><span class="hs-comment">-- | Get the value of an uninterpreted sort, as a String</span><span>
+</span><span id="line-434"></span><span class="hs-comment">--</span><span>
+</span><span id="line-435"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUninterpretedValue'</span><span>
+</span><span id="line-436"></span><span id="local-6989586621681153542"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUninterpretedValue"><span class="hs-identifier hs-type">getUninterpretedValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153542"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153542"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-437"></span><span id="getUninterpretedValue"><span class="annot"><span class="annottext">getUninterpretedValue :: SBV a -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getUninterpretedValue"><span class="hs-identifier hs-var hs-var">getUninterpretedValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Query String
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m, HasKind a) =&gt;
+SBV a -&gt; m String
+</span><a href="Data.SBV.Control.Utils.html#getUninterpretedValue"><span class="hs-identifier hs-var">Trans.getUninterpretedValue</span></a></span><span>
+</span><span id="line-438"></span><span>
+</span><span id="line-439"></span><span class="hs-comment">-- | Get the value of an uninterpreted function, as a list of domain, value pairs.</span><span>
+</span><span id="line-440"></span><span class="hs-comment">-- The final value is the &quot;else&quot; clause, i.e., what the function maps values outside</span><span>
+</span><span id="line-441"></span><span class="hs-comment">-- of the domain of the first list.</span><span>
+</span><span id="line-442"></span><span id="local-6989586621681153537"><span id="local-6989586621681153538"><span id="local-6989586621681153539"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getFunction"><span class="hs-identifier hs-type">getFunction</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTFunction"><span class="hs-identifier hs-type">Trans.SMTFunction</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153539"><span class="hs-identifier hs-type">fun</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153538"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153537"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681153539"><span class="hs-identifier hs-type">fun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681153538"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681153537"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681153537"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-443"></span><span id="getFunction"><span class="annot"><span class="annottext">getFunction :: fun -&gt; Query ([(a, r)], r)
+</span><a href="Data.SBV.Control.BaseIO.html#getFunction"><span class="hs-identifier hs-var hs-var">getFunction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">fun -&gt; Query ([(a, r)], r)
+forall (m :: * -&gt; *) fun a r.
+(MonadIO m, MonadQuery m, SolverContext m, MonadSymbolic m,
+ SMTFunction fun a r) =&gt;
+fun -&gt; m ([(a, r)], r)
+</span><a href="Data.SBV.Control.Utils.html#getFunction"><span class="hs-identifier hs-var">Trans.getFunction</span></a></span><span>
+</span><span id="line-444"></span><span>
+</span><span id="line-445"></span><span class="hs-comment">-- | Get the value of a term. If the kind is Real and solver supports decimal approximations,</span><span>
+</span><span id="line-446"></span><span class="hs-comment">-- we will &quot;squash&quot; the representations.</span><span>
+</span><span id="line-447"></span><span class="hs-comment">--</span><span>
+</span><span id="line-448"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getValueCV'</span><span>
+</span><span id="line-449"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getValueCV"><span class="hs-identifier hs-type">getValueCV</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SV"><span class="hs-identifier hs-type">SV</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier hs-type">CV</span></a></span><span>
+</span><span id="line-450"></span><span id="getValueCV"><span class="annot"><span class="annottext">getValueCV :: Maybe Int -&gt; SV -&gt; Query CV
+</span><a href="Data.SBV.Control.BaseIO.html#getValueCV"><span class="hs-identifier hs-var hs-var">getValueCV</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; SV -&gt; Query CV
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+Maybe Int -&gt; SV -&gt; m CV
+</span><a href="Data.SBV.Control.Utils.html#getValueCV"><span class="hs-identifier hs-var">Trans.getValueCV</span></a></span><span>
+</span><span id="line-451"></span><span>
+</span><span id="line-452"></span><span class="hs-comment">-- | Get the value of an uninterpreted function as an association list</span><span>
+</span><span id="line-453"></span><span class="hs-comment">--</span><span>
+</span><span id="line-454"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUIFunCVAssoc'</span><span>
+</span><span id="line-455"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUIFunCVAssoc"><span class="hs-identifier hs-type">getUIFunCVAssoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SBVType"><span class="hs-identifier hs-type">SBVType</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier hs-type">CV</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier hs-type">CV</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Concrete.html#CV"><span class="hs-identifier hs-type">CV</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-456"></span><span id="getUIFunCVAssoc"><span class="annot"><span class="annottext">getUIFunCVAssoc :: Maybe Int -&gt; (String, SBVType) -&gt; Query ([([CV], CV)], CV)
+</span><a href="Data.SBV.Control.BaseIO.html#getUIFunCVAssoc"><span class="hs-identifier hs-var hs-var">getUIFunCVAssoc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; (String, SBVType) -&gt; Query ([([CV], CV)], CV)
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+Maybe Int -&gt; (String, SBVType) -&gt; m ([([CV], CV)], CV)
+</span><a href="Data.SBV.Control.Utils.html#getUIFunCVAssoc"><span class="hs-identifier hs-var">Trans.getUIFunCVAssoc</span></a></span><span>
+</span><span id="line-457"></span><span>
+</span><span id="line-458"></span><span class="hs-comment">-- | Check for satisfiability.</span><span>
+</span><span id="line-459"></span><span class="hs-comment">--</span><span>
+</span><span id="line-460"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.checkSat'</span><span>
+</span><span id="line-461"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-type">checkSat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier hs-type">CheckSatResult</span></a></span><span>
+</span><span id="line-462"></span><span id="checkSat"><span class="annot"><span class="annottext">checkSat :: Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-var hs-var">checkSat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query CheckSatResult
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m CheckSatResult
+</span><a href="Data.SBV.Control.Utils.html#checkSat"><span class="hs-identifier hs-var">Trans.checkSat</span></a></span><span>
+</span><span id="line-463"></span><span>
+</span><span id="line-464"></span><span class="hs-comment">-- | Ensure that the current context is satisfiable. If not, this function will throw an error.</span><span>
+</span><span id="line-465"></span><span class="hs-comment">--</span><span>
+</span><span id="line-466"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.ensureSat'</span><span>
+</span><span id="line-467"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#ensureSat"><span class="hs-identifier hs-type">ensureSat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-468"></span><span id="ensureSat"><span class="annot"><span class="annottext">ensureSat :: Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#ensureSat"><span class="hs-identifier hs-var hs-var">ensureSat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Query ()
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m ()
+</span><a href="Data.SBV.Control.Query.html#ensureSat"><span class="hs-identifier hs-var">Trans.ensureSat</span></a></span><span>
+</span><span id="line-469"></span><span>
+</span><span id="line-470"></span><span class="hs-comment">-- | Check for satisfiability with a custom check-sat-using command.</span><span>
+</span><span id="line-471"></span><span class="hs-comment">--</span><span>
+</span><span id="line-472"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.checkSatUsing'</span><span>
+</span><span id="line-473"></span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatUsing"><span class="hs-identifier hs-type">checkSatUsing</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier hs-type">CheckSatResult</span></a></span><span>
+</span><span id="line-474"></span><span id="checkSatUsing"><span class="annot"><span class="annottext">checkSatUsing :: String -&gt; Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSatUsing"><span class="hs-identifier hs-var hs-var">checkSatUsing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query CheckSatResult
+forall (m :: * -&gt; *).
+(MonadIO m, MonadQuery m) =&gt;
+String -&gt; m CheckSatResult
+</span><a href="Data.SBV.Control.Utils.html#checkSatUsing"><span class="hs-identifier hs-var">Trans.checkSatUsing</span></a></span><span>
+</span><span id="line-475"></span><span>
+</span><span id="line-476"></span><span class="hs-comment">-- | Retrieve the set of unsatisfiable assumptions, following a call to 'Data.SBV.Control.checkSatAssumingWithUnsatisfiableSet'. Note that</span><span>
+</span><span id="line-477"></span><span class="hs-comment">-- this function isn't exported to the user, but rather used internally. The user simple calls 'Data.SBV.Control.checkSatAssumingWithUnsatisfiableSet'.</span><span>
+</span><span id="line-478"></span><span class="hs-comment">--</span><span>
+</span><span id="line-479"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.getUnsatAssumptions'</span><span>
+</span><span id="line-480"></span><span id="local-6989586621681153524"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUnsatAssumptions"><span class="hs-identifier hs-type">getUnsatAssumptions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681153524"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681153524"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-481"></span><span id="getUnsatAssumptions"><span class="annot"><span class="annottext">getUnsatAssumptions :: [String] -&gt; [(String, a)] -&gt; Query [a]
+</span><a href="Data.SBV.Control.BaseIO.html#getUnsatAssumptions"><span class="hs-identifier hs-var hs-var">getUnsatAssumptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [(String, a)] -&gt; Query [a]
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m) =&gt;
+[String] -&gt; [(String, a)] -&gt; m [a]
+</span><a href="Data.SBV.Control.Utils.html#getUnsatAssumptions"><span class="hs-identifier hs-var">Trans.getUnsatAssumptions</span></a></span><span>
+</span><span id="line-482"></span><span>
+</span><span id="line-483"></span><span class="hs-comment">-- | Timeout a query action, typically a command call to the underlying SMT solver.</span><span>
+</span><span id="line-484"></span><span class="hs-comment">-- The duration is in microseconds (@1\/10^6@ seconds). If the duration</span><span>
+</span><span id="line-485"></span><span class="hs-comment">-- is negative, then no timeout is imposed. When specifying long timeouts, be careful not to exceed</span><span>
+</span><span id="line-486"></span><span class="hs-comment">-- @maxBound :: Int@. (On a 64 bit machine, this bound is practically infinite. But on a 32 bit</span><span>
+</span><span id="line-487"></span><span class="hs-comment">-- machine, it corresponds to about 36 minutes!)</span><span>
+</span><span id="line-488"></span><span class="hs-comment">--</span><span>
+</span><span id="line-489"></span><span class="hs-comment">-- Semantics: The call @timeout n q@ causes the timeout value to be applied to all interactive calls that take place</span><span>
+</span><span id="line-490"></span><span class="hs-comment">-- as we execute the query @q@. That is, each call that happens during the execution of @q@ gets a separate</span><span>
+</span><span id="line-491"></span><span class="hs-comment">-- time-out value, as opposed to one timeout value that limits the whole query. This is typically the intended behavior.</span><span>
+</span><span id="line-492"></span><span class="hs-comment">-- It is advisible to apply this combinator to calls that involve a single call to the solver for</span><span>
+</span><span id="line-493"></span><span class="hs-comment">-- finer control, as opposed to an entire set of interactions. However, different use cases might call for different scenarios.</span><span>
+</span><span id="line-494"></span><span class="hs-comment">--</span><span>
+</span><span id="line-495"></span><span class="hs-comment">-- If the solver responds within the time-out specified, then we continue as usual. However, if the backend solver times-out</span><span>
+</span><span id="line-496"></span><span class="hs-comment">-- using this mechanism, there is no telling what the state of the solver will be. Thus, we raise an error in this case.</span><span>
+</span><span id="line-497"></span><span class="hs-comment">--</span><span>
+</span><span id="line-498"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.timeout'</span><span>
+</span><span id="line-499"></span><span id="local-6989586621681153521"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#timeout"><span class="hs-identifier hs-type">timeout</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153521"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153521"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-500"></span><span id="timeout"><span class="annot"><span class="annottext">timeout :: Int -&gt; Query a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#timeout"><span class="hs-identifier hs-var hs-var">timeout</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Query a -&gt; Query a
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m) =&gt;
+Int -&gt; m a -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#timeout"><span class="hs-identifier hs-var">Trans.timeout</span></a></span><span>
+</span><span id="line-501"></span><span>
+</span><span id="line-502"></span><span class="hs-comment">-- | Bail out if we don't get what we expected</span><span>
+</span><span id="line-503"></span><span class="hs-comment">--</span><span>
+</span><span id="line-504"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.unexpected'</span><span>
+</span><span id="line-505"></span><span id="local-6989586621681153518"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#unexpected"><span class="hs-identifier hs-type">unexpected</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153518"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-506"></span><span id="unexpected"><span class="annot"><span class="annottext">unexpected :: String
+-&gt; String
+-&gt; String
+-&gt; Maybe [String]
+-&gt; String
+-&gt; Maybe [String]
+-&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#unexpected"><span class="hs-identifier hs-var hs-var">unexpected</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; String
+-&gt; String
+-&gt; Maybe [String]
+-&gt; String
+-&gt; Maybe [String]
+-&gt; Query a
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m) =&gt;
+String
+-&gt; String
+-&gt; String
+-&gt; Maybe [String]
+-&gt; String
+-&gt; Maybe [String]
+-&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#unexpected"><span class="hs-identifier hs-var">Trans.unexpected</span></a></span><span>
+</span><span id="line-507"></span><span>
+</span><span id="line-508"></span><span class="hs-comment">-- | Execute a query.</span><span>
+</span><span id="line-509"></span><span class="hs-comment">--</span><span>
+</span><span id="line-510"></span><span class="hs-comment">-- NB. For a version which generalizes over the underlying monad, see 'Data.SBV.Trans.Control.executeQuery'</span><span>
+</span><span id="line-511"></span><span id="local-6989586621681153515"><span class="annot"><a href="Data.SBV.Control.BaseIO.html#executeQuery"><span class="hs-identifier hs-type">executeQuery</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryContext"><span class="hs-identifier hs-type">QueryContext</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153515"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153515"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-512"></span><span id="executeQuery"><span class="annot"><span class="annottext">executeQuery :: QueryContext -&gt; Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.BaseIO.html#executeQuery"><span class="hs-identifier hs-var hs-var">executeQuery</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QueryContext -&gt; Query a -&gt; Symbolic a
+forall (m :: * -&gt; *) a.
+ExtractIO m =&gt;
+QueryContext -&gt; QueryT m a -&gt; SymbolicT m a
+</span><a href="Data.SBV.Control.Utils.html#executeQuery"><span class="hs-identifier hs-var">Trans.executeQuery</span></a></span><span>
+</span><span id="line-513"></span></pre></body></html>

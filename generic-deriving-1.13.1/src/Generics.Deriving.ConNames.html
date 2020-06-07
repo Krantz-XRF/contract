@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeSynonymInstances #-}</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 704
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#elif __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 705
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-18"></span><span class="hs-comment">{- |
+Module      :  Generics.Deriving.ConNames
+Copyright   :  (c) 2012 University of Oxford
+License     :  BSD3
+
+Maintainer  :  generics@haskell.org
+Stability   :  experimental
+Portability :  non-portable
+
+Summary: Return the name of all the constructors of a type.
+-}</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.ConNames</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Functionality for retrieving the names of the possible contructors</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-comment">--   of a type or the constructor name of a given value</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier">ConNames</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#conNames"><span class="hs-identifier">conNames</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#conNameOf"><span class="hs-identifier">conNameOf</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Base.html"><span class="hs-identifier">Generics.Deriving.Base</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">class</span><span> </span><span id="ConNames"><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-var">ConNames</span></a></span></span><span> </span><span id="local-6989586621679123439"><span class="annot"><a href="#local-6989586621679123439"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>    </span><span id="local-6989586621679123444"><span id="gconNames"><span class="annot"><a href="Generics.Deriving.ConNames.html#gconNames"><span class="hs-identifier hs-type">gconNames</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123439"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123444"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span></span><span>
+</span><span id="line-43"></span><span>    </span><span id="local-6989586621679123442"><span id="gconNameOf"><span class="annot"><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-type">gconNameOf</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123439"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123442"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span id="local-6989586621679123405"><span id="local-6989586621679123406"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123406"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123405"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123406"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679123405"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>    </span><span id="local-6989586621679123401"><span class="annot"><span class="annottext">gconNames :: (:+:) f g a -&gt; [String]
+</span><a href="#local-6989586621679123401"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNames</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679123400"><span class="annot"><span class="annottext">(:+:) f g a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123406"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679123405"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123400"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; [String]
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; [String]
+</span><a href="Generics.Deriving.ConNames.html#gconNames"><span class="hs-identifier hs-var">gconNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f a
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123406"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123400"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [String] -&gt; [String]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-47"></span><span>                                   </span><span class="annot"><span class="annottext">g a -&gt; [String]
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; [String]
+</span><a href="Generics.Deriving.ConNames.html#gconNames"><span class="hs-identifier hs-var">gconNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">g a
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123405"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123400"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621679123398"><span class="annot"><span class="annottext">gconNameOf :: (:+:) f g a -&gt; String
+</span><a href="#local-6989586621679123398"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNameOf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679123396"><span class="annot"><span class="annottext">x :: f a
+</span><a href="#local-6989586621679123396"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; String
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; String
+</span><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-var">gconNameOf</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123396"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-var">gconNameOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679123394"><span class="annot"><span class="annottext">x :: g a
+</span><a href="#local-6989586621679123394"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g a -&gt; String
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; String
+</span><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-var">gconNameOf</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679123394"><span class="hs-identifier hs-var">x</span></a></span></span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span id="local-6989586621679123392"><span id="local-6989586621679123393"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123393"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">D1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123392"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123393"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>    </span><span id="local-6989586621679123389"><span class="annot"><span class="annottext">gconNames :: D1 c f a -&gt; [String]
+</span><a href="#local-6989586621679123389"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNames</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679123388"><span class="annot"><span class="annottext">D1 c f a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">D1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123392"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123393"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123388"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; [String]
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; [String]
+</span><a href="Generics.Deriving.ConNames.html#gconNames"><span class="hs-identifier hs-var">gconNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f a
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123393"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123388"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span>    </span><span id="local-6989586621679123387"><span class="annot"><span class="annottext">gconNameOf :: D1 c f a -&gt; String
+</span><a href="#local-6989586621679123387"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNameOf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679123385"><span class="annot"><span class="annottext">x :: f a
+</span><a href="#local-6989586621679123385"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; String
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; String
+</span><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-var">gconNameOf</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123385"><span class="hs-identifier hs-var">x</span></a></span></span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span id="local-6989586621679123383"><span id="local-6989586621679123384"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Constructor</span></span><span> </span><span class="annot"><a href="#local-6989586621679123384"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">C1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123384"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123383"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>    </span><span id="local-6989586621679123380"><span class="annot"><span class="annottext">gconNames :: C1 c f a -&gt; [String]
+</span><a href="#local-6989586621679123380"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNames</span></a></span></span><span> </span><span id="local-6989586621679123379"><span class="annot"><span class="annottext">x :: C1 c f a
+</span><a href="#local-6989586621679123379"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">C1 c f a -&gt; String
+forall k (c :: k) k1 (t :: k -&gt; (k1 -&gt; *) -&gt; k1 -&gt; *)
+       (f :: k1 -&gt; *) (a :: k1).
+Constructor c =&gt;
+t c f a -&gt; String
+</span><span class="hs-identifier hs-var">conName</span></span><span> </span><span class="annot"><span class="annottext">C1 c f a
+</span><a href="#local-6989586621679123379"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>    </span><span id="local-6989586621679123377"><span class="annot"><span class="annottext">gconNameOf :: C1 c f a -&gt; String
+</span><a href="#local-6989586621679123377"><span class="hs-identifier hs-var hs-var hs-var hs-var">gconNameOf</span></a></span></span><span> </span><span id="local-6989586621679123376"><span class="annot"><span class="annottext">x :: C1 c f a
+</span><a href="#local-6989586621679123376"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">C1 c f a -&gt; String
+forall k (c :: k) k1 (t :: k -&gt; (k1 -&gt; *) -&gt; k1 -&gt; *)
+       (f :: k1 -&gt; *) (a :: k1).
+Constructor c =&gt;
+t c f a -&gt; String
+</span><span class="hs-identifier hs-var">conName</span></span><span> </span><span class="annot"><span class="annottext">C1 c f a
+</span><a href="#local-6989586621679123376"><span class="hs-identifier hs-var">x</span></a></span></span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- We should never need any other instances.</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | Return the name of all the constructors of the type of the given term.</span><span>
+</span><span id="line-67"></span><span id="local-6989586621679123375"><span class="annot"><a href="Generics.Deriving.ConNames.html#conNames"><span class="hs-identifier hs-type">conNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679123375"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679123375"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123375"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span></span><span>
+</span><span id="line-68"></span><span id="conNames"><span class="annot"><span class="annottext">conNames :: a -&gt; [String]
+</span><a href="Generics.Deriving.ConNames.html#conNames"><span class="hs-identifier hs-var hs-var">conNames</span></a></span></span><span> </span><span id="local-6989586621679123374"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679123374"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; [String]
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; [String]
+</span><a href="Generics.Deriving.ConNames.html#gconNames"><span class="hs-identifier hs-var">gconNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rep a Any
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; Rep a Any -&gt; Rep a Any
+forall a. a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`asTypeOf`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Rep a Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679123374"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | Return the name of the constructor of the given term</span><span>
+</span><span id="line-71"></span><span id="local-6989586621679123371"><span class="annot"><a href="Generics.Deriving.ConNames.html#conNameOf"><span class="hs-identifier hs-type">conNameOf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.ConNames.html#ConNames"><span class="hs-identifier hs-type">ConNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679123371"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679123371"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123371"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-72"></span><span id="conNameOf"><span class="annot"><span class="annottext">conNameOf :: a -&gt; String
+</span><a href="Generics.Deriving.ConNames.html#conNameOf"><span class="hs-identifier hs-var hs-var">conNameOf</span></a></span></span><span> </span><span id="local-6989586621679123370"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679123370"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; String
+forall k (f :: k -&gt; *) (a :: k). ConNames f =&gt; f a -&gt; String
+</span><a href="Generics.Deriving.ConNames.html#gconNameOf"><span class="hs-identifier hs-var">gconNameOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Rep a Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679123370"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span></pre></body></html>

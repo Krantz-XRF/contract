@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.CodeGeneration.Fibonacci</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Lee Pike</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--                 Levent Erkok</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Computing Fibonacci numbers and generating C code. Inspired by Lee Pike's</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- original implementation, modified for inclusion in the package. It illustrates</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- symbolic termination issues one can have when working with recursive algorithms</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- and how to deal with such, eventually generating good C code.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.CodeGeneration.Fibonacci</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- * A naive implementation</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- | This is a naive implementation of fibonacci, and will work fine (albeit slow)</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- for concrete inputs:</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- &gt;&gt;&gt; map fib0 [0..6]</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- [0 :: SWord64,1 :: SWord64,1 :: SWord64,2 :: SWord64,3 :: SWord64,5 :: SWord64,8 :: SWord64]</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- However, it is not suitable for doing proofs or generating code, as it is not</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- symbolically terminating when it is called with a symbolic value @n@. When we</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- recursively call @fib0@ on @n-1@ (or @n-2@), the test against @0@ will always</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- explore both branches since the result will be symbolic, hence will not</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- terminate. (An integrated theorem prover can establish termination</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- after a certain number of unrollings, but this would be quite expensive to</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- implement, and would be impractical.)</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib0"><span class="hs-identifier hs-type">fib0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span>
+</span><span id="line-41"></span><span id="fib0"><span class="annot"><span class="annottext">fib0 :: SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib0"><span class="hs-identifier hs-var hs-var">fib0</span></a></span></span><span> </span><span id="local-6989586621681160423"><span class="annot"><span class="annottext">n :: SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>             </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-43"></span><span>             </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib0"><span class="hs-identifier hs-var">fib0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib0"><span class="hs-identifier hs-var">fib0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160423"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- * Using a recursion depth, and accumulating parameters</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">{- $genLookup
+One way to deal with symbolic termination is to limit the number of recursive
+calls. In this version, we impose a limit on the index to the function, working
+correctly upto that limit. If we use a compile-time constant, then SBV's code generator
+can produce code as the unrolling will eventually stop.
+-}</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | The recursion-depth limited version of fibonacci. Limiting the maximum number to be 20, we can say:</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;&gt;&gt; map (fib1 20) [0..6]</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- [0 :: SWord64,1 :: SWord64,1 :: SWord64,2 :: SWord64,3 :: SWord64,5 :: SWord64,8 :: SWord64]</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- The function will work correctly, so long as the index we query is at most @top@, and otherwise</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- will return the value at @top@. Note that we also use accumulating parameters here for efficiency,</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- although this is orthogonal to the termination concern.</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- A note on modular arithmetic: The 64-bit word we use to represent the values will of course</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- eventually overflow, beware! Fibonacci is a fast growing function..</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib1"><span class="hs-identifier hs-type">fib1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span>
+</span><span id="line-68"></span><span id="fib1"><span class="annot"><span class="annottext">fib1 :: SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib1"><span class="hs-identifier hs-var hs-var">fib1</span></a></span></span><span> </span><span id="local-6989586621681160417"><span class="annot"><span class="annottext">top :: SWord64
+</span><a href="#local-6989586621681160417"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621681160416"><span class="annot"><span class="annottext">n :: SWord64
+</span><a href="#local-6989586621681160416"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="#local-6989586621681160415"><span class="hs-identifier hs-var">fib'</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681160415"><span class="hs-identifier hs-type">fib'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span>
+</span><span id="line-70"></span><span>        </span><span id="local-6989586621681160415"><span class="annot"><span class="annottext">fib' :: SWord64 -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="#local-6989586621681160415"><span class="hs-identifier hs-var hs-var">fib'</span></a></span></span><span> </span><span id="local-6989586621681160414"><span class="annot"><span class="annottext">prev' :: SWord64
+</span><a href="#local-6989586621681160414"><span class="hs-identifier hs-var">prev'</span></a></span></span><span> </span><span id="local-6989586621681160413"><span class="annot"><span class="annottext">prev :: SWord64
+</span><a href="#local-6989586621681160413"><span class="hs-identifier hs-var">prev</span></a></span></span><span> </span><span id="local-6989586621681160412"><span class="annot"><span class="annottext">m :: SWord64
+</span><a href="#local-6989586621681160412"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160412"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160417"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160412"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160416"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>          </span><span class="hs-comment">-- did we reach recursion depth, or the index we're looking for</span><span>
+</span><span id="line-71"></span><span>                                </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160414"><span class="hs-identifier hs-var">prev'</span></a></span><span>                            </span><span class="hs-comment">-- stop and return the result</span><span>
+</span><span id="line-72"></span><span>                                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="#local-6989586621681160415"><span class="hs-identifier hs-var">fib'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160413"><span class="hs-identifier hs-var">prev</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160414"><span class="hs-identifier hs-var">prev'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160413"><span class="hs-identifier hs-var">prev</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160412"><span class="hs-identifier hs-var">m</span></a></span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- otherwise recurse</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | We can generate code for 'fib1' using the 'genFib1' action. Note that the</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- generated code will grow larger as we pick larger values of @top@, but only linearly,</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- thanks to the accumulating parameter trick used by 'fib1'. The following is an excerpt</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- from the code generated for the call @genFib1 10@, where the code will work correctly</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- for indexes up to 10:</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- &gt; SWord64 fib1(const SWord64 x)</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- &gt; {</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- &gt;   const SWord64 s0 = x;</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- &gt;   const SBool   s2 = s0 == 0x0000000000000000ULL;</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- &gt;   const SBool   s4 = s0 == 0x0000000000000001ULL;</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- &gt;   const SBool   s6 = s0 == 0x0000000000000002ULL;</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- &gt;   const SBool   s8 = s0 == 0x0000000000000003ULL;</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- &gt;   const SBool   s10 = s0 == 0x0000000000000004ULL;</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- &gt;   const SBool   s12 = s0 == 0x0000000000000005ULL;</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- &gt;   const SBool   s14 = s0 == 0x0000000000000006ULL;</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt;   const SBool   s17 = s0 == 0x0000000000000007ULL;</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- &gt;   const SBool   s19 = s0 == 0x0000000000000008ULL;</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt;   const SBool   s22 = s0 == 0x0000000000000009ULL;</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- &gt;   const SWord64 s25 = s22 ? 0x0000000000000022ULL : 0x0000000000000037ULL;</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- &gt;   const SWord64 s26 = s19 ? 0x0000000000000015ULL : s25;</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- &gt;   const SWord64 s27 = s17 ? 0x000000000000000dULL : s26;</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- &gt;   const SWord64 s28 = s14 ? 0x0000000000000008ULL : s27;</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- &gt;   const SWord64 s29 = s12 ? 0x0000000000000005ULL : s28;</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- &gt;   const SWord64 s30 = s10 ? 0x0000000000000003ULL : s29;</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &gt;   const SWord64 s31 = s8 ? 0x0000000000000002ULL : s30;</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- &gt;   const SWord64 s32 = s6 ? 0x0000000000000001ULL : s31;</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- &gt;   const SWord64 s33 = s4 ? 0x0000000000000001ULL : s32;</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- &gt;   const SWord64 s34 = s2 ? 0x0000000000000000ULL : s33;</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &gt;   </span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- &gt;   return s34;</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- &gt; }</span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib1"><span class="hs-identifier hs-type">genFib1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span id="genFib1"><span class="annot"><span class="annottext">genFib1 :: SWord64 -&gt; IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib1"><span class="hs-identifier hs-var hs-var">genFib1</span></a></span></span><span> </span><span id="local-6989586621681160410"><span class="annot"><span class="annottext">top :: SWord64
+</span><a href="#local-6989586621681160410"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="hs-string">&quot;fib1&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-108"></span><span>        </span><span id="local-6989586621681160408"><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160408"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord64
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-109"></span><span>        </span><span class="annot"><span class="annottext">SWord64 -&gt; SBVCodeGen ()
+forall a. SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgReturn"><span class="hs-identifier hs-var">cgReturn</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord64 -&gt; SBVCodeGen ()) -&gt; SWord64 -&gt; SBVCodeGen ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib1"><span class="hs-identifier hs-var">fib1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160410"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160408"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- * Generating a look-up table</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">{- $genLookup
+While 'fib1' generates good C code, we can do much better by taking
+advantage of the inherent partial-evaluation capabilities of SBV to generate
+a look-up table, as follows.
+-}</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- | Compute the fibonacci numbers statically at /code-generation/ time and</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- put them in a table, accessed by the 'select' call. </span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib2"><span class="hs-identifier hs-type">fib2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span>
+</span><span id="line-124"></span><span id="fib2"><span class="annot"><span class="annottext">fib2 :: SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib2"><span class="hs-identifier hs-var hs-var">fib2</span></a></span></span><span> </span><span id="local-6989586621681160404"><span class="annot"><span class="annottext">top :: SWord64
+</span><a href="#local-6989586621681160404"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SWord64] -&gt; SWord64 -&gt; SWord64 -&gt; SWord64
+forall a b.
+(Mergeable a, Ord b, SymVal b, Num b) =&gt;
+[a] -&gt; a -&gt; SBV b -&gt; a
+</span><a href="Data.SBV.Core.Model.html#select"><span class="hs-identifier hs-var">select</span></a></span><span> </span><span class="annot"><span class="annottext">[SWord64]
+</span><a href="#local-6989586621681160402"><span class="hs-identifier hs-var">table</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160402"><span class="annot"><span class="annottext">table :: [SWord64]
+</span><a href="#local-6989586621681160402"><span class="hs-identifier hs-var hs-var">table</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord64 -&gt; SWord64) -&gt; [SWord64] -&gt; [SWord64]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib1"><span class="hs-identifier hs-var">fib1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160404"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160404"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- | Once we have 'fib2', we can generate the C code straightforwardly. Below</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- is an excerpt from the code that SBV generates for the call @genFib2 64@. Note</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- that this code is a constant-time look-up table implementation of fibonacci,</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- with no run-time overhead. The index can be made arbitrarily large,</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- naturally. (Note that this function returns @0@ if the index is larger</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- than 64, as specified by the call to 'select' with default @0@.)</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- &gt; SWord64 fibLookup(const SWord64 x)</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- &gt; {</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- &gt;   const SWord64 s0 = x;</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- &gt;   static const SWord64 table0[] = {</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- &gt;       0x0000000000000000ULL, 0x0000000000000001ULL,</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- &gt;       0x0000000000000001ULL, 0x0000000000000002ULL,</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- &gt;       0x0000000000000003ULL, 0x0000000000000005ULL,</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- &gt;       0x0000000000000008ULL, 0x000000000000000dULL,</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- &gt;       0x0000000000000015ULL, 0x0000000000000022ULL,</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- &gt;       0x0000000000000037ULL, 0x0000000000000059ULL,</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- &gt;       0x0000000000000090ULL, 0x00000000000000e9ULL,</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- &gt;       0x0000000000000179ULL, 0x0000000000000262ULL,</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- &gt;       0x00000000000003dbULL, 0x000000000000063dULL,</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- &gt;       0x0000000000000a18ULL, 0x0000000000001055ULL,</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- &gt;       0x0000000000001a6dULL, 0x0000000000002ac2ULL,</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- &gt;       0x000000000000452fULL, 0x0000000000006ff1ULL,</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- &gt;       0x000000000000b520ULL, 0x0000000000012511ULL,</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- &gt;       0x000000000001da31ULL, 0x000000000002ff42ULL,</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- &gt;       0x000000000004d973ULL, 0x000000000007d8b5ULL,</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- &gt;       0x00000000000cb228ULL, 0x0000000000148addULL,</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- &gt;       0x0000000000213d05ULL, 0x000000000035c7e2ULL,</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- &gt;       0x00000000005704e7ULL, 0x00000000008cccc9ULL,</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- &gt;       0x0000000000e3d1b0ULL, 0x0000000001709e79ULL,</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- &gt;       0x0000000002547029ULL, 0x0000000003c50ea2ULL,</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- &gt;       0x0000000006197ecbULL, 0x0000000009de8d6dULL,</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- &gt;       0x000000000ff80c38ULL, 0x0000000019d699a5ULL,</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- &gt;       0x0000000029cea5ddULL, 0x0000000043a53f82ULL,</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- &gt;       0x000000006d73e55fULL, 0x00000000b11924e1ULL,</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- &gt;       0x000000011e8d0a40ULL, 0x00000001cfa62f21ULL,</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- &gt;       0x00000002ee333961ULL, 0x00000004bdd96882ULL,</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- &gt;       0x00000007ac0ca1e3ULL, 0x0000000c69e60a65ULL,</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- &gt;       0x0000001415f2ac48ULL, 0x000000207fd8b6adULL,</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- &gt;       0x0000003495cb62f5ULL, 0x0000005515a419a2ULL,</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- &gt;       0x00000089ab6f7c97ULL, 0x000000dec1139639ULL,</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- &gt;       0x000001686c8312d0ULL, 0x000002472d96a909ULL,</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- &gt;       0x000003af9a19bbd9ULL, 0x000005f6c7b064e2ULL, 0x000009a661ca20bbULL</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- &gt;   };</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- &gt;   const SWord64 s65 = s0 &gt;= 65 ? 0x0000000000000000ULL : table0[s0];</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- &gt;   </span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- &gt;   return s65;</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- &gt; }</span><span>
+</span><span id="line-175"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib2"><span class="hs-identifier hs-type">genFib2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-176"></span><span id="genFib2"><span class="annot"><span class="annottext">genFib2 :: SWord64 -&gt; IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib2"><span class="hs-identifier hs-var hs-var">genFib2</span></a></span></span><span> </span><span id="local-6989586621681160400"><span class="annot"><span class="annottext">top :: SWord64
+</span><a href="#local-6989586621681160400"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="hs-string">&quot;fibLookup&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-177"></span><span>        </span><span class="annot"><span class="annottext">Bool -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgPerformRTCs"><span class="hs-identifier hs-var">cgPerformRTCs</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>       </span><span class="hs-comment">-- protect against potential overflow, our table is not big enough</span><span>
+</span><span id="line-178"></span><span>        </span><span id="local-6989586621681160398"><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160398"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord64
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-179"></span><span>        </span><span class="annot"><span class="annottext">SWord64 -&gt; SBVCodeGen ()
+forall a. SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgReturn"><span class="hs-identifier hs-var">cgReturn</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord64 -&gt; SBVCodeGen ()) -&gt; SWord64 -&gt; SBVCodeGen ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+</span><a href="Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib2"><span class="hs-identifier hs-var">fib2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160400"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160398"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-180"></span></pre></body></html>

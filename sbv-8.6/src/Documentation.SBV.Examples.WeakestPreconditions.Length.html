@@ -1,0 +1,471 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.WeakestPreconditions.Length</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Proof of correctness of an imperative list-length algorithm, using weakest</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- preconditions. Illustrates the use of SBV's symbolic lists together with</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- the WP algorithm.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass        #-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric         #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE NamedFieldPuns        #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.WeakestPreconditions.Length</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.List.html"><span class="hs-identifier">Data.SBV.List</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html"><span class="hs-identifier">Data.SBV.Tools.WeakestPreconditions</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- * Program state</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | The state of the length program, paramaterized over the element type @a@</span><span>
+</span><span id="line-36"></span><span id="local-6989586621681172350"><span id="local-6989586621681172351"></span></span><span class="hs-keyword">data</span><span> </span><span id="LenS"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-var">LenS</span></a></span></span><span> </span><span id="local-6989586621681172393"><span class="annot"><a href="#local-6989586621681172393"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LenS"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-var">LenS</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="xs"><span class="annot"><span class="annottext">LenS a -&gt; SList a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#xs"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SList"><span class="hs-identifier hs-type">SList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172393"><span class="hs-identifier hs-type">a</span></a></span><span>  </span><span class="hs-comment">-- ^ The input list</span><span>
+</span><span id="line-37"></span><span>                   </span><span class="hs-special">,</span><span> </span><span id="ys"><span class="annot"><span class="annottext">LenS a -&gt; SList a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#ys"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SList"><span class="hs-identifier hs-type">SList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172393"><span class="hs-identifier hs-type">a</span></a></span><span>  </span><span class="hs-comment">-- ^ Copy of input</span><span>
+</span><span id="line-38"></span><span>                   </span><span class="hs-special">,</span><span> </span><span id="l"><span class="annot"><span class="annottext">LenS a -&gt; SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#l"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span> </span><span class="hs-comment">-- ^ Running length</span><span>
+</span><span id="line-39"></span><span>                   </span><span class="hs-special">}</span><span>
+</span><span id="line-40"></span><span>                   </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(forall x. LenS a -&gt; Rep (LenS a) x)
+-&gt; (forall x. Rep (LenS a) x -&gt; LenS a) -&gt; Generic (LenS a)
+forall x. Rep (LenS a) x -&gt; LenS a
+forall x. LenS a -&gt; Rep (LenS a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (LenS a) x -&gt; LenS a
+forall a x. LenS a -&gt; Rep (LenS a) x
+$cto :: forall a x. Rep (LenS a) x -&gt; LenS a
+$cfrom :: forall a x. LenS a -&gt; Rep (LenS a) x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172339"><span id="local-6989586621681172341"><span class="annot"><span class="annottext">Bool -&gt; SBool -&gt; LenS a -&gt; LenS a -&gt; LenS a
+(Bool -&gt; SBool -&gt; LenS a -&gt; LenS a -&gt; LenS a)
+-&gt; (forall b.
+    (Ord b, SymVal b, Num b) =&gt;
+    [LenS a] -&gt; LenS a -&gt; SBV b -&gt; LenS a)
+-&gt; Mergeable (LenS a)
+forall b.
+(Ord b, SymVal b, Num b) =&gt;
+[LenS a] -&gt; LenS a -&gt; SBV b -&gt; LenS a
+forall a. SymVal a =&gt; Bool -&gt; SBool -&gt; LenS a -&gt; LenS a -&gt; LenS a
+forall a b.
+(SymVal a, Ord b, SymVal b, Num b) =&gt;
+[LenS a] -&gt; LenS a -&gt; SBV b -&gt; LenS a
+forall a.
+(Bool -&gt; SBool -&gt; a -&gt; a -&gt; a)
+-&gt; (forall b. (Ord b, SymVal b, Num b) =&gt; [a] -&gt; a -&gt; SBV b -&gt; a)
+-&gt; Mergeable a
+select :: [LenS a] -&gt; LenS a -&gt; SBV b -&gt; LenS a
+$cselect :: forall a b.
+(SymVal a, Ord b, SymVal b, Num b) =&gt;
+[LenS a] -&gt; LenS a -&gt; SBV b -&gt; LenS a
+symbolicMerge :: Bool -&gt; SBool -&gt; LenS a -&gt; LenS a -&gt; LenS a
+$csymbolicMerge :: forall a. SymVal a =&gt; Bool -&gt; SBool -&gt; LenS a -&gt; LenS a -&gt; LenS a
+</span><a href="Data.SBV.Core.Model.html#C%3AMergeable"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Mergeable</span></a></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | The concrete counterpart to 'LenS'. Note that we can no longer use the duality</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- between @SBV a@ and @a@ as in other examples and just use one datatype for both.</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- This is because @SList a@ and @[a]@ are fundamentally different types. This can</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- be a bit confusing at first, but the point is that it is the list that is symbolic</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- in case of an @SList a@, not that we have a concrete list with symbolic elements</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- in it. Subtle difference, but it is important to keep these two separate.</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">data</span><span> </span><span id="LenC"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-var">LenC</span></a></span></span><span> </span><span id="local-6989586621681172384"><span class="annot"><a href="#local-6989586621681172384"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LenC"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-var">LenC</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681172384"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681172384"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | Show instance: A simplified version of what would otherwise be generated.</span><span>
+</span><span id="line-51"></span><span id="local-6989586621681172336"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681172331"><span id="local-6989586621681172334"><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172336"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681172336"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172336"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681172329"><span class="annot"><span class="annottext">show :: LenS a -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span> </span><span id="local-6989586621681172327"><span class="annot"><span class="annottext">xs :: SList a
+</span><a href="#local-6989586621681172327"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681172326"><span class="annot"><span class="annottext">ys :: SList a
+</span><a href="#local-6989586621681172326"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681172325"><span class="annot"><span class="annottext">l :: SInteger
+</span><a href="#local-6989586621681172325"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;{xs = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SList a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172324"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SList a
+</span><a href="#local-6989586621681172327"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, ys = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SList a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172324"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SList a
+</span><a href="#local-6989586621681172326"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, l = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172324"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681172325"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;}&quot;</span></span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681172324"><span class="annot"><span class="annottext">sh :: SBV a -&gt; String
+</span><a href="#local-6989586621681172324"><span class="hs-identifier hs-var hs-var">sh</span></a></span></span><span> </span><span id="local-6989586621681172323"><span class="annot"><span class="annottext">v :: SBV a
+</span><a href="#local-6989586621681172323"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Maybe a
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172323"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-54"></span><span>                   </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-string">&quot;&lt;symbolic&gt;&quot;</span></span><span>
+</span><span id="line-55"></span><span>                   </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681172321"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681172321"><span class="hs-identifier hs-var">i</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681172321"><span class="hs-identifier hs-var">i</span></a></span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Show instance: Similarly, we want to be a bit more concise here.</span><span>
+</span><span id="line-58"></span><span id="local-6989586621681172320"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681172315"><span id="local-6989586621681172318"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681172320"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-type">LenC</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172320"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621681172314"><span class="annot"><span class="annottext">show :: LenC a -&gt; String
+</span><a href="#local-6989586621681172314"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-type">LenC</span></a></span><span> </span><span id="local-6989586621681172313"><span class="annot"><span class="annottext">xs :: [a]
+</span><a href="#local-6989586621681172313"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681172312"><span class="annot"><span class="annottext">ys :: [a]
+</span><a href="#local-6989586621681172312"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681172311"><span class="annot"><span class="annottext">l :: Integer
+</span><a href="#local-6989586621681172311"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;{xs = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681172313"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, ys = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681172312"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, l = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681172311"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;}&quot;</span></span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | We have to write the bijection between 'LenS' and 'LenC' explicitly. Luckily, the</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- definition is more or less boilerplate.</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Queriable"><span class="hs-identifier hs-type">Queriable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-type">LenC</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681172306"><span class="annot"><span class="annottext">create :: QueryT IO (LenS Integer)
+</span><a href="Data.SBV.Core.Symbolic.html#create"><span class="hs-identifier hs-var hs-var hs-var hs-var">create</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SList Integer -&gt; SInteger -&gt; LenS Integer
+forall a. SList a -&gt; SList a -&gt; SInteger -&gt; LenS a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-var">LenS</span></a></span><span> </span><span class="annot"><span class="annottext">(SList Integer -&gt; SList Integer -&gt; SInteger -&gt; LenS Integer)
+-&gt; QueryT IO (SList Integer)
+-&gt; QueryT IO (SList Integer -&gt; SInteger -&gt; LenS Integer)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SList Integer)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span>   </span><span class="annot"><span class="annottext">QueryT IO (SList Integer -&gt; SInteger -&gt; LenS Integer)
+-&gt; QueryT IO (SList Integer)
+-&gt; QueryT IO (SInteger -&gt; LenS Integer)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SList Integer)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span>   </span><span class="annot"><span class="annottext">QueryT IO (SInteger -&gt; LenS Integer)
+-&gt; QueryT IO SInteger -&gt; QueryT IO (LenS Integer)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO SInteger
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621681172302"><span class="annot"><span class="annottext">project :: LenS Integer -&gt; QueryT IO (LenC Integer)
+</span><a href="Data.SBV.Core.Symbolic.html#project"><span class="hs-identifier hs-var hs-var hs-var hs-var">project</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span> </span><span id="local-6989586621681172300"><span class="annot"><span class="annottext">xs :: SList Integer
+</span><a href="#local-6989586621681172300"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681172299"><span class="annot"><span class="annottext">ys :: SList Integer
+</span><a href="#local-6989586621681172299"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681172298"><span class="annot"><span class="annottext">l :: SInteger
+</span><a href="#local-6989586621681172298"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Integer] -&gt; [Integer] -&gt; Integer -&gt; LenC Integer
+forall a. [a] -&gt; [a] -&gt; Integer -&gt; LenC a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-var">LenC</span></a></span><span> </span><span class="annot"><span class="annottext">([Integer] -&gt; [Integer] -&gt; Integer -&gt; LenC Integer)
+-&gt; QueryT IO [Integer]
+-&gt; QueryT IO ([Integer] -&gt; Integer -&gt; LenC Integer)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; QueryT IO [Integer]
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172300"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">QueryT IO ([Integer] -&gt; Integer -&gt; LenC Integer)
+-&gt; QueryT IO [Integer] -&gt; QueryT IO (Integer -&gt; LenC Integer)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; QueryT IO [Integer]
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172299"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">QueryT IO (Integer -&gt; LenC Integer)
+-&gt; QueryT IO Integer -&gt; QueryT IO (LenC Integer)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; QueryT IO Integer
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681172298"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621681172296"><span class="annot"><span class="annottext">embed :: LenC Integer -&gt; QueryT IO (LenS Integer)
+</span><a href="Data.SBV.Core.Symbolic.html#embed"><span class="hs-identifier hs-var hs-var hs-var hs-var">embed</span></a></span></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenC"><span class="hs-identifier hs-type">LenC</span></a></span><span> </span><span id="local-6989586621681172294"><span class="annot"><span class="annottext">xs :: [Integer]
+</span><a href="#local-6989586621681172294"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681172293"><span class="annot"><span class="annottext">ys :: [Integer]
+</span><a href="#local-6989586621681172293"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681172292"><span class="annot"><span class="annottext">l :: Integer
+</span><a href="#local-6989586621681172292"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LenS Integer -&gt; QueryT IO (LenS Integer)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(LenS Integer -&gt; QueryT IO (LenS Integer))
+-&gt; LenS Integer -&gt; QueryT IO (LenS Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SList Integer -&gt; SInteger -&gt; LenS Integer
+forall a. SList a -&gt; SList a -&gt; SInteger -&gt; LenS a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-var">LenS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; SList Integer
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681172294"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Integer] -&gt; SList Integer
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681172293"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; SInteger
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681172292"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | Helper type synonym</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">type</span><span> </span><span id="S"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-var">S</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- * The algorithm</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | The imperative length algorithm:</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--    ys = xs</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--    l  = 0</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--    while not (null ys)</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--      l  = l+1</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--      ys = tail ys</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- Note that we need to explicitly annotate each loop with its invariant and the termination</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- measure. For convenience, we take those two as parameters, so we can experiment later.</span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#algorithm"><span class="hs-identifier hs-type">algorithm</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Stmt"><span class="hs-identifier hs-type">Stmt</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-86"></span><span id="algorithm"><span class="annot"><span class="annottext">algorithm :: Invariant (LenS Integer)
+-&gt; Maybe (Measure (LenS Integer)) -&gt; Stmt (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#algorithm"><span class="hs-identifier hs-var hs-var">algorithm</span></a></span></span><span> </span><span id="local-6989586621681172288"><span class="annot"><span class="annottext">inv :: Invariant (LenS Integer)
+</span><a href="#local-6989586621681172288"><span class="hs-identifier hs-var">inv</span></a></span></span><span> </span><span id="local-6989586621681172287"><span class="annot"><span class="annottext">msr :: Maybe (Measure (LenS Integer))
+</span><a href="#local-6989586621681172287"><span class="hs-identifier hs-var">msr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Stmt (LenS Integer)] -&gt; Stmt (LenS Integer)
+forall st. [Stmt st] -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Seq"><span class="hs-identifier hs-var">Seq</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">(LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer))
+-&gt; (LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681172284"><span class="annot"><span class="annottext">st :: LenS Integer
+</span><a href="#local-6989586621681172284"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172283"><span class="annot"><span class="annottext">SList Integer
+xs :: SList Integer
+xs :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172283"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LenS Integer
+</span><a href="#local-6989586621681172284"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">ys :: SList Integer
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172283"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">l :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#l"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">}</span><span>
+</span><span id="line-87"></span><span>                        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; Invariant (LenS Integer)
+-&gt; Maybe (Measure (LenS Integer))
+-&gt; Invariant (LenS Integer)
+-&gt; Stmt (LenS Integer)
+-&gt; Stmt (LenS Integer)
+forall st.
+String
+-&gt; Invariant st
+-&gt; Maybe (Measure st)
+-&gt; Invariant st
+-&gt; Stmt st
+-&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#While"><span class="hs-identifier hs-var">While</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;! (null ys)&quot;</span></span><span>
+</span><span id="line-88"></span><span>                                </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+</span><a href="#local-6989586621681172288"><span class="hs-identifier hs-var">inv</span></a></span><span>
+</span><span id="line-89"></span><span>                                </span><span class="annot"><span class="annottext">Maybe (Measure (LenS Integer))
+</span><a href="#local-6989586621681172287"><span class="hs-identifier hs-var">msr</span></a></span><span>
+</span><span id="line-90"></span><span>                                </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172281"><span class="annot"><span class="annottext">SList Integer
+ys :: SList Integer
+ys :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172281"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SList Integer -&gt; SBool
+forall a. SymVal a =&gt; SList a -&gt; SBool
+</span><a href="Data.SBV.List.html#null"><span class="hs-identifier hs-var">L.null</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172281"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>                                </span><span class="annot"><span class="annottext">(Stmt (LenS Integer) -&gt; Stmt (LenS Integer))
+-&gt; Stmt (LenS Integer) -&gt; Stmt (LenS Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Stmt (LenS Integer)] -&gt; Stmt (LenS Integer)
+forall st. [Stmt st] -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Seq"><span class="hs-identifier hs-var">Seq</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">(LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer))
+-&gt; (LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681172278"><span class="annot"><span class="annottext">st :: LenS Integer
+</span><a href="#local-6989586621681172278"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172277"><span class="annot"><span class="annottext">SInteger
+l :: SInteger
+l :: forall a. LenS a -&gt; SInteger
+</span><a href="#local-6989586621681172277"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LenS Integer
+</span><a href="#local-6989586621681172278"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">l :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#l"><span class="hs-identifier hs-var">l</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681172277"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-92"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer))
+-&gt; (LenS Integer -&gt; LenS Integer) -&gt; Stmt (LenS Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681172275"><span class="annot"><span class="annottext">st :: LenS Integer
+</span><a href="#local-6989586621681172275"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172274"><span class="annot"><span class="annottext">SList Integer
+ys :: SList Integer
+ys :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172274"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LenS Integer
+</span><a href="#local-6989586621681172275"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">ys :: SList Integer
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SList Integer
+forall a. SymVal a =&gt; SList a -&gt; SList a
+</span><a href="Data.SBV.List.html#tail"><span class="hs-identifier hs-var">L.tail</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172274"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-93"></span><span>                                      </span><span class="hs-special">]</span><span>
+</span><span id="line-94"></span><span>                        </span><span class="hs-special">]</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- | Precondition for our program. Nothing! It works for all lists.</span><span>
+</span><span id="line-97"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#pre"><span class="hs-identifier hs-type">pre</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-98"></span><span id="pre"><span class="annot"><span class="annottext">pre :: Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#pre"><span class="hs-identifier hs-var hs-var">pre</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier hs-var">sTrue</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- | Postcondition for our program: @l@ must be the length of the input list.</span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#post"><span class="hs-identifier hs-type">post</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-102"></span><span id="post"><span class="annot"><span class="annottext">post :: Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#post"><span class="hs-identifier hs-var hs-var">post</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172269"><span class="annot"><span class="annottext">SList Integer
+xs :: SList Integer
+xs :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172269"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172268"><span class="annot"><span class="annottext">SInteger
+l :: SInteger
+l :: forall a. LenS a -&gt; SInteger
+</span><a href="#local-6989586621681172268"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681172268"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172269"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- | Stability condition: Program must leave @xs@ unchanged.</span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#noChange"><span class="hs-identifier hs-type">noChange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Stable"><span class="hs-identifier hs-type">Stable</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-106"></span><span id="noChange"><span class="annot"><span class="annottext">noChange :: Stable (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#noChange"><span class="hs-identifier hs-var hs-var">noChange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+-&gt; (LenS Integer -&gt; SList Integer)
+-&gt; LenS Integer
+-&gt; LenS Integer
+-&gt; (String, SBool)
+forall a st.
+EqSymbolic a =&gt;
+String -&gt; (st -&gt; a) -&gt; st -&gt; st -&gt; (String, SBool)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#stable"><span class="hs-identifier hs-var">stable</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;xs&quot;</span></span><span> </span><span class="annot"><span class="annottext">LenS Integer -&gt; SList Integer
+forall a. LenS a -&gt; SList a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#xs"><span class="hs-identifier hs-var hs-var">xs</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- | A program is the algorithm, together with its pre- and post-conditions.</span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#imperativeLength"><span class="hs-identifier hs-type">imperativeLength</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-110"></span><span id="imperativeLength"><span class="annot"><span class="annottext">imperativeLength :: Invariant (LenS Integer)
+-&gt; Maybe (Measure (LenS Integer)) -&gt; Program (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#imperativeLength"><span class="hs-identifier hs-var hs-var">imperativeLength</span></a></span></span><span> </span><span id="local-6989586621681172262"><span class="annot"><span class="annottext">inv :: Invariant (LenS Integer)
+</span><a href="#local-6989586621681172262"><span class="hs-identifier hs-var">inv</span></a></span></span><span> </span><span id="local-6989586621681172261"><span class="annot"><span class="annottext">msr :: Maybe (Measure (LenS Integer))
+</span><a href="#local-6989586621681172261"><span class="hs-identifier hs-var">msr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Program :: forall st.
+Symbolic ()
+-&gt; (st -&gt; SBool)
+-&gt; Stmt st
+-&gt; (st -&gt; SBool)
+-&gt; Stable st
+-&gt; Program st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Program"><span class="hs-identifier hs-type hs-type">Program</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">setup :: Symbolic ()
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#setup"><span class="hs-identifier hs-var">setup</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; Symbolic ()
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>                                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">precondition :: Invariant (LenS Integer)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#precondition"><span class="hs-identifier hs-var">precondition</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#pre"><span class="hs-identifier hs-var">pre</span></a></span><span>
+</span><span id="line-112"></span><span>                                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">program :: Stmt (LenS Integer)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#program"><span class="hs-identifier hs-var">program</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+-&gt; Maybe (Measure (LenS Integer)) -&gt; Stmt (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#algorithm"><span class="hs-identifier hs-var">algorithm</span></a></span><span> </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+</span><a href="#local-6989586621681172262"><span class="hs-identifier hs-var">inv</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Measure (LenS Integer))
+</span><a href="#local-6989586621681172261"><span class="hs-identifier hs-var">msr</span></a></span><span>
+</span><span id="line-113"></span><span>                                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postcondition :: Invariant (LenS Integer)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#postcondition"><span class="hs-identifier hs-var">postcondition</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#post"><span class="hs-identifier hs-var">post</span></a></span><span>
+</span><span id="line-114"></span><span>                                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">stability :: Stable (LenS Integer)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#stability"><span class="hs-identifier hs-var">stability</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Stable (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#noChange"><span class="hs-identifier hs-var">noChange</span></a></span><span>
+</span><span id="line-115"></span><span>                                   </span><span class="hs-special">}</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- | The invariant simply relates the length of the input to the length of the</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- current suffix and the length of the prefix traversed so far.</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#invariant"><span class="hs-identifier hs-type">invariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-120"></span><span id="invariant"><span class="annot"><span class="annottext">invariant :: Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#invariant"><span class="hs-identifier hs-var hs-var">invariant</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172252"><span class="annot"><span class="annottext">SList Integer
+xs :: SList Integer
+xs :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172252"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172251"><span class="annot"><span class="annottext">SList Integer
+ys :: SList Integer
+ys :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172251"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172250"><span class="annot"><span class="annottext">SInteger
+l :: SInteger
+l :: forall a. LenS a -&gt; SInteger
+</span><a href="#local-6989586621681172250"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172252"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681172250"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172251"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- | The measure is obviously the length of @ys@, as we peel elements off of it through the loop.</span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#measure"><span class="hs-identifier hs-type">measure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-124"></span><span id="measure"><span class="annot"><span class="annottext">measure :: Measure (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#measure"><span class="hs-identifier hs-var hs-var">measure</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#LenS"><span class="hs-identifier hs-type">LenS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681172248"><span class="annot"><span class="annottext">SList Integer
+ys :: SList Integer
+ys :: forall a. LenS a -&gt; SList a
+</span><a href="#local-6989586621681172248"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681172248"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- * Correctness</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | We check that @l@ is the length of the input list @xs@ upon termination.</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- Note that even though this is an inductive proof, it is fairly easy to prove with our SMT based</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- technology, which doesn't really handle induction at all!  The usual inductive proof steps are baked</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- into the invariant establishment phase of the WP proof. We have:</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- &gt;&gt;&gt; correctness</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- Total correctness is established.</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-136"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#correctness"><span class="hs-identifier hs-type">correctness</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span id="correctness"><span class="annot"><span class="annottext">correctness :: IO ()
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#correctness"><span class="hs-identifier hs-var hs-var">correctness</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProofResult (LenC Integer) -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(ProofResult (LenC Integer) -&gt; IO ())
+-&gt; IO (ProofResult (LenC Integer)) -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">WPConfig
+-&gt; Program (LenS Integer) -&gt; IO (ProofResult (LenC Integer))
+forall st res.
+(Show res, Mergeable st, Queriable IO st res) =&gt;
+WPConfig -&gt; Program st -&gt; IO (ProofResult res)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#wpProveWith"><span class="hs-identifier hs-var">wpProveWith</span></a></span><span> </span><span class="annot"><span class="annottext">WPConfig
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#defaultWPCfg"><span class="hs-identifier hs-var">defaultWPCfg</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">wpVerbose :: Bool
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#wpVerbose"><span class="hs-identifier hs-var">wpVerbose</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">}</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+-&gt; Maybe (Measure (LenS Integer)) -&gt; Program (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#imperativeLength"><span class="hs-identifier hs-var">imperativeLength</span></a></span><span> </span><span class="annot"><span class="annottext">Invariant (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#invariant"><span class="hs-identifier hs-var">invariant</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Measure (LenS Integer) -&gt; Maybe (Measure (LenS Integer))
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Measure (LenS Integer)
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.Length.html#measure"><span class="hs-identifier hs-var">measure</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span></pre></body></html>

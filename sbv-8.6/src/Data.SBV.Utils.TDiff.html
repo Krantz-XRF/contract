@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Utils.TDiff</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Runs an IO computation printing the time it took to run it</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Utils.TDiff</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Data.SBV.Utils.TDiff.html#Timing"><span class="hs-identifier">Timing</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Utils.TDiff.html#showTDiff"><span class="hs-identifier">showTDiff</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Time</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NominalDiffTime</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IORef</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">intercalate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Ratio</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Real</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Ratio</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(:%)</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Numeric</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">showFFloat</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | Specify how to save timing information, if at all.</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="Timing"><span class="annot"><a href="Data.SBV.Utils.TDiff.html#Timing"><span class="hs-identifier hs-var">Timing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NoTiming"><span class="annot"><a href="Data.SBV.Utils.TDiff.html#NoTiming"><span class="hs-identifier hs-var">NoTiming</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="PrintTiming"><span class="annot"><a href="Data.SBV.Utils.TDiff.html#PrintTiming"><span class="hs-identifier hs-var">PrintTiming</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="SaveTiming"><span class="annot"><a href="Data.SBV.Utils.TDiff.html#SaveTiming"><span class="hs-identifier hs-var">SaveTiming</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">NominalDiffTime</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Show 'NominalDiffTime' in human readable form. 'NominalDiffTime' is</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- essentially picoseconds (10^-12 seconds). We show it so that</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- it's represented at the day:hour:minute:second.XXX granularity.</span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Data.SBV.Utils.TDiff.html#showTDiff"><span class="hs-identifier hs-type">showTDiff</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NominalDiffTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-37"></span><span id="showTDiff"><span class="annot"><span class="annottext">showTDiff :: NominalDiffTime -&gt; String
+</span><a href="Data.SBV.Utils.TDiff.html#showTDiff"><span class="hs-identifier hs-var hs-var">showTDiff</span></a></span></span><span> </span><span id="local-6989586621681127810"><span class="annot"><span class="annottext">diff :: NominalDiffTime
+</span><a href="#local-6989586621681127810"><span class="hs-identifier hs-var">diff</span></a></span></span><span>
+</span><span id="line-38"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127809"><span class="hs-identifier hs-var">denom</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>    </span><span class="hs-comment">-- Should never happen! But just in case.</span><span>
+</span><span id="line-39"></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
+</span><a href="#local-6989586621681127810"><span class="hs-identifier hs-var">diff</span></a></span><span>
+</span><span id="line-40"></span><span>   </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-41"></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; String
+forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">intercalate</span></span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681127806"><span class="hs-identifier hs-var">fields</span></a></span><span>
+</span><span id="line-42"></span><span>   </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681127805"><span class="hs-identifier hs-type">total</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681127809"><span class="hs-identifier hs-type">denom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-43"></span><span>         </span><span id="local-6989586621681127805"><span class="annot"><span class="annottext">total :: Integer
+</span><a href="#local-6989586621681127805"><span class="hs-identifier hs-var">total</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:%</span></span><span> </span><span id="local-6989586621681127809"><span class="annot"><span class="annottext">denom :: Integer
+</span><a href="#local-6989586621681127809"><span class="hs-identifier hs-var">denom</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127804"><span class="hs-identifier hs-var">picoFactor</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Ratio Integer
+forall a. Integral a =&gt; a -&gt; a -&gt; Ratio a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Ratio Integer -&gt; Ratio Integer -&gt; Ratio Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; Ratio Integer
+forall a. Real a =&gt; a -&gt; Ratio Integer
+</span><span class="hs-identifier hs-var">toRational</span></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
+</span><a href="#local-6989586621681127810"><span class="hs-identifier hs-var">diff</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span>         </span><span class="hs-comment">-- there are 10^12 pico-seconds in a second</span><span>
+</span><span id="line-46"></span><span>         </span><span class="annot"><a href="#local-6989586621681127804"><span class="hs-identifier hs-type">picoFactor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-47"></span><span>         </span><span id="local-6989586621681127804"><span class="annot"><span class="annottext">picoFactor :: Integer
+</span><a href="#local-6989586621681127804"><span class="hs-identifier hs-var hs-var">picoFactor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">10</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a b. (Num a, Integral b) =&gt; a -&gt; b -&gt; a
+</span><span class="hs-operator hs-var">^</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">12</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>         </span><span class="hs-special">[</span><span id="local-6989586621681127800"><span class="annot"><span class="annottext">s2p :: Integer
+</span><a href="#local-6989586621681127800"><span class="hs-identifier hs-var">s2p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127799"><span class="annot"><span class="annottext">m2s :: Integer
+</span><a href="#local-6989586621681127799"><span class="hs-identifier hs-var">m2s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127798"><span class="annot"><span class="annottext">h2m :: Integer
+</span><a href="#local-6989586621681127798"><span class="hs-identifier hs-var">h2m</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127797"><span class="annot"><span class="annottext">d2h :: Integer
+</span><a href="#local-6989586621681127797"><span class="hs-identifier hs-var">d2h</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Integer] -&gt; [Integer]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">([Integer] -&gt; [Integer]) -&gt; [Integer] -&gt; [Integer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Integer)
+-&gt; Integer -&gt; [Integer] -&gt; [Integer]
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">scanl</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127804"><span class="hs-identifier hs-var">picoFactor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">60</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">60</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">24</span></span><span class="hs-special">]</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>         </span><span class="hs-special">(</span><span id="local-6989586621681127794"><span class="annot"><span class="annottext">days :: Integer
+</span><a href="#local-6989586621681127794"><span class="hs-identifier hs-var">days</span></a></span></span><span class="hs-special">,</span><span>    </span><span id="local-6989586621681127793"><span class="annot"><span class="annottext">days' :: Integer
+</span><a href="#local-6989586621681127793"><span class="hs-identifier hs-var">days'</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127805"><span class="hs-identifier hs-var">total</span></a></span><span>    </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; (Integer, Integer)
+forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`divMod`</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127797"><span class="hs-identifier hs-var">d2h</span></a></span><span>
+</span><span id="line-52"></span><span>         </span><span class="hs-special">(</span><span id="local-6989586621681127791"><span class="annot"><span class="annottext">hours :: Integer
+</span><a href="#local-6989586621681127791"><span class="hs-identifier hs-var">hours</span></a></span></span><span class="hs-special">,</span><span>   </span><span id="local-6989586621681127790"><span class="annot"><span class="annottext">hours' :: Integer
+</span><a href="#local-6989586621681127790"><span class="hs-identifier hs-var">hours'</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127793"><span class="hs-identifier hs-var">days'</span></a></span><span>    </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; (Integer, Integer)
+forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`divMod`</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127798"><span class="hs-identifier hs-var">h2m</span></a></span><span>
+</span><span id="line-53"></span><span>         </span><span class="hs-special">(</span><span id="local-6989586621681127789"><span class="annot"><span class="annottext">minutes :: Integer
+</span><a href="#local-6989586621681127789"><span class="hs-identifier hs-var">minutes</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127788"><span class="annot"><span class="annottext">seconds' :: Integer
+</span><a href="#local-6989586621681127788"><span class="hs-identifier hs-var">seconds'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127790"><span class="hs-identifier hs-var">hours'</span></a></span><span>   </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; (Integer, Integer)
+forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`divMod`</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127799"><span class="hs-identifier hs-var">m2s</span></a></span><span>
+</span><span id="line-54"></span><span>         </span><span class="hs-special">(</span><span id="local-6989586621681127787"><span class="annot"><span class="annottext">seconds :: Integer
+</span><a href="#local-6989586621681127787"><span class="hs-identifier hs-var">seconds</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127786"><span class="annot"><span class="annottext">picos :: Integer
+</span><a href="#local-6989586621681127786"><span class="hs-identifier hs-var">picos</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127788"><span class="hs-identifier hs-var">seconds'</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; (Integer, Integer)
+forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`divMod`</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127800"><span class="hs-identifier hs-var">s2p</span></a></span><span>
+</span><span id="line-55"></span><span>         </span><span id="local-6989586621681127785"><span class="annot"><span class="annottext">secondsPicos :: String
+</span><a href="#local-6989586621681127785"><span class="hs-identifier hs-var hs-var">secondsPicos</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127787"><span class="hs-identifier hs-var">seconds</span></a></span><span>
+</span><span id="line-56"></span><span>                             </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; String
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="hs-char">'.'</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Int -&gt; Double -&gt; String -&gt; String
+forall a. RealFloat a =&gt; Maybe Int -&gt; a -&gt; String -&gt; String
+</span><span class="hs-identifier hs-var">showFFloat</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Double
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127786"><span class="hs-identifier hs-var">picos</span></a></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">10</span></span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
+forall a. Floating a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">**</span></span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">12</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-string">&quot;s&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>         </span><span id="local-6989586621681127782"><span class="annot"><span class="annottext">aboveSeconds :: [String]
+</span><a href="#local-6989586621681127782"><span class="hs-identifier hs-var hs-var">aboveSeconds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Char, Integer) -&gt; String) -&gt; [(Char, Integer)] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621681127781"><span class="annot"><span class="annottext">t :: Char
+</span><a href="#local-6989586621681127781"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681127780"><span class="annot"><span class="annottext">v :: Integer
+</span><a href="#local-6989586621681127780"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127780"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681127781"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(Char, Integer)] -&gt; [String]) -&gt; [(Char, Integer)] -&gt; [String]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Char, Integer) -&gt; Bool) -&gt; [(Char, Integer)] -&gt; [(Char, Integer)]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681127779"><span class="annot"><span class="annottext">p :: (Char, Integer)
+</span><a href="#local-6989586621681127779"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Char, Integer) -&gt; Integer
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">(Char, Integer)
+</span><a href="#local-6989586621681127779"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-char">'d'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127794"><span class="hs-identifier hs-var">days</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-char">'h'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127791"><span class="hs-identifier hs-var">hours</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-char">'m'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681127789"><span class="hs-identifier hs-var">minutes</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>         </span><span id="local-6989586621681127806"><span class="annot"><span class="annottext">fields :: [String]
+</span><a href="#local-6989586621681127806"><span class="hs-identifier hs-var hs-var">fields</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681127782"><span class="hs-identifier hs-var">aboveSeconds</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [String] -&gt; [String]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681127785"><span class="hs-identifier hs-var">secondsPicos</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span></pre></body></html>

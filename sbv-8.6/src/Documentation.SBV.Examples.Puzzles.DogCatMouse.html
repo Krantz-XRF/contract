@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.DogCatMouse</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Puzzle:</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--   Spend exactly 100 dollars and buy exactly 100 animals.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   Dogs cost 15 dollars, cats cost 1 dollar, and mice cost 25 cents each.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--   You have to buy at least one of each.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--   How many of each should you buy?</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.DogCatMouse</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | Prints the only solution:</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt;&gt;&gt; puzzle</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   dog   =  3 :: Integer</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--   cat   = 41 :: Integer</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   mouse = 56 :: Integer</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- This is the only solution.</span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.DogCatMouse.html#puzzle"><span class="hs-identifier hs-type">puzzle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#AllSatResult"><span class="hs-identifier hs-type">AllSatResult</span></a></span><span>
+</span><span id="line-31"></span><span id="puzzle"><span class="annot"><span class="annottext">puzzle :: IO AllSatResult
+</span><a href="Documentation.SBV.Examples.Puzzles.DogCatMouse.html#puzzle"><span class="hs-identifier hs-var hs-var">puzzle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO AllSatResult)
+-&gt; SymbolicT IO SBool -&gt; IO AllSatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-32"></span><span>           </span><span class="hs-special">[</span><span id="local-6989586621681164480"><span class="annot"><span class="annottext">dog :: SInteger
+</span><a href="#local-6989586621681164480"><span class="hs-identifier hs-var">dog</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681164479"><span class="annot"><span class="annottext">cat :: SInteger
+</span><a href="#local-6989586621681164479"><span class="hs-identifier hs-var">cat</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681164478"><span class="annot"><span class="annottext">mouse :: SInteger
+</span><a href="#local-6989586621681164478"><span class="hs-identifier hs-var">mouse</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Symbolic [SInteger]
+</span><a href="Data.SBV.Client.BaseIO.html#sIntegers"><span class="hs-identifier hs-var">sIntegers</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;dog&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;cat&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;mouse&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-33"></span><span>           </span><span class="annot"><span class="annottext">[SBool] -&gt; SymbolicT IO SBool
+</span><a href="Data.SBV.Client.BaseIO.html#solve"><span class="hs-identifier hs-var">solve</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164480"><span class="hs-identifier hs-var">dog</span></a></span><span>   </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>                                           </span><span class="hs-comment">-- at least one dog</span><span>
+</span><span id="line-34"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164479"><span class="hs-identifier hs-var">cat</span></a></span><span>   </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>                                           </span><span class="hs-comment">-- at least one cat</span><span>
+</span><span id="line-35"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164478"><span class="hs-identifier hs-var">mouse</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>                                           </span><span class="hs-comment">-- at least one mouse</span><span>
+</span><span id="line-36"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164480"><span class="hs-identifier hs-var">dog</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164479"><span class="hs-identifier hs-var">cat</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164478"><span class="hs-identifier hs-var">mouse</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">100</span></span><span>                             </span><span class="hs-comment">-- buy precisely 100 animals</span><span>
+</span><span id="line-37"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">15</span></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SInteger -&gt; SReal
+forall a. (Integral a, SymVal a) =&gt; SReal -&gt; SBV a -&gt; SReal
+</span><a href="#local-6989586621681164472"><span class="hs-operator hs-var">`per`</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164480"><span class="hs-identifier hs-var">dog</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SInteger -&gt; SReal
+forall a. (Integral a, SymVal a) =&gt; SReal -&gt; SBV a -&gt; SReal
+</span><a href="#local-6989586621681164472"><span class="hs-operator hs-var">`per`</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164479"><span class="hs-identifier hs-var">cat</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">0.25</span></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SInteger -&gt; SReal
+forall a. (Integral a, SymVal a) =&gt; SReal -&gt; SBV a -&gt; SReal
+</span><a href="#local-6989586621681164472"><span class="hs-operator hs-var">`per`</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681164478"><span class="hs-identifier hs-var">mouse</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">100</span></span><span> </span><span class="hs-comment">-- spend exactly 100 dollars</span><span>
+</span><span id="line-38"></span><span>                 </span><span class="hs-special">]</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164471"><span class="annot"><span class="annottext">p :: SReal
+</span><a href="#local-6989586621681164471"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681164472"><span class="annot"><span class="annottext">per :: SReal -&gt; SBV a -&gt; SReal
+</span><a href="#local-6989586621681164472"><span class="hs-operator hs-var hs-var">`per`</span></a></span></span><span> </span><span id="local-6989586621681164470"><span class="annot"><span class="annottext">q :: SBV a
+</span><a href="#local-6989586621681164470"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681164471"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV a -&gt; SReal
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681164470"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SReal"><span class="hs-identifier hs-type">SReal</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span></pre></body></html>

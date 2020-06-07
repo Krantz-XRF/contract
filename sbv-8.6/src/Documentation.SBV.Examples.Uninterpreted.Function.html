@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Uninterpreted.Function</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates function counter-examples</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Uninterpreted.Function</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | An uninterpreted function</span><span>
+</span><span id="line-19"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#f"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span>
+</span><span id="line-20"></span><span id="f"><span class="annot"><span class="annottext">f :: SWord8 -&gt; SWord8 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#f"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SWord8 -&gt; SWord8 -&gt; SWord16
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | Asserts that @f x z == f (y+2) z@ whenever @x == y+2@. Naturally correct:</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt;&gt;&gt; prove thmGood</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#thmGood"><span class="hs-identifier hs-type">thmGood</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-27"></span><span id="thmGood"><span class="annot"><span class="annottext">thmGood :: SWord8 -&gt; SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#thmGood"><span class="hs-identifier hs-var hs-var">thmGood</span></a></span></span><span> </span><span id="local-6989586621681170195"><span class="annot"><span class="annottext">x :: SWord8
+</span><a href="#local-6989586621681170195"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681170194"><span class="annot"><span class="annottext">y :: SWord8
+</span><a href="#local-6989586621681170194"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170193"><span class="annot"><span class="annottext">z :: SWord8
+</span><a href="#local-6989586621681170193"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170195"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170194"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#f"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170195"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170193"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Function.html#f"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170194"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170193"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-28"></span></pre></body></html>

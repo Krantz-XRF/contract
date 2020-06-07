@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Optimization.Production</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Solves a simple linear optimization problem</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Optimization.Production</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | Taken from &lt;http://people.brunel.ac.uk/~mastjjb/jeb/or/morelp.html&gt;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- A company makes two products (X and Y) using two machines (A and B).</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   - Each unit of X that is produced requires 50 minutes processing time on machine</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--     A and 30 minutes processing time on machine B.</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   - Each unit of Y that is produced requires 24 minutes processing time on machine</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--     A and 33 minutes processing time on machine B.</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--   - At the start of the current week there are 30 units of X and 90 units of Y in stock.</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--     Available processing time on machine A is forecast to be 40 hours and on machine B is</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--     forecast to be 35 hours.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--   - The demand for X in the current week is forecast to be 75 units and for Y is forecast</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--     to be 95 units.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   - Company policy is to maximise the combined sum of the units of X and the units of Y</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--     in stock at the end of the week.</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- How much of each product should we make in the current week?</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- &gt;&gt;&gt; optimize Lexicographic production</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   X     = 45 :: Integer</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--   Y     =  6 :: Integer</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   stock =  1 :: Integer</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- That is, we should produce 45 X's and 6 Y's, with the final maximum stock of just 1 expected!</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Production.html#production"><span class="hs-identifier hs-type">production</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span>
+</span><span id="line-50"></span><span id="production"><span class="annot"><span class="annottext">production :: Goal
+</span><a href="Documentation.SBV.Examples.Optimization.Production.html#production"><span class="hs-identifier hs-var hs-var">production</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681163213"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163213"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;X&quot;</span></span><span> </span><span class="hs-comment">-- Units of X produced</span><span>
+</span><span id="line-51"></span><span>                </span><span id="local-6989586621681163211"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163211"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Y&quot;</span></span><span> </span><span class="hs-comment">-- Units of X produced</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span>                </span><span class="hs-comment">-- Amount of time on machine A and B</span><span>
+</span><span id="line-54"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163210"><span class="annot"><span class="annottext">timeA :: SInteger
+</span><a href="#local-6989586621681163210"><span class="hs-identifier hs-var hs-var">timeA</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">50</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163213"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">24</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163211"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-55"></span><span>                    </span><span id="local-6989586621681163207"><span class="annot"><span class="annottext">timeB :: SInteger
+</span><a href="#local-6989586621681163207"><span class="hs-identifier hs-var hs-var">timeB</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">30</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163213"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">33</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163211"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163210"><span class="hs-identifier hs-var">timeA</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">40</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span>
+</span><span id="line-58"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163207"><span class="hs-identifier hs-var">timeB</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">35</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-number">60</span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>                </span><span class="hs-comment">-- Amount of product we'll end up with</span><span>
+</span><span id="line-61"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163204"><span class="annot"><span class="annottext">finalX :: SInteger
+</span><a href="#local-6989586621681163204"><span class="hs-identifier hs-var hs-var">finalX</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163213"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">30</span></span><span>
+</span><span id="line-62"></span><span>                    </span><span id="local-6989586621681163203"><span class="annot"><span class="annottext">finalY :: SInteger
+</span><a href="#local-6989586621681163203"><span class="hs-identifier hs-var hs-var">finalY</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163211"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">90</span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>                </span><span class="hs-comment">-- Make sure the demands are met:</span><span>
+</span><span id="line-65"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163204"><span class="hs-identifier hs-var">finalX</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">75</span></span><span>
+</span><span id="line-66"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163203"><span class="hs-identifier hs-var">finalY</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">95</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>                </span><span class="hs-comment">-- Policy: Maximize the final stock</span><span>
+</span><span id="line-69"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; SInteger -&gt; Goal
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; Goal
+</span><a href="Data.SBV.Client.BaseIO.html#maximize"><span class="hs-identifier hs-var">maximize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;stock&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SInteger -&gt; Goal) -&gt; SInteger -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163204"><span class="hs-identifier hs-var">finalX</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">75</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163203"><span class="hs-identifier hs-var">finalY</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">95</span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span></pre></body></html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.CodeGeneration.CRC_USB5</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Computing the CRC symbolically, using the USB polynomial. We also</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- generating C code for it as well. This example demonstrates the</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- use of the 'crcBV' function, along with how CRC's can be computed</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- mathematically using polynomial division. While the results are the</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- same (i.e., proven equivalent, see 'crcGood' below), the internal</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- CRC implementation generates much better code, compare 'cg1' vs 'cg2' below.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.CodeGeneration.CRC_USB5</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.Polynomial.html"><span class="hs-identifier">Data.SBV.Tools.Polynomial</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- * The USB polynomial</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | The USB CRC polynomial: @x^5 + x^2 + 1@.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- Although this polynomial needs just 6 bits to represent (5 if higher</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- order bit is implicitly assumed to be set), we'll simply use a 16 bit</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- number for its representation to keep things simple for code generation</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- purposes.</span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#usb5"><span class="hs-identifier hs-type">usb5</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span>
+</span><span id="line-35"></span><span id="usb5"><span class="annot"><span class="annottext">usb5 :: SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#usb5"><span class="hs-identifier hs-var hs-var">usb5</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; SWord16
+forall a. Polynomial a =&gt; [Int] -&gt; a
+</span><a href="Data.SBV.Tools.Polynomial.html#polynomial"><span class="hs-identifier hs-var">polynomial</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- * Computing CRCs</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | Given an 11 bit message, compute the CRC of it using the USB polynomial,</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- which is 5 bits, and then append it to the msg to get a 16-bit word. Again,</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- the incoming 11-bits is represented as a 16-bit word, with 5 highest bits</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- essentially ignored for input purposes.</span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB"><span class="hs-identifier hs-type">crcUSB</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span>
+</span><span id="line-46"></span><span id="crcUSB"><span class="annot"><span class="annottext">crcUSB :: SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB"><span class="hs-identifier hs-var hs-var">crcUSB</span></a></span></span><span> </span><span id="local-6989586621681160368"><span class="annot"><span class="annottext">i :: SWord16
+</span><a href="#local-6989586621681160368"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SWord16
+forall a. SFiniteBits a =&gt; [SBool] -&gt; SBV a
+</span><a href="Data.SBV.Core.Model.html#fromBitsBE"><span class="hs-identifier hs-var">fromBitsBE</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681160366"><span class="hs-identifier hs-var">ib</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; [SBool] -&gt; [SBool]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681160365"><span class="hs-identifier hs-var">cb</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160366"><span class="annot"><span class="annottext">ib :: [SBool]
+</span><a href="#local-6989586621681160366"><span class="hs-identifier hs-var hs-var">ib</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [SBool] -&gt; [SBool]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord16 -&gt; [SBool]
+forall a. SFiniteBits a =&gt; SBV a -&gt; [SBool]
+</span><a href="Data.SBV.Core.Model.html#blastBE"><span class="hs-identifier hs-var">blastBE</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160368"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>    </span><span class="hs-comment">-- only the last 11 bits needed</span><span>
+</span><span id="line-48"></span><span>        </span><span id="local-6989586621681160362"><span class="annot"><span class="annottext">pb :: [SBool]
+</span><a href="#local-6989586621681160362"><span class="hs-identifier hs-var hs-var">pb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [SBool] -&gt; [SBool]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="hs-number">11</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord16 -&gt; [SBool]
+forall a. SFiniteBits a =&gt; SBV a -&gt; [SBool]
+</span><a href="Data.SBV.Core.Model.html#blastBE"><span class="hs-identifier hs-var">blastBE</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#usb5"><span class="hs-identifier hs-var">usb5</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- only the last  5 bits needed</span><span>
+</span><span id="line-49"></span><span>        </span><span id="local-6989586621681160365"><span class="annot"><span class="annottext">cb :: [SBool]
+</span><a href="#local-6989586621681160365"><span class="hs-identifier hs-var hs-var">cb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [SBool] -&gt; [SBool] -&gt; [SBool]
+</span><a href="Data.SBV.Tools.Polynomial.html#crcBV"><span class="hs-identifier hs-var">crcBV</span></a></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681160366"><span class="hs-identifier hs-var">ib</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681160362"><span class="hs-identifier hs-var">pb</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Alternate method for computing the CRC, /mathematically/. We shift</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- the number to the left by 5, and then compute the remainder from the</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- polynomial division by the USB polynomial. The result is then appended</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- to the end of the message.</span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB%27"><span class="hs-identifier hs-type">crcUSB'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord16"><span class="hs-identifier hs-type">SWord16</span></a></span><span>
+</span><span id="line-56"></span><span id="crcUSB%27"><span class="annot"><span class="annottext">crcUSB' :: SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB%27"><span class="hs-identifier hs-var hs-var">crcUSB'</span></a></span></span><span> </span><span id="local-6989586621681160359"><span class="annot"><span class="annottext">i' :: SWord16
+</span><a href="#local-6989586621681160359"><span class="hs-identifier hs-var">i'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160358"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16 -&gt; SWord16
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.|.</span></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16 -&gt; SWord16
+forall a. Polynomial a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Tools.Polynomial.html#pMod"><span class="hs-identifier hs-var">pMod</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160358"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#usb5"><span class="hs-identifier hs-var">usb5</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160358"><span class="annot"><span class="annottext">i :: SWord16
+</span><a href="#local-6989586621681160358"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160359"><span class="hs-identifier hs-var">i'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; Int -&gt; SWord16
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- * Correctness</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Prove that the custom 'crcBV' function is equivalent to the mathematical</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- definition of CRC's for 11 bit messages. We have:</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; crcGood</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcGood"><span class="hs-identifier hs-type">crcGood</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-69"></span><span id="crcGood"><span class="annot"><span class="annottext">crcGood :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcGood"><span class="hs-identifier hs-var hs-var">crcGood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord16 -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord16 -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SWord16 -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681160352"><span class="annot"><span class="annottext">i :: SWord16
+</span><a href="#local-6989586621681160352"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB"><span class="hs-identifier hs-var">crcUSB</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160352"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB%27"><span class="hs-identifier hs-var">crcUSB'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160352"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- * Code generation</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | Generate a C function to compute the USB CRC, using the internal CRC</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- function.</span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#cg1"><span class="hs-identifier hs-type">cg1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span id="cg1"><span class="annot"><span class="annottext">cg1 :: IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#cg1"><span class="hs-identifier hs-var hs-var">cg1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="hs-string">&quot;crcUSB1&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-string">&quot;crcUSB1&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>        </span><span id="local-6989586621681160348"><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160348"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord16
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;msg&quot;</span></span><span>
+</span><span id="line-80"></span><span>        </span><span class="annot"><span class="annottext">FilePath -&gt; SWord16 -&gt; SBVCodeGen ()
+forall a. FilePath -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;crc&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB"><span class="hs-identifier hs-var">crcUSB</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160348"><span class="hs-identifier hs-var">msg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- | Generate a C function to compute the USB CRC, using the mathematical</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- definition of the CRCs. While this version generates functionally eqivalent</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- C code, it's less efficient; it has about 30% more code. So, the above</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- version is preferable for code generation purposes.</span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#cg2"><span class="hs-identifier hs-type">cg2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span id="cg2"><span class="annot"><span class="annottext">cg2 :: IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#cg2"><span class="hs-identifier hs-var hs-var">cg2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="hs-string">&quot;crcUSB2&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-string">&quot;crcUSB2&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-88"></span><span>        </span><span id="local-6989586621681160344"><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160344"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord16
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;msg&quot;</span></span><span>
+</span><span id="line-89"></span><span>        </span><span class="annot"><span class="annottext">FilePath -&gt; SWord16 -&gt; SBVCodeGen ()
+forall a. FilePath -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;crc&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord16 -&gt; SWord16
+</span><a href="Documentation.SBV.Examples.CodeGeneration.CRC_USB5.html#crcUSB%27"><span class="hs-identifier hs-var">crcUSB'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord16
+</span><a href="#local-6989586621681160344"><span class="hs-identifier hs-var">msg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span></pre></body></html>

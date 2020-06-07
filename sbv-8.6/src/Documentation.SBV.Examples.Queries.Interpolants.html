@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Queries.Interpolants</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates extraction of interpolants via queries.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- N.B. Interpolants are supported by MathSAT and Z3. Unfortunately</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- the extraction of interpolants is not standardized, and are slightly</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- different for these two solvers. So, we have two separate examples</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- to demonstrate the usage.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Queries.Interpolants</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | MathSAT example. Compute the interpolant for the following sets of formulas:</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--     @{x - 3y &gt;= -1, x + y &gt;= 0}@</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- AND</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--     @{z - 2x &gt;= 3, 2z &lt;= 1}@</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- where the variables are integers.  Note that these sets of</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- formulas are themselves satisfiable, but not taken all together.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- The pair @(x, y) = (0, 0)@ satisfies the first set. The pair @(x, z) = (-2, 0)@</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- satisfies the second. However, there's no triple @(x, y, z)@ that satisfies all</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- these four formulas together. We can use SBV to check this fact:</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- &gt;&gt;&gt; sat $ \x y z -&gt; sAnd [x - 3*y .&gt;= -1, x + y .&gt;= 0, z - 2*x .&gt;= 3, 2 * z .&lt;= (1::SInteger)]</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- Unsatisfiable</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- An interpolant for these sets would only talk about the variable @x@ that is common</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- to both. We have:</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- &gt;&gt;&gt; runSMTWith mathSAT exampleMathSAT</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- &quot;(&lt;= 0 s0)&quot;</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- Notice that we get a string back, not a term; so there's some back-translation we need to do. We</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- know that @s0@ is @x@ through our translation mechanism, so the interpolant is saying that @x &gt;= 0@</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- is entailed by the first set of formulas, and is inconsistent with the second. Let's use SBV</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- to indeed show that this is the case:</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x y -&gt; (x - 3*y .&gt;= -1 .&amp;&amp; x + y .&gt;= 0) .=&gt; (x .&gt;= (0::SInteger))</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- And:</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x z -&gt; (z - 2*x .&gt;= 3 .&amp;&amp; 2 * z .&lt;= 1) .=&gt; sNot (x .&gt;= (0::SInteger))</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- This establishes that we indeed have an interpolant!</span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Documentation.SBV.Examples.Queries.Interpolants.html#exampleMathSAT"><span class="hs-identifier hs-type">exampleMathSAT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-62"></span><span id="exampleMathSAT"><span class="annot"><span class="annottext">exampleMathSAT :: Symbolic String
+</span><a href="Documentation.SBV.Examples.Queries.Interpolants.html#exampleMathSAT"><span class="hs-identifier hs-var hs-var">exampleMathSAT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-63"></span><span>       </span><span id="local-6989586621681169112"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169112"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-64"></span><span>       </span><span id="local-6989586621681169110"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169110"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-65"></span><span>       </span><span id="local-6989586621681169109"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169109"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;z&quot;</span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span>       </span><span class="hs-comment">-- tell the solver we want interpolants</span><span>
+</span><span id="line-68"></span><span>       </span><span class="hs-comment">-- NB. Only MathSAT needs this. Z3 doesn't need or like this setting!</span><span>
+</span><span id="line-69"></span><span>       </span><span class="annot"><span class="annottext">SMTOption -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SMTOption -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#setOption"><span class="hs-identifier hs-var">setOption</span></a></span><span> </span><span class="annot"><span class="annottext">(SMTOption -&gt; SymbolicT IO ()) -&gt; SMTOption -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; SMTOption
+</span><a href="Data.SBV.Control.Types.html#ProduceInterpolants"><span class="hs-identifier hs-var">ProduceInterpolants</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>       </span><span class="hs-comment">-- create interpolation constraints. MathSAT requires the relevant formulas</span><span>
+</span><span id="line-72"></span><span>       </span><span class="hs-comment">-- to be marked with the attribute :interpolation-group</span><span>
+</span><span id="line-73"></span><span>       </span><span class="annot"><span class="annottext">[(String, String)] -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *).
+SolverContext m =&gt;
+[(String, String)] -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrainWithAttribute"><span class="hs-identifier hs-var">constrainWithAttribute</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;:interpolation-group&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;A&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169112"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169110"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-74"></span><span>       </span><span class="annot"><span class="annottext">[(String, String)] -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *).
+SolverContext m =&gt;
+[(String, String)] -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrainWithAttribute"><span class="hs-identifier hs-var">constrainWithAttribute</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;:interpolation-group&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;A&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169112"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169110"><span class="hs-identifier hs-var">y</span></a></span><span>   </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-75"></span><span>       </span><span class="annot"><span class="annottext">[(String, String)] -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *).
+SolverContext m =&gt;
+[(String, String)] -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrainWithAttribute"><span class="hs-identifier hs-var">constrainWithAttribute</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;:interpolation-group&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;B&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169109"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169112"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">3</span></span><span>
+</span><span id="line-76"></span><span>       </span><span class="annot"><span class="annottext">[(String, String)] -&gt; SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *).
+SolverContext m =&gt;
+[(String, String)] -&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrainWithAttribute"><span class="hs-identifier hs-var">constrainWithAttribute</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;:interpolation-group&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;B&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169109"><span class="hs-identifier hs-var">z</span></a></span><span>     </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>       </span><span class="hs-comment">-- To obtain the interpolant, we run a query</span><span>
+</span><span id="line-79"></span><span>       </span><span class="annot"><span class="annottext">Query String -&gt; Symbolic String
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query String -&gt; Symbolic String)
+-&gt; Query String -&gt; Symbolic String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169100"><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169100"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-var">checkSat</span></a></span><span>
+</span><span id="line-80"></span><span>                  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169100"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-81"></span><span>                    </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unsat"><span class="hs-identifier hs-type">Unsat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getInterpolantMathSAT"><span class="hs-identifier hs-var">getInterpolantMathSAT</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;A&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-82"></span><span>                    </span><span class="annot"><a href="Data.SBV.Control.Types.html#Sat"><span class="hs-identifier hs-type">Sat</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query String
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Unexpected sat result!&quot;</span></span><span>
+</span><span id="line-83"></span><span>                    </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unk"><span class="hs-identifier hs-type">Unk</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query String
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Unexpected unknown result!&quot;</span></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | Z3 example. Compute the interpolant for formulas @y = 2x@ and @y = 2z+1@.</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- These formulas are not satisfiable together since it would mean</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- @y@ is both even and odd at the same time. An interpolant for</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- this pair of formulas is a formula that's expressed only in terms</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- of @y@, which is the only common symbol among them. We have:</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt;&gt;&gt; runSMT evenOdd</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- &quot;(or (= s1 0) (= s1 (* 2 (div s1 2))))&quot;</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- This is a bit hard to read unfortunately, due to translation artifacts and use of strings. To analyze,</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- we need to know that @s1@ is @y@ through SBV's translation. Let's express it in</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- regular infix notation with @y@ for @s1@:</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- @(y == 0) || (y == 2 * (y `div` 2))@</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- Notice that the only symbol is @y@, as required. To establish that this is</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- indeed an interpolant, we should establish that when @y@ is even, this formula</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- is @True@; and if @y@ is odd, then then it should be @False@. You can argue</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- mathematically that this indeed the case, but let's just use SBV to prove these:</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \y -&gt; (y `sMod` 2 .== 0) .=&gt; ((y .== 0) .|| (y .== 2 * (y `sDiv` (2::SInteger))))</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- And:</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \y -&gt; (y `sMod` 2 .== 1) .=&gt; sNot ((y .== 0) .|| (y .== 2 * (y `sDiv` (2::SInteger))))</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- This establishes that we indeed have an interpolant!</span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Documentation.SBV.Examples.Queries.Interpolants.html#evenOdd"><span class="hs-identifier hs-type">evenOdd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-116"></span><span id="evenOdd"><span class="annot"><span class="annottext">evenOdd :: Symbolic String
+</span><a href="Documentation.SBV.Examples.Queries.Interpolants.html#evenOdd"><span class="hs-identifier hs-var hs-var">evenOdd</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-117"></span><span>       </span><span id="local-6989586621681169092"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169092"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-118"></span><span>       </span><span id="local-6989586621681169091"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169091"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-119"></span><span>       </span><span id="local-6989586621681169090"><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169090"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SInteger
+</span><a href="Data.SBV.Client.BaseIO.html#sInteger"><span class="hs-identifier hs-var">sInteger</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;z&quot;</span></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span>       </span><span class="annot"><span class="annottext">Query String -&gt; Symbolic String
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query String -&gt; Symbolic String)
+-&gt; Query String -&gt; Symbolic String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; Query String
+</span><a href="Data.SBV.Control.BaseIO.html#getInterpolantZ3"><span class="hs-identifier hs-var">getInterpolantZ3</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169091"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169092"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169091"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681169090"><span class="hs-identifier hs-var">z</span></a></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-122"></span></pre></body></html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.SMT.SMTLib</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Conversion of symbolic programs to SMTLib format</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE NamedFieldPuns #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.SMT.SMTLib</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-17"></span><span>          </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLibPgm"><span class="hs-identifier">SMTLibPgm</span></a></span><span>
+</span><span id="line-18"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toSMTLib"><span class="hs-identifier">toSMTLib</span></a></span><span>
+</span><span id="line-19"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib"><span class="hs-identifier">toIncSMTLib</span></a></span><span>
+</span><span id="line-20"></span><span>        </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">member</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toList</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html"><span class="hs-identifier">Data.SBV.SMT.Utils</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMTLib2.html"><span class="hs-identifier">Data.SBV.SMT.SMTLib2</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SMT2</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Convert to SMT-Lib, in a full program context.</span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toSMTLib"><span class="hs-identifier hs-type">toSMTLib</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SMTLibConverter"><span class="hs-identifier hs-type">SMTLibConverter</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLibPgm"><span class="hs-identifier hs-type">SMTLibPgm</span></a></span><span>
+</span><span id="line-31"></span><span id="toSMTLib"><span class="annot"><span class="annottext">toSMTLib :: SMTConfig -&gt; SMTLibConverter SMTLibPgm
+</span><a href="Data.SBV.SMT.SMTLib.html#toSMTLib"><span class="hs-identifier hs-var hs-var">toSMTLib</span></a></span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span class="hs-special">{</span><span id="local-6989586621681135561"><span class="annot"><span class="annottext">SMTLibVersion
+smtLibVersion :: SMTConfig -&gt; SMTLibVersion
+smtLibVersion :: SMTLibVersion
+</span><a href="Data.SBV.Core.Symbolic.html#smtLibVersion"><span class="hs-identifier hs-var hs-var">smtLibVersion</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="#local-6989586621681135561"><span class="hs-identifier hs-var">smtLibVersion</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-32"></span><span>                                      </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-type">SMTLib2</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SMTLibConverter SMTLibPgm
+</span><a href="Data.SBV.SMT.SMTLib.html#toSMTLib2"><span class="hs-identifier hs-var">toSMTLib2</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- | Convert to SMT-Lib, in an incremental query context.</span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib"><span class="hs-identifier hs-type">toIncSMTLib</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SMTLibIncConverter"><span class="hs-identifier hs-type">SMTLibIncConverter</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-36"></span><span id="toIncSMTLib"><span class="annot"><span class="annottext">toIncSMTLib :: Bool -&gt; SMTConfig -&gt; SMTLibIncConverter [String]
+</span><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib"><span class="hs-identifier hs-var hs-var">toIncSMTLib</span></a></span></span><span> </span><span id="local-6989586621681135557"><span class="annot"><span class="annottext">afterAPush :: Bool
+</span><a href="#local-6989586621681135557"><span class="hs-identifier hs-var">afterAPush</span></a></span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTConfig"><span class="hs-identifier hs-type">SMTConfig</span></a></span><span class="hs-special">{</span><span id="local-6989586621681135556"><span class="annot"><span class="annottext">SMTLibVersion
+smtLibVersion :: SMTLibVersion
+smtLibVersion :: SMTConfig -&gt; SMTLibVersion
+</span><a href="#local-6989586621681135556"><span class="hs-identifier hs-var hs-var">smtLibVersion</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="#local-6989586621681135556"><span class="hs-identifier hs-var">smtLibVersion</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-37"></span><span>                                                     </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-type">SMTLib2</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; SMTLibIncConverter [String]
+</span><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib2"><span class="hs-identifier hs-var">toIncSMTLib2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135557"><span class="hs-identifier hs-var">afterAPush</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Convert to SMTLib-2 format</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toSMTLib2"><span class="hs-identifier hs-type">toSMTLib2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SMTLibConverter"><span class="hs-identifier hs-type">SMTLibConverter</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLibPgm"><span class="hs-identifier hs-type">SMTLibPgm</span></a></span><span>
+</span><span id="line-41"></span><span id="toSMTLib2"><span class="annot"><span class="annottext">toSMTLib2 :: SMTLibConverter SMTLibPgm
+</span><a href="Data.SBV.SMT.SMTLib.html#toSMTLib2"><span class="hs-identifier hs-var hs-var">toSMTLib2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion -&gt; SMTLibConverter SMTLibPgm
+</span><a href="#local-6989586621681135554"><span class="hs-identifier hs-var">cvt</span></a></span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-var">SMTLib2</span></a></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681135554"><span class="annot"><span class="annottext">cvt :: SMTLibVersion -&gt; SMTLibConverter SMTLibPgm
+</span><a href="#local-6989586621681135554"><span class="hs-identifier hs-var hs-var">cvt</span></a></span></span><span> </span><span id="local-6989586621681135553"><span class="annot"><span class="annottext">v :: SMTLibVersion
+</span><a href="#local-6989586621681135553"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681135552"><span class="annot"><span class="annottext">ctx :: QueryContext
+</span><a href="#local-6989586621681135552"><span class="hs-identifier hs-var">ctx</span></a></span></span><span> </span><span id="local-6989586621681135551"><span class="annot"><span class="annottext">kindInfo :: Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span></span><span> </span><span id="local-6989586621681135550"><span class="annot"><span class="annottext">isSat :: Bool
+</span><a href="#local-6989586621681135550"><span class="hs-identifier hs-var">isSat</span></a></span></span><span> </span><span id="local-6989586621681135549"><span class="annot"><span class="annottext">comments :: [String]
+</span><a href="#local-6989586621681135549"><span class="hs-identifier hs-var">comments</span></a></span></span><span> </span><span id="local-6989586621681135548"><span class="annot"><span class="annottext">qinps :: ([(Quantifier, NamedSymVar)], [NamedSymVar])
+</span><a href="#local-6989586621681135548"><span class="hs-identifier hs-var">qinps</span></a></span></span><span> </span><span id="local-6989586621681135547"><span class="annot"><span class="annottext">skolemMap :: [Either SV (SV, [SV])]
+</span><a href="#local-6989586621681135547"><span class="hs-identifier hs-var">skolemMap</span></a></span></span><span> </span><span id="local-6989586621681135546"><span class="annot"><span class="annottext">consts :: [(SV, CV)]
+</span><a href="#local-6989586621681135546"><span class="hs-identifier hs-var">consts</span></a></span></span><span> </span><span id="local-6989586621681135545"><span class="annot"><span class="annottext">tbls :: [((Int, Kind, Kind), [SV])]
+</span><a href="#local-6989586621681135545"><span class="hs-identifier hs-var">tbls</span></a></span></span><span> </span><span id="local-6989586621681135544"><span class="annot"><span class="annottext">arrs :: [(Int, ArrayInfo)]
+</span><a href="#local-6989586621681135544"><span class="hs-identifier hs-var">arrs</span></a></span></span><span> </span><span id="local-6989586621681135543"><span class="annot"><span class="annottext">uis :: [(String, SBVType)]
+</span><a href="#local-6989586621681135543"><span class="hs-identifier hs-var">uis</span></a></span></span><span> </span><span id="local-6989586621681135542"><span class="annot"><span class="annottext">axs :: [(String, [String])]
+</span><a href="#local-6989586621681135542"><span class="hs-identifier hs-var">axs</span></a></span></span><span> </span><span id="local-6989586621681135541"><span class="annot"><span class="annottext">asgnsSeq :: SBVPgm
+</span><a href="#local-6989586621681135541"><span class="hs-identifier hs-var">asgnsSeq</span></a></span></span><span> </span><span id="local-6989586621681135540"><span class="annot"><span class="annottext">cstrs :: Seq (Bool, [(String, String)], SV)
+</span><a href="#local-6989586621681135540"><span class="hs-identifier hs-var">cstrs</span></a></span></span><span> </span><span id="local-6989586621681135539"><span class="annot"><span class="annottext">out :: SV
+</span><a href="#local-6989586621681135539"><span class="hs-identifier hs-var">out</span></a></span></span><span> </span><span id="local-6989586621681135538"><span class="annot"><span class="annottext">config :: SMTConfig
+</span><a href="#local-6989586621681135538"><span class="hs-identifier hs-var">config</span></a></span></span><span>
+</span><span id="line-43"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KUnbounded"><span class="hs-identifier hs-var">KUnbounded</span></a></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Set Kind -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SolverCapabilities -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsUnboundedInts"><span class="hs-identifier hs-var hs-var">supportsUnboundedInts</span></a></span><span> </span><span class="annot"><span class="annottext">SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var">solverCaps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SMTLibPgm
+forall a. String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var">unsupported</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;unbounded integers&quot;</span></span><span>
+</span><span id="line-45"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KReal"><span class="hs-identifier hs-var">KReal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Set Kind -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SolverCapabilities -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsReals"><span class="hs-identifier hs-var hs-var">supportsReals</span></a></span><span> </span><span class="annot"><span class="annottext">SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var">solverCaps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SMTLibPgm
+forall a. String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var">unsupported</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;algebraic reals&quot;</span></span><span>
+</span><span id="line-47"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135529"><span class="hs-identifier hs-var">needsFloats</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135527"><span class="hs-identifier hs-var">needsDoubles</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SolverCapabilities -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsIEEE754"><span class="hs-identifier hs-var hs-var">supportsIEEE754</span></a></span><span> </span><span class="annot"><span class="annottext">SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var">solverCaps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SMTLibPgm
+forall a. String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var">unsupported</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;floating-point numbers&quot;</span></span><span>
+</span><span id="line-49"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135525"><span class="hs-identifier hs-var">needsQuantifiers</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SolverCapabilities -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsQuantifiers"><span class="hs-identifier hs-var hs-var">supportsQuantifiers</span></a></span><span> </span><span class="annot"><span class="annottext">SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var">solverCaps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SMTLibPgm
+forall a. String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var">unsupported</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;quantifiers&quot;</span></span><span>
+</span><span id="line-51"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[String] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681135522"><span class="hs-identifier hs-var">sorts</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SolverCapabilities -&gt; Bool
+</span><a href="Data.SBV.Core.Symbolic.html#supportsUninterpretedSorts"><span class="hs-identifier hs-var hs-var">supportsUninterpretedSorts</span></a></span><span> </span><span class="annot"><span class="annottext">SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var">solverCaps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SMTLibPgm
+forall a. String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var">unsupported</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;uninterpreted sorts&quot;</span></span><span>
+</span><span id="line-53"></span><span>         </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-54"></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion -&gt; [String] -&gt; SMTLibPgm
+</span><a href="Data.SBV.Core.Symbolic.html#SMTLibPgm"><span class="hs-identifier hs-var">SMTLibPgm</span></a></span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="#local-6989586621681135553"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681135519"><span class="hs-identifier hs-var">pgm</span></a></span><span>
+</span><span id="line-55"></span><span>         </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681135522"><span class="annot"><span class="annottext">sorts :: [String]
+</span><a href="#local-6989586621681135522"><span class="hs-identifier hs-var hs-var">sorts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681135518"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Data.SBV.Core.Kind.html#KUninterpreted"><span class="hs-identifier hs-type">KUninterpreted</span></a></span><span> </span><span id="local-6989586621681135518"><span class="annot"><span class="annottext">s :: String
+</span><a href="#local-6989586621681135518"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Set Kind -&gt; [Kind]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-56"></span><span>               </span><span id="local-6989586621681135533"><span class="annot"><span class="annottext">solverCaps :: SolverCapabilities
+</span><a href="#local-6989586621681135533"><span class="hs-identifier hs-var hs-var">solverCaps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTSolver -&gt; SolverCapabilities
+</span><a href="Data.SBV.Core.Symbolic.html#capabilities"><span class="hs-identifier hs-var hs-var">capabilities</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SMTConfig -&gt; SMTSolver
+</span><a href="Data.SBV.Core.Symbolic.html#solver"><span class="hs-identifier hs-var hs-var">solver</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="#local-6989586621681135538"><span class="hs-identifier hs-var">config</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>               </span><span id="local-6989586621681135532"><span class="annot"><span class="annottext">unsupported :: String -&gt; a
+</span><a href="#local-6989586621681135532"><span class="hs-identifier hs-var hs-var">unsupported</span></a></span></span><span> </span><span id="local-6989586621681135514"><span class="annot"><span class="annottext">w :: String
+</span><a href="#local-6989586621681135514"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; a
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; a) -&gt; String -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;SBV: Given problem needs &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681135514"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-58"></span><span>                                               </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;*** Which is not supported by SBV for the chosen solver: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Solver -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SMTSolver -&gt; Solver
+</span><a href="Data.SBV.Core.Symbolic.html#name"><span class="hs-identifier hs-var hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SMTConfig -&gt; SMTSolver
+</span><a href="Data.SBV.Core.Symbolic.html#solver"><span class="hs-identifier hs-var hs-var">solver</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="#local-6989586621681135538"><span class="hs-identifier hs-var">config</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>                                               </span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span>               </span><span id="local-6989586621681135509"><span class="annot"><span class="annottext">converter :: SMTLibConverter [String]
+</span><a href="#local-6989586621681135509"><span class="hs-identifier hs-var hs-var">converter</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="#local-6989586621681135553"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-61"></span><span>                             </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-type">SMTLib2</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SMTLibConverter [String]
+</span><a href="Data.SBV.SMT.SMTLib2.html#cvt"><span class="hs-identifier hs-var">SMT2.cvt</span></a></span><span>
+</span><span id="line-62"></span><span>               </span><span id="local-6989586621681135519"><span class="annot"><span class="annottext">pgm :: [String]
+</span><a href="#local-6989586621681135519"><span class="hs-identifier hs-var hs-var">pgm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTLibConverter [String]
+</span><a href="#local-6989586621681135509"><span class="hs-identifier hs-var">converter</span></a></span><span> </span><span class="annot"><span class="annottext">QueryContext
+</span><a href="#local-6989586621681135552"><span class="hs-identifier hs-var">ctx</span></a></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135550"><span class="hs-identifier hs-var">isSat</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681135549"><span class="hs-identifier hs-var">comments</span></a></span><span> </span><span class="annot"><span class="annottext">([(Quantifier, NamedSymVar)], [NamedSymVar])
+</span><a href="#local-6989586621681135548"><span class="hs-identifier hs-var">qinps</span></a></span><span> </span><span class="annot"><span class="annottext">[Either SV (SV, [SV])]
+</span><a href="#local-6989586621681135547"><span class="hs-identifier hs-var">skolemMap</span></a></span><span> </span><span class="annot"><span class="annottext">[(SV, CV)]
+</span><a href="#local-6989586621681135546"><span class="hs-identifier hs-var">consts</span></a></span><span> </span><span class="annot"><span class="annottext">[((Int, Kind, Kind), [SV])]
+</span><a href="#local-6989586621681135545"><span class="hs-identifier hs-var">tbls</span></a></span><span> </span><span class="annot"><span class="annottext">[(Int, ArrayInfo)]
+</span><a href="#local-6989586621681135544"><span class="hs-identifier hs-var">arrs</span></a></span><span> </span><span class="annot"><span class="annottext">[(String, SBVType)]
+</span><a href="#local-6989586621681135543"><span class="hs-identifier hs-var">uis</span></a></span><span> </span><span class="annot"><span class="annottext">[(String, [String])]
+</span><a href="#local-6989586621681135542"><span class="hs-identifier hs-var">axs</span></a></span><span> </span><span class="annot"><span class="annottext">SBVPgm
+</span><a href="#local-6989586621681135541"><span class="hs-identifier hs-var">asgnsSeq</span></a></span><span> </span><span class="annot"><span class="annottext">Seq (Bool, [(String, String)], SV)
+</span><a href="#local-6989586621681135540"><span class="hs-identifier hs-var">cstrs</span></a></span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681135539"><span class="hs-identifier hs-var">out</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="#local-6989586621681135538"><span class="hs-identifier hs-var">config</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>               </span><span id="local-6989586621681135529"><span class="annot"><span class="annottext">needsFloats :: Bool
+</span><a href="#local-6989586621681135529"><span class="hs-identifier hs-var hs-var">needsFloats</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KFloat"><span class="hs-identifier hs-var">KFloat</span></a></span><span>  </span><span class="annot"><span class="annottext">Kind -&gt; Set Kind -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span>
+</span><span id="line-65"></span><span>               </span><span id="local-6989586621681135527"><span class="annot"><span class="annottext">needsDoubles :: Bool
+</span><a href="#local-6989586621681135527"><span class="hs-identifier hs-var hs-var">needsDoubles</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KDouble"><span class="hs-identifier hs-var">KDouble</span></a></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Set Kind -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set Kind
+</span><a href="#local-6989586621681135551"><span class="hs-identifier hs-var">kindInfo</span></a></span><span>
+</span><span id="line-66"></span><span>               </span><span id="local-6989586621681135525"><span class="annot"><span class="annottext">needsQuantifiers :: Bool
+</span><a href="#local-6989586621681135525"><span class="hs-identifier hs-var hs-var">needsQuantifiers</span></a></span></span><span>
+</span><span id="line-67"></span><span>                 </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681135550"><span class="hs-identifier hs-var">isSat</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Quantifier
+</span><a href="Data.SBV.Core.Symbolic.html#ALL"><span class="hs-identifier hs-var">ALL</span></a></span><span> </span><span class="annot"><span class="annottext">Quantifier -&gt; [Quantifier] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[Quantifier]
+</span><a href="#local-6989586621681135503"><span class="hs-identifier hs-var">quantifiers</span></a></span><span>
+</span><span id="line-68"></span><span>                 </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Quantifier
+</span><a href="Data.SBV.Core.Symbolic.html#EX"><span class="hs-identifier hs-var">EX</span></a></span><span>  </span><span class="annot"><span class="annottext">Quantifier -&gt; [Quantifier] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[Quantifier]
+</span><a href="#local-6989586621681135503"><span class="hs-identifier hs-var">quantifiers</span></a></span><span>
+</span><span id="line-69"></span><span>                 </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681135503"><span class="annot"><span class="annottext">quantifiers :: [Quantifier]
+</span><a href="#local-6989586621681135503"><span class="hs-identifier hs-var hs-var">quantifiers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Quantifier, NamedSymVar) -&gt; Quantifier)
+-&gt; [(Quantifier, NamedSymVar)] -&gt; [Quantifier]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Quantifier, NamedSymVar) -&gt; Quantifier
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([(Quantifier, NamedSymVar)], [NamedSymVar])
+-&gt; [(Quantifier, NamedSymVar)]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">([(Quantifier, NamedSymVar)], [NamedSymVar])
+</span><a href="#local-6989586621681135548"><span class="hs-identifier hs-var">qinps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- | Convert to SMTLib-2 format</span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib2"><span class="hs-identifier hs-type">toIncSMTLib2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.SMT.Utils.html#SMTLibIncConverter"><span class="hs-identifier hs-type">SMTLibIncConverter</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span id="toIncSMTLib2"><span class="annot"><span class="annottext">toIncSMTLib2 :: Bool -&gt; SMTLibIncConverter [String]
+</span><a href="Data.SBV.SMT.SMTLib.html#toIncSMTLib2"><span class="hs-identifier hs-var hs-var">toIncSMTLib2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTLibVersion -&gt; Bool -&gt; SMTLibIncConverter [String]
+</span><a href="#local-6989586621681135501"><span class="hs-identifier hs-var">cvt</span></a></span><span> </span><span class="annot"><span class="annottext">SMTLibVersion
+</span><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-var">SMTLib2</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681135501"><span class="annot"><span class="annottext">cvt :: SMTLibVersion -&gt; Bool -&gt; SMTLibIncConverter [String]
+</span><a href="#local-6989586621681135501"><span class="hs-identifier hs-var hs-var">cvt</span></a></span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SMTLib2"><span class="hs-identifier hs-type">SMTLib2</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; SMTLibIncConverter [String]
+</span><a href="Data.SBV.SMT.SMTLib2.html#cvtInc"><span class="hs-identifier hs-var">SMT2.cvtInc</span></a></span><span>
+</span><span id="line-75"></span></pre></body></html>

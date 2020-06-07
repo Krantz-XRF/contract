@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Misc.Tuple</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Joel Burget</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--                 Levent Erkok</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- A basic tuple use case, also demonstrating regular expressions,</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- strings, etc. This is a basic template for getting SBV to produce</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- valid data for applications that require inputs that satisfy</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- arbitrary criteria.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings   #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Misc.Tuple</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tuple.html"><span class="hs-identifier">Data.SBV.Tuple</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.List.html"><span class="hs-identifier">Data.SBV.List</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator">(.!!)</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.RegExp.html"><span class="hs-identifier">Data.SBV.RegExp</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.String.html"><span class="hs-identifier">Data.SBV.String</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">S</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.List.html"><span class="hs-identifier">Data.SBV.List</span></a></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | A dictionary is a list of lookup values. Note that we</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- store the type @[(a, b)]@ as a symbolic value here, mixing</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- sequences and tuples.</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">type</span><span> </span><span id="Dict"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Tuple.html#Dict"><span class="hs-identifier hs-var">Dict</span></a></span></span><span> </span><span id="local-6989586621681162776"><span class="annot"><a href="#local-6989586621681162776"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681162775"><span class="annot"><a href="#local-6989586621681162775"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681162776"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681162775"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Create a dictionary of length 5, such that each element</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- has an string key and each value is the length of the key.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- We impose a few more constraints to make the output interesting. </span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- For instance, you might get:</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- @ ghci&gt; example</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- [(&quot;nt_&quot;,3),(&quot;dHAk&quot;,4),(&quot;kzkk0&quot;,5),(&quot;mZxs9s&quot;,6),(&quot;c32'dPM&quot;,7)]</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- Depending on your version of z3, a different answer might be provided.</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- Here, we check that it satisfies our length conditions:</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.List (genericLength)</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- &gt;&gt;&gt; example &gt;&gt;= \ex -&gt; return (length ex == 5 &amp;&amp; all (\(l, i) -&gt; genericLength l == i) ex)</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Tuple.html#example"><span class="hs-identifier hs-type">example</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-54"></span><span id="example"><span class="annot"><span class="annottext">example :: IO [(String, Integer)]
+</span><a href="Documentation.SBV.Examples.Misc.Tuple.html#example"><span class="hs-identifier hs-var hs-var">example</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbolic [(String, Integer)] -&gt; IO [(String, Integer)]
+forall a. Symbolic a -&gt; IO a
+</span><a href="Data.SBV.Client.BaseIO.html#runSMT"><span class="hs-identifier hs-var">runSMT</span></a></span><span> </span><span class="annot"><span class="annottext">(Symbolic [(String, Integer)] -&gt; IO [(String, Integer)])
+-&gt; Symbolic [(String, Integer)] -&gt; IO [(String, Integer)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681162772"><span class="annot"><span class="annottext">Dict String Integer
+</span><a href="#local-6989586621681162772"><span class="hs-identifier hs-var">dict</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Tuple.html#Dict"><span class="hs-identifier hs-type">Dict</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (Dict String Integer)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;dict&quot;</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>                      </span><span class="hs-comment">-- require precisely 5 elements</span><span>
+</span><span id="line-57"></span><span>                      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681162770"><span class="annot"><span class="annottext">len :: Int
+</span><a href="#local-6989586621681162770"><span class="hs-identifier hs-var hs-var">len</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-58"></span><span>                          </span><span id="local-6989586621681162769"><span class="annot"><span class="annottext">range :: [Int]
+</span><a href="#local-6989586621681162769"><span class="hs-identifier hs-var hs-var">range</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681162770"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>                      </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Dict String Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">Dict String Integer
+</span><a href="#local-6989586621681162772"><span class="hs-identifier hs-var">dict</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SInteger
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681162770"><span class="hs-identifier hs-var">len</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>                      </span><span class="hs-comment">-- require each key to be at of length 3 more than the index it occupies</span><span>
+</span><span id="line-63"></span><span>                      </span><span class="hs-comment">-- and look like an identifier</span><span>
+</span><span id="line-64"></span><span>                      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681162765"><span class="annot"><span class="annottext">goodKey :: a -&gt; SBV String -&gt; SBool
+</span><a href="#local-6989586621681162765"><span class="hs-identifier hs-var hs-var">goodKey</span></a></span></span><span> </span><span id="local-6989586621681162764"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681162764"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681162763"><span class="annot"><span class="annottext">s :: SBV String
+</span><a href="#local-6989586621681162763"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681162762"><span class="annot"><span class="annottext">l :: SInteger
+</span><a href="#local-6989586621681162762"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV String -&gt; SInteger
+</span><a href="Data.SBV.String.html#length"><span class="hs-identifier hs-var">S.length</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String
+</span><a href="#local-6989586621681162763"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-65"></span><span>                                            </span><span id="local-6989586621681162760"><span class="annot"><span class="annottext">r :: RegExp
+</span><a href="#local-6989586621681162760"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Data.SBV.RegExp.html#asciiLower"><span class="hs-identifier hs-var">asciiLower</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#KStar"><span class="hs-identifier hs-var">KStar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RegExp
+</span><a href="Data.SBV.RegExp.html#asciiLetter"><span class="hs-identifier hs-var">asciiLetter</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Data.SBV.RegExp.html#digit"><span class="hs-identifier hs-var">digit</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-string">&quot;_&quot;</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-string">&quot;'&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>                                      </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681162762"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; SInteger
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681162764"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">3</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String
+</span><a href="#local-6989586621681162763"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String -&gt; RegExp -&gt; SBool
+forall a. RegExpMatchable a =&gt; a -&gt; RegExp -&gt; SBool
+</span><a href="Data.SBV.RegExp.html#match"><span class="hs-operator hs-var">`match`</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="#local-6989586621681162760"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>                          </span><span id="local-6989586621681162751"><span class="annot"><span class="annottext">restrict :: a -&gt; m ()
+</span><a href="#local-6989586621681162751"><span class="hs-identifier hs-var hs-var">restrict</span></a></span></span><span> </span><span id="local-6989586621681162750"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681162750"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SBV (String, Integer) -&gt; (SBV String, SInteger)
+forall tup a. Tuple tup a =&gt; SBV tup -&gt; a
+</span><a href="Data.SBV.Tuple.html#untuple"><span class="hs-identifier hs-var">untuple</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Dict String Integer
+</span><a href="#local-6989586621681162772"><span class="hs-identifier hs-var">dict</span></a></span><span> </span><span class="annot"><span class="annottext">Dict String Integer -&gt; SInteger -&gt; SBV (String, Integer)
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; SInteger
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681162750"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>                                         </span><span class="hs-special">(</span><span id="local-6989586621681162748"><span class="annot"><span class="annottext">k :: SBV String
+</span><a href="#local-6989586621681162748"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681162747"><span class="annot"><span class="annottext">v :: SInteger
+</span><a href="#local-6989586621681162747"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; m ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; m ()) -&gt; SBool -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SBV String -&gt; SBool
+forall a. Integral a =&gt; a -&gt; SBV String -&gt; SBool
+</span><a href="#local-6989586621681162765"><span class="hs-identifier hs-var">goodKey</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681162750"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String
+</span><a href="#local-6989586621681162748"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681162747"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String -&gt; SInteger
+</span><a href="Data.SBV.String.html#length"><span class="hs-identifier hs-var">S.length</span></a></span><span> </span><span class="annot"><span class="annottext">SBV String
+</span><a href="#local-6989586621681162748"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>                      </span><span class="annot"><span class="annottext">(Int -&gt; SymbolicT IO ()) -&gt; [Int] -&gt; SymbolicT IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SymbolicT IO ()
+forall a (m :: * -&gt; *). (Integral a, SolverContext m) =&gt; a -&gt; m ()
+</span><a href="#local-6989586621681162751"><span class="hs-identifier hs-var">restrict</span></a></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681162769"><span class="hs-identifier hs-var">range</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>                      </span><span class="hs-comment">-- require distinct keys:</span><span>
+</span><span id="line-74"></span><span>                      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681162745"><span class="annot"><span class="annottext">keys :: [SBV String]
+</span><a href="#local-6989586621681162745"><span class="hs-identifier hs-var hs-var">keys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Dict String Integer
+</span><a href="#local-6989586621681162772"><span class="hs-identifier hs-var">dict</span></a></span><span> </span><span class="annot"><span class="annottext">Dict String Integer -&gt; SInteger -&gt; SBV (String, Integer)
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SInteger
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681162744"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">SBV (String, Integer)
+-&gt; (SBV (String, Integer) -&gt; SBV String) -&gt; SBV String
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><a href="Data.SBV.Tuple.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span class="annot"><span class="annottext">SBV (String, Integer) -&gt; SBV String
+forall b a. HasField &quot;_1&quot; b a =&gt; SBV a -&gt; SBV b
+</span><a href="Data.SBV.Tuple.html#_1"><span class="hs-identifier hs-var">_1</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681162744"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681162744"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621681162769"><span class="hs-identifier hs-var">range</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span>                      </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SBV String] -&gt; SBool
+forall a. EqSymbolic a =&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#distinct"><span class="hs-identifier hs-var">distinct</span></a></span><span> </span><span class="annot"><span class="annottext">[SBV String]
+</span><a href="#local-6989586621681162745"><span class="hs-identifier hs-var">keys</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span>                      </span><span class="annot"><span class="annottext">Query [(String, Integer)] -&gt; Symbolic [(String, Integer)]
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query [(String, Integer)] -&gt; Symbolic [(String, Integer)])
+-&gt; Query [(String, Integer)] -&gt; Symbolic [(String, Integer)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">Query ()
+</span><a href="Data.SBV.Control.BaseIO.html#ensureSat"><span class="hs-identifier hs-var">ensureSat</span></a></span><span>
+</span><span id="line-78"></span><span>                                 </span><span class="annot"><span class="annottext">Dict String Integer -&gt; Query [(String, Integer)]
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">Dict String Integer
+</span><a href="#local-6989586621681162772"><span class="hs-identifier hs-var">dict</span></a></span><span>
+</span><span id="line-79"></span></pre></body></html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Misc.Polynomials</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Simple usage of polynomials over GF(2^n), using Rijndael's</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- finite field: &lt;http://en.wikipedia.org/wiki/Finite_field_arithmetic#Rijndael.27s_finite_field&gt;</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- The functions available are:</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--  [/pMult/] GF(2^n) Multiplication</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--  [/pDiv/] GF(2^n) Division</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--  [/pMod/] GF(2^n) Modulus</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--  [/pDivMod/] GF(2^n) Division/Modulus, packed together</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Note that addition in GF(2^n) is simply `xor`, so no custom function is provided.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Misc.Polynomials</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.Polynomial.html"><span class="hs-identifier">Data.SBV.Tools.Polynomial</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | Helper synonym for representing GF(2^8); which are merely 8-bit unsigned words. Largest</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- term in such a polynomial has degree 7.</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">type</span><span> </span><span id="GF28"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-var">GF28</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Multiplication in Rijndael's field; usual polynomial multiplication followed by reduction</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- by the irreducible polynomial.  The irreducible used by Rijndael's field is the polynomial</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- @x^8 + x^4 + x^3 + x + 1@, which we write by giving it's /exponents/ in SBV.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- See: &lt;http://en.wikipedia.org/wiki/Finite_field_arithmetic#Rijndael.27s_finite_field&gt;.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- Note that the irreducible itself is not in GF28! It has a degree of 8.</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- NB. You can use the 'showPoly' function to print polynomials nicely, as a mathematician would write.</span><span>
+</span><span id="line-43"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-identifier hs-type">gfMult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span>
+</span><span id="line-44"></span><span id="local-6989586621681162688"><span class="annot"><span class="annottext">a :: GF28
+</span><a href="#local-6989586621681162688"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="gfMult"><span class="annot"><span class="annottext">gfMult :: GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var hs-var">`gfMult`</span></a></span></span><span> </span><span id="local-6989586621681162687"><span class="annot"><span class="annottext">b :: GF28
+</span><a href="#local-6989586621681162687"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(GF28, GF28, [Int]) -&gt; GF28
+forall a. Polynomial a =&gt; (a, a, [Int]) -&gt; a
+</span><a href="Data.SBV.Tools.Polynomial.html#pMult"><span class="hs-identifier hs-var">pMult</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162688"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162687"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">8</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">3</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | States that the unit polynomial @1@, is the unit element</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multUnit"><span class="hs-identifier hs-type">multUnit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-48"></span><span id="multUnit"><span class="annot"><span class="annottext">multUnit :: GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multUnit"><span class="hs-identifier hs-var hs-var">multUnit</span></a></span></span><span> </span><span id="local-6989586621681162684"><span class="annot"><span class="annottext">x :: GF28
+</span><a href="#local-6989586621681162684"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162684"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162683"><span class="hs-keyword hs-var">unit</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162684"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681162683"><span class="annot"><span class="annottext">unit :: GF28
+</span><a href="#local-6989586621681162683"><span class="hs-keyword hs-var hs-var">unit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; GF28
+forall a. Polynomial a =&gt; [Int] -&gt; a
+</span><a href="Data.SBV.Tools.Polynomial.html#polynomial"><span class="hs-identifier hs-var">polynomial</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span>   </span><span class="hs-comment">-- x@0</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | States that multiplication is commutative</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multComm"><span class="hs-identifier hs-type">multComm</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-53"></span><span id="multComm"><span class="annot"><span class="annottext">multComm :: GF28 -&gt; GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multComm"><span class="hs-identifier hs-var hs-var">multComm</span></a></span></span><span> </span><span id="local-6989586621681162679"><span class="annot"><span class="annottext">x :: GF28
+</span><a href="#local-6989586621681162679"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681162678"><span class="annot"><span class="annottext">y :: GF28
+</span><a href="#local-6989586621681162678"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162679"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162678"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162678"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162679"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | States that multiplication is associative, note that associativity</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- proofs are notoriously hard for SAT/SMT solvers</span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multAssoc"><span class="hs-identifier hs-type">multAssoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-58"></span><span id="multAssoc"><span class="annot"><span class="annottext">multAssoc :: GF28 -&gt; GF28 -&gt; GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multAssoc"><span class="hs-identifier hs-var hs-var">multAssoc</span></a></span></span><span> </span><span id="local-6989586621681162676"><span class="annot"><span class="annottext">x :: GF28
+</span><a href="#local-6989586621681162676"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681162675"><span class="annot"><span class="annottext">y :: GF28
+</span><a href="#local-6989586621681162675"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681162674"><span class="annot"><span class="annottext">z :: GF28
+</span><a href="#local-6989586621681162674"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162676"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162675"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162674"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162676"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162675"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162674"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | States that the usual multiplication rule holds over GF(2^n) polynomials</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- Checks:</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--    if (a, b) = x `pDivMod` y then x = y `pMult` a + b</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- being careful about @y = 0@. When divisor is 0, then quotient is</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- defined to be 0 and the remainder is the numerator.</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- (Note that addition is simply `xor` in GF(2^8).)</span><span>
+</span><span id="line-70"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#polyDivMod"><span class="hs-identifier hs-type">polyDivMod</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#GF28"><span class="hs-identifier hs-type">GF28</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-71"></span><span id="polyDivMod"><span class="annot"><span class="annottext">polyDivMod :: GF28 -&gt; GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#polyDivMod"><span class="hs-identifier hs-var hs-var">polyDivMod</span></a></span></span><span> </span><span id="local-6989586621681162672"><span class="annot"><span class="annottext">x :: GF28
+</span><a href="#local-6989586621681162672"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681162671"><span class="annot"><span class="annottext">y :: GF28
+</span><a href="#local-6989586621681162671"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162671"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162672"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(GF28, GF28) -&gt; (GF28, GF28) -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162669"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162668"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162672"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162671"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#gfMult"><span class="hs-operator hs-var">`gfMult`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162669"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; GF28
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`xor`</span></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162668"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681162669"><span class="annot"><span class="annottext">a :: GF28
+</span><a href="#local-6989586621681162669"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681162668"><span class="annot"><span class="annottext">b :: GF28
+</span><a href="#local-6989586621681162668"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162672"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; (GF28, GF28)
+forall a. Polynomial a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Tools.Polynomial.html#pDivMod"><span class="hs-operator hs-var">`pDivMod`</span></a></span><span> </span><span class="annot"><span class="annottext">GF28
+</span><a href="#local-6989586621681162671"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | Queries</span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Polynomials.html#testGF28"><span class="hs-identifier hs-type">testGF28</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span id="testGF28"><span class="annot"><span class="annottext">testGF28 :: IO ()
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#testGF28"><span class="hs-identifier hs-var hs-var">testGF28</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-77"></span><span>  </span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(ThmResult -&gt; IO ()) -&gt; IO ThmResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(GF28 -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multUnit"><span class="hs-identifier hs-var">multUnit</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(ThmResult -&gt; IO ()) -&gt; IO ThmResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(GF28 -&gt; GF28 -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#multComm"><span class="hs-identifier hs-var">multComm</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-comment">-- print =&lt;&lt; prove multAssoc -- takes too long; see above note..</span><span>
+</span><span id="line-80"></span><span>  </span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(ThmResult -&gt; IO ()) -&gt; IO ThmResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(GF28 -&gt; GF28 -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">GF28 -&gt; GF28 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Misc.Polynomials.html#polyDivMod"><span class="hs-identifier hs-var">polyDivMod</span></a></span><span>
+</span><span id="line-81"></span></pre></body></html>

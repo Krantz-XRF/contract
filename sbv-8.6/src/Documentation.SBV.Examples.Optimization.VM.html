@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Optimization.VM</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Solves a VM allocation problem using optimization features</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Optimization.VM</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | The allocation problem. Inspired by: &lt;http://rise4fun.com/Z3/tutorialcontent/optimization#h25&gt;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   - We have three virtual machines (VMs) which require 100, 50 and 15 GB hard disk respectively.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   - There are three servers with capabilities 100, 75 and 200 GB in that order.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--   - Find out a way to place VMs into servers in order to</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--        - Minimize the number of servers used</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--        - Minimize the operation cost (the servers have fixed daily costs 10, 5 and 20 USD respectively.)</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- &gt;&gt;&gt; optimize Lexicographic allocate</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   x11         = False :: Bool</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   x12         = False :: Bool</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   x13         =  True :: Bool</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--   x21         = False :: Bool</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--   x22         = False :: Bool</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--   x23         =  True :: Bool</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--   x31         = False :: Bool</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   x32         = False :: Bool</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--   x33         =  True :: Bool</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--   noOfServers =     1 :: Integer</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   cost        =    20 :: Integer</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- That is, we should put all the jobs on the third server, for a total cost of 20.</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.VM.html#allocate"><span class="hs-identifier hs-type">allocate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span>
+</span><span id="line-48"></span><span id="allocate"><span class="annot"><span class="annottext">allocate :: Goal
+</span><a href="Documentation.SBV.Examples.Optimization.VM.html#allocate"><span class="hs-identifier hs-var hs-var">allocate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-comment">-- xij means VM i is running on server j</span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621681163268"><span class="annot"><span class="annottext">x1 :: [SBool]
+</span><a href="#local-6989586621681163268"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">[</span><span id="local-6989586621681163267"><span class="annot"><span class="annottext">x11 :: SBool
+</span><a href="#local-6989586621681163267"><span class="hs-identifier hs-var">x11</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163266"><span class="annot"><span class="annottext">x12 :: SBool
+</span><a href="#local-6989586621681163266"><span class="hs-identifier hs-var">x12</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163265"><span class="annot"><span class="annottext">x13 :: SBool
+</span><a href="#local-6989586621681163265"><span class="hs-identifier hs-var">x13</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Symbolic [SBool]
+</span><a href="Data.SBV.Client.BaseIO.html#sBools"><span class="hs-identifier hs-var">sBools</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;x11&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x12&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x13&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-51"></span><span>    </span><span id="local-6989586621681163263"><span class="annot"><span class="annottext">x2 :: [SBool]
+</span><a href="#local-6989586621681163263"><span class="hs-identifier hs-var">x2</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">[</span><span id="local-6989586621681163262"><span class="annot"><span class="annottext">x21 :: SBool
+</span><a href="#local-6989586621681163262"><span class="hs-identifier hs-var">x21</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163261"><span class="annot"><span class="annottext">x22 :: SBool
+</span><a href="#local-6989586621681163261"><span class="hs-identifier hs-var">x22</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163260"><span class="annot"><span class="annottext">x23 :: SBool
+</span><a href="#local-6989586621681163260"><span class="hs-identifier hs-var">x23</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Symbolic [SBool]
+</span><a href="Data.SBV.Client.BaseIO.html#sBools"><span class="hs-identifier hs-var">sBools</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;x21&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x22&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x23&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-52"></span><span>    </span><span id="local-6989586621681163259"><span class="annot"><span class="annottext">x3 :: [SBool]
+</span><a href="#local-6989586621681163259"><span class="hs-identifier hs-var">x3</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">[</span><span id="local-6989586621681163258"><span class="annot"><span class="annottext">x31 :: SBool
+</span><a href="#local-6989586621681163258"><span class="hs-identifier hs-var">x31</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163257"><span class="annot"><span class="annottext">x32 :: SBool
+</span><a href="#local-6989586621681163257"><span class="hs-identifier hs-var">x32</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163256"><span class="annot"><span class="annottext">x33 :: SBool
+</span><a href="#local-6989586621681163256"><span class="hs-identifier hs-var">x33</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Symbolic [SBool]
+</span><a href="Data.SBV.Client.BaseIO.html#sBools"><span class="hs-identifier hs-var">sBools</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;x31&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x32&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x33&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-comment">-- Each job runs on exactly one server</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#pbStronglyMutexed"><span class="hs-identifier hs-var">pbStronglyMutexed</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681163268"><span class="hs-identifier hs-var">x1</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#pbStronglyMutexed"><span class="hs-identifier hs-var">pbStronglyMutexed</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681163263"><span class="hs-identifier hs-var">x2</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#pbStronglyMutexed"><span class="hs-identifier hs-var">pbStronglyMutexed</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681163259"><span class="hs-identifier hs-var">x3</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="#local-6989586621681163253"><span class="hs-identifier hs-type">need</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-60"></span><span>        </span><span id="local-6989586621681163253"><span class="annot"><span class="annottext">need :: [SBool] -&gt; SInteger
+</span><a href="#local-6989586621681163253"><span class="hs-identifier hs-var hs-var">need</span></a></span></span><span> </span><span id="local-6989586621681163252"><span class="annot"><span class="annottext">rs :: [SBool]
+</span><a href="#local-6989586621681163252"><span class="hs-identifier hs-var">rs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">([SInteger] -&gt; SInteger) -&gt; [SInteger] -&gt; SInteger
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SInteger -&gt; SInteger)
+-&gt; [SBool] -&gt; [SInteger] -&gt; [SInteger]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681163249"><span class="annot"><span class="annottext">r :: SBool
+</span><a href="#local-6989586621681163249"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681163248"><span class="annot"><span class="annottext">c :: SInteger
+</span><a href="#local-6989586621681163248"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163249"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163248"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SBool]
+</span><a href="#local-6989586621681163252"><span class="hs-identifier hs-var">rs</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">100</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">50</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">15</span></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-comment">-- The capacity on each server is respected</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163246"><span class="annot"><span class="annottext">capacity1 :: SInteger
+</span><a href="#local-6989586621681163246"><span class="hs-identifier hs-var hs-var">capacity1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SInteger
+</span><a href="#local-6989586621681163253"><span class="hs-identifier hs-var">need</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163267"><span class="hs-identifier hs-var">x11</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163262"><span class="hs-identifier hs-var">x21</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163258"><span class="hs-identifier hs-var">x31</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-64"></span><span>        </span><span id="local-6989586621681163245"><span class="annot"><span class="annottext">capacity2 :: SInteger
+</span><a href="#local-6989586621681163245"><span class="hs-identifier hs-var hs-var">capacity2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SInteger
+</span><a href="#local-6989586621681163253"><span class="hs-identifier hs-var">need</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163266"><span class="hs-identifier hs-var">x12</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163261"><span class="hs-identifier hs-var">x22</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163257"><span class="hs-identifier hs-var">x32</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-65"></span><span>        </span><span id="local-6989586621681163244"><span class="annot"><span class="annottext">capacity3 :: SInteger
+</span><a href="#local-6989586621681163244"><span class="hs-identifier hs-var hs-var">capacity3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SInteger
+</span><a href="#local-6989586621681163253"><span class="hs-identifier hs-var">need</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163265"><span class="hs-identifier hs-var">x13</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163260"><span class="hs-identifier hs-var">x23</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163256"><span class="hs-identifier hs-var">x33</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163246"><span class="hs-identifier hs-var">capacity1</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">100</span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163245"><span class="hs-identifier hs-var">capacity2</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">75</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163244"><span class="hs-identifier hs-var">capacity3</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">200</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-comment">-- compute #of servers running:</span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163242"><span class="annot"><span class="annottext">y1 :: SBool
+</span><a href="#local-6989586621681163242"><span class="hs-identifier hs-var hs-var">y1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sOr"><span class="hs-identifier hs-var">sOr</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163267"><span class="hs-identifier hs-var">x11</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163262"><span class="hs-identifier hs-var">x21</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163258"><span class="hs-identifier hs-var">x31</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>        </span><span id="local-6989586621681163240"><span class="annot"><span class="annottext">y2 :: SBool
+</span><a href="#local-6989586621681163240"><span class="hs-identifier hs-var hs-var">y2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sOr"><span class="hs-identifier hs-var">sOr</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163266"><span class="hs-identifier hs-var">x12</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163261"><span class="hs-identifier hs-var">x22</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163257"><span class="hs-identifier hs-var">x32</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span>        </span><span id="local-6989586621681163239"><span class="annot"><span class="annottext">y3 :: SBool
+</span><a href="#local-6989586621681163239"><span class="hs-identifier hs-var hs-var">y3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sOr"><span class="hs-identifier hs-var">sOr</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163265"><span class="hs-identifier hs-var">x13</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163260"><span class="hs-identifier hs-var">x23</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163256"><span class="hs-identifier hs-var">x33</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>        </span><span id="local-6989586621681163238"><span class="annot"><span class="annottext">b2n :: SBool -&gt; a
+</span><a href="#local-6989586621681163238"><span class="hs-identifier hs-var hs-var">b2n</span></a></span></span><span> </span><span id="local-6989586621681163237"><span class="annot"><span class="annottext">b :: SBool
+</span><a href="#local-6989586621681163237"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; a -&gt; a -&gt; a
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163237"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163236"><span class="annot"><span class="annottext">noOfServers :: SInteger
+</span><a href="#local-6989586621681163236"><span class="hs-identifier hs-var hs-var">noOfServers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">([SInteger] -&gt; SInteger) -&gt; [SInteger] -&gt; SInteger
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SInteger) -&gt; [SBool] -&gt; [SInteger]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger
+forall a. (Mergeable a, Num a) =&gt; SBool -&gt; a
+</span><a href="#local-6989586621681163238"><span class="hs-identifier hs-var">b2n</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163242"><span class="hs-identifier hs-var">y1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163240"><span class="hs-identifier hs-var">y2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163239"><span class="hs-identifier hs-var">y3</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-comment">-- minimize # of servers</span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; SInteger -&gt; Goal
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; Goal
+</span><a href="Data.SBV.Client.BaseIO.html#minimize"><span class="hs-identifier hs-var">minimize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;noOfServers&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163236"><span class="hs-identifier hs-var">noOfServers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-comment">-- cost on each server</span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681163234"><span class="annot"><span class="annottext">cost1 :: SInteger
+</span><a href="#local-6989586621681163234"><span class="hs-identifier hs-var hs-var">cost1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163242"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-85"></span><span>        </span><span id="local-6989586621681163233"><span class="annot"><span class="annottext">cost2 :: SInteger
+</span><a href="#local-6989586621681163233"><span class="hs-identifier hs-var hs-var">cost2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163240"><span class="hs-identifier hs-var">y2</span></a></span><span>  </span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-86"></span><span>        </span><span id="local-6989586621681163232"><span class="annot"><span class="annottext">cost3 :: SInteger
+</span><a href="#local-6989586621681163232"><span class="hs-identifier hs-var hs-var">cost3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681163239"><span class="hs-identifier hs-var">y3</span></a></span><span> </span><span class="annot"><span class="hs-number">20</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-comment">-- minimize the total cost</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; SInteger -&gt; Goal
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; Goal
+</span><a href="Data.SBV.Client.BaseIO.html#minimize"><span class="hs-identifier hs-var">minimize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;cost&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163234"><span class="hs-identifier hs-var">cost1</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163233"><span class="hs-identifier hs-var">cost2</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681163232"><span class="hs-identifier hs-var">cost3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span></pre></body></html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.CodeGeneration.PopulationCount</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Computing population-counts (number of set bits) and automatically</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- generating C code.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.CodeGeneration.PopulationCount</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- * Reference: Slow but /obviously/ correct</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | Given a 64-bit quantity, the simplest (and obvious) way to count the</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- number of bits that are set in it is to simply walk through all the bits</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- and add 1 to a running count. This is slow, as it requires 64 iterations,</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- but is simple and easy to convince yourself that it is correct. For instance:</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- &gt;&gt;&gt; popCountSlow 0x0123456789ABCDEF</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- 32 :: SWord8</span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountSlow"><span class="hs-identifier hs-type">popCountSlow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-32"></span><span id="popCountSlow"><span class="annot"><span class="annottext">popCountSlow :: SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountSlow"><span class="hs-identifier hs-var hs-var">popCountSlow</span></a></span></span><span> </span><span id="local-6989586621681160526"><span class="annot"><span class="annottext">inp :: SWord64
+</span><a href="#local-6989586621681160526"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160525"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160526"><span class="hs-identifier hs-var">inp</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681160525"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-34"></span><span>        </span><span id="local-6989586621681160525"><span class="annot"><span class="annottext">go :: SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160525"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-number">64</span><span> </span><span id="local-6989586621681160524"><span class="annot"><span class="annottext">c :: SWord8
+</span><a href="#local-6989586621681160524"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160524"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-35"></span><span>        </span><span class="annot"><a href="#local-6989586621681160525"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681160523"><span class="annot"><span class="annottext">x :: SWord64
+</span><a href="#local-6989586621681160523"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681160522"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621681160522"><span class="hs-identifier hs-var">i</span></a></span></span><span>  </span><span id="local-6989586621681160521"><span class="annot"><span class="annottext">c :: SWord8
+</span><a href="#local-6989586621681160521"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160525"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160523"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord64
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftR`</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681160522"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160523"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.&amp;.</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160521"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160521"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- * Faster: Using a look-up table</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | Faster version. This is essentially the same algorithm, except we</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- go 8 bits at a time instead of one by one, by using a precomputed table</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- of population-count values for each byte. This algorithm /loops/ only</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- 8 times, and hence is at least 8 times more efficient.</span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountFast"><span class="hs-identifier hs-type">popCountFast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-46"></span><span id="popCountFast"><span class="annot"><span class="annottext">popCountFast :: SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountFast"><span class="hs-identifier hs-var hs-var">popCountFast</span></a></span></span><span> </span><span id="local-6989586621681160514"><span class="annot"><span class="annottext">inp :: SWord64
+</span><a href="#local-6989586621681160514"><span class="hs-identifier hs-var">inp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160513"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160514"><span class="hs-identifier hs-var">inp</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681160513"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-48"></span><span>        </span><span id="local-6989586621681160513"><span class="annot"><span class="annottext">go :: SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160513"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-number">8</span><span> </span><span id="local-6989586621681160512"><span class="annot"><span class="annottext">c :: SWord8
+</span><a href="#local-6989586621681160512"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160512"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-49"></span><span>        </span><span class="annot"><a href="#local-6989586621681160513"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621681160511"><span class="annot"><span class="annottext">x :: SWord64
+</span><a href="#local-6989586621681160511"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681160510"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621681160510"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681160509"><span class="annot"><span class="annottext">c :: SWord8
+</span><a href="#local-6989586621681160509"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160513"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160511"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; Int -&gt; SWord64
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftR`</span></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681160510"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160509"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">[SWord8] -&gt; SWord8 -&gt; SWord64 -&gt; SWord8
+forall a b.
+(Mergeable a, Ord b, SymVal b, Num b) =&gt;
+[a] -&gt; a -&gt; SBV b -&gt; a
+</span><a href="Data.SBV.Core.Model.html#select"><span class="hs-identifier hs-var">select</span></a></span><span> </span><span class="annot"><span class="annottext">[SWord8]
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#pop8"><span class="hs-identifier hs-var">pop8</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160511"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord64 -&gt; SWord64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.&amp;.</span></span><span> </span><span class="annot"><span class="hs-number">0xff</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Look-up table, containing population counts for all possible 8-bit</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- value, from 0 to 255. Note that we do not \&quot;hard-code\&quot; the values, but</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- merely use the slow version to compute them.</span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#pop8"><span class="hs-identifier hs-type">pop8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-55"></span><span id="pop8"><span class="annot"><span class="annottext">pop8 :: [SWord8]
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#pop8"><span class="hs-identifier hs-var hs-var">pop8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord64 -&gt; SWord8) -&gt; [SWord64] -&gt; [SWord8]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountSlow"><span class="hs-identifier hs-var">popCountSlow</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">255</span></span><span class="hs-special">]</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- * Verification</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">{- $VerificationIntro
+We prove that `popCountFast` and `popCountSlow` are functionally equivalent.
+This is essential as we will automatically generate C code from `popCountFast`,
+and we would like to make sure that the fast version is correct with
+respect to the slower reference version.
+-}</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | States the correctness of faster population-count algorithm, with respect</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- to the reference slow version. Turns out Z3's default solver is rather slow</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- for this one, but there's a magic incantation to make it go fast.</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- See &lt;http://github.com/Z3Prover/z3/issues/1150&gt; for details.</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- &gt;&gt;&gt; let cmd = &quot;(check-sat-using (then (using-params ackermannize_bv :div0_ackermann_limit 1000000) simplify bit-blast sat))&quot;</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- &gt;&gt;&gt; proveWith z3{satCmd = cmd} fastPopCountIsCorrect</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#fastPopCountIsCorrect"><span class="hs-identifier hs-type">fastPopCountIsCorrect</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-77"></span><span id="fastPopCountIsCorrect"><span class="annot"><span class="annottext">fastPopCountIsCorrect :: SWord64 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#fastPopCountIsCorrect"><span class="hs-identifier hs-var hs-var">fastPopCountIsCorrect</span></a></span></span><span> </span><span id="local-6989586621681160505"><span class="annot"><span class="annottext">x :: SWord64
+</span><a href="#local-6989586621681160505"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountFast"><span class="hs-identifier hs-var">popCountFast</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160505"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountSlow"><span class="hs-identifier hs-var">popCountSlow</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160505"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- * Code generation</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- | Not only we can prove that faster version is correct, but we can also automatically</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- generate C code to compute population-counts for us. This action will generate all the</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- C files that you will need, including a driver program for test purposes.</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- Below is the generated header file for `popCountFast`:</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- &gt;&gt;&gt; genPopCountInC</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- == BEGIN: &quot;Makefile&quot; ================</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- # Makefile for popCount. Automatically generated by SBV. Do not edit!</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- # include any user-defined .mk file in the current directory.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- -include *.mk</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- CC?=gcc</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- CCFLAGS?=-Wall -O3 -DNDEBUG -fomit-frame-pointer</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- all: popCount_driver</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- popCount.o: popCount.c popCount.h</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} -c $&lt; -o $@</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- popCount_driver.o: popCount_driver.c</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} -c $&lt; -o $@</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- popCount_driver: popCount.o popCount_driver.o</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} $^ -o $@</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- clean:</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- 	rm -f *.o</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- veryclean: clean</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- 	rm -f popCount_driver</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- == END: &quot;Makefile&quot; ==================</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- == BEGIN: &quot;popCount.h&quot; ================</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- /* Header file for popCount. Automatically generated by SBV. Do not edit! */</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- #ifndef __popCount__HEADER_INCLUDED__</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- #define __popCount__HEADER_INCLUDED__</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- #include &lt;stdio.h&gt;</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- #include &lt;stdlib.h&gt;</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- #include &lt;inttypes.h&gt;</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- #include &lt;stdint.h&gt;</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- #include &lt;stdbool.h&gt;</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- #include &lt;string.h&gt;</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- #include &lt;math.h&gt;</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- /* The boolean type */</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- typedef bool SBool;</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- /* The float type */</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- typedef float SFloat;</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- /* The double type */</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- typedef double SDouble;</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- /* Unsigned bit-vectors */</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- typedef uint8_t  SWord8;</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- typedef uint16_t SWord16;</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- typedef uint32_t SWord32;</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- typedef uint64_t SWord64;</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- /* Signed bit-vectors */</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- typedef int8_t  SInt8;</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- typedef int16_t SInt16;</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- typedef int32_t SInt32;</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- typedef int64_t SInt64;</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- /* Entry point prototype: */</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- SWord8 popCount(const SWord64 x);</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- #endif /* __popCount__HEADER_INCLUDED__ */</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- == END: &quot;popCount.h&quot; ==================</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- == BEGIN: &quot;popCount_driver.c&quot; ================</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- /* Example driver program for popCount. */</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- /* Automatically generated by SBV. Edit as you see fit! */</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- #include &lt;stdio.h&gt;</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- #include &quot;popCount.h&quot;</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- int main(void)</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- {</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--   const SWord8 __result = popCount(0x1b02e143e4f0e0e5ULL);</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--   printf(&quot;popCount(0x1b02e143e4f0e0e5ULL) = %&quot;PRIu8&quot;\n&quot;, __result);</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-169"></span><span class="hs-comment">--   return 0;</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- }</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- == END: &quot;popCount_driver.c&quot; ==================</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- == BEGIN: &quot;popCount.c&quot; ================</span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- /* File: &quot;popCount.c&quot;. Automatically generated by SBV. Do not edit! */</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- #include &quot;popCount.h&quot;</span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- SWord8 popCount(const SWord64 x)</span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- {</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--   const SWord64 s0 = x;</span><span>
+</span><span id="line-180"></span><span class="hs-comment">--   static const SWord8 table0[] = {</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--       0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3,</span><span>
+</span><span id="line-182"></span><span class="hs-comment">--       3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4,</span><span>
+</span><span id="line-183"></span><span class="hs-comment">--       3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2,</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--       2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5,</span><span>
+</span><span id="line-185"></span><span class="hs-comment">--       3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5,</span><span>
+</span><span id="line-186"></span><span class="hs-comment">--       5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3,</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--       2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4,</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--       4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,</span><span>
+</span><span id="line-189"></span><span class="hs-comment">--       3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4,</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--       4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6,</span><span>
+</span><span id="line-191"></span><span class="hs-comment">--       5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5,</span><span>
+</span><span id="line-192"></span><span class="hs-comment">--       5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8</span><span>
+</span><span id="line-193"></span><span class="hs-comment">--   };</span><span>
+</span><span id="line-194"></span><span class="hs-comment">--   const SWord64 s11 = s0 &amp; 0x00000000000000ffULL;</span><span>
+</span><span id="line-195"></span><span class="hs-comment">--   const SWord8  s12 = table0[s11];</span><span>
+</span><span id="line-196"></span><span class="hs-comment">--   const SWord64 s14 = s0 &gt;&gt; 8;</span><span>
+</span><span id="line-197"></span><span class="hs-comment">--   const SWord64 s15 = 0x00000000000000ffULL &amp; s14;</span><span>
+</span><span id="line-198"></span><span class="hs-comment">--   const SWord8  s16 = table0[s15];</span><span>
+</span><span id="line-199"></span><span class="hs-comment">--   const SWord8  s17 = s12 + s16;</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--   const SWord64 s18 = s14 &gt;&gt; 8;</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--   const SWord64 s19 = 0x00000000000000ffULL &amp; s18;</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--   const SWord8  s20 = table0[s19];</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--   const SWord8  s21 = s17 + s20;</span><span>
+</span><span id="line-204"></span><span class="hs-comment">--   const SWord64 s22 = s18 &gt;&gt; 8;</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--   const SWord64 s23 = 0x00000000000000ffULL &amp; s22;</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--   const SWord8  s24 = table0[s23];</span><span>
+</span><span id="line-207"></span><span class="hs-comment">--   const SWord8  s25 = s21 + s24;</span><span>
+</span><span id="line-208"></span><span class="hs-comment">--   const SWord64 s26 = s22 &gt;&gt; 8;</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--   const SWord64 s27 = 0x00000000000000ffULL &amp; s26;</span><span>
+</span><span id="line-210"></span><span class="hs-comment">--   const SWord8  s28 = table0[s27];</span><span>
+</span><span id="line-211"></span><span class="hs-comment">--   const SWord8  s29 = s25 + s28;</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--   const SWord64 s30 = s26 &gt;&gt; 8;</span><span>
+</span><span id="line-213"></span><span class="hs-comment">--   const SWord64 s31 = 0x00000000000000ffULL &amp; s30;</span><span>
+</span><span id="line-214"></span><span class="hs-comment">--   const SWord8  s32 = table0[s31];</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--   const SWord8  s33 = s29 + s32;</span><span>
+</span><span id="line-216"></span><span class="hs-comment">--   const SWord64 s34 = s30 &gt;&gt; 8;</span><span>
+</span><span id="line-217"></span><span class="hs-comment">--   const SWord64 s35 = 0x00000000000000ffULL &amp; s34;</span><span>
+</span><span id="line-218"></span><span class="hs-comment">--   const SWord8  s36 = table0[s35];</span><span>
+</span><span id="line-219"></span><span class="hs-comment">--   const SWord8  s37 = s33 + s36;</span><span>
+</span><span id="line-220"></span><span class="hs-comment">--   const SWord64 s38 = s34 &gt;&gt; 8;</span><span>
+</span><span id="line-221"></span><span class="hs-comment">--   const SWord64 s39 = 0x00000000000000ffULL &amp; s38;</span><span>
+</span><span id="line-222"></span><span class="hs-comment">--   const SWord8  s40 = table0[s39];</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--   const SWord8  s41 = s37 + s40;</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--   return s41;</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- }</span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- == END: &quot;popCount.c&quot; ==================</span><span>
+</span><span id="line-228"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#genPopCountInC"><span class="hs-identifier hs-type">genPopCountInC</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-229"></span><span id="genPopCountInC"><span class="annot"><span class="annottext">genPopCountInC :: IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#genPopCountInC"><span class="hs-identifier hs-var hs-var">genPopCountInC</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="hs-string">&quot;popCount&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-230"></span><span>        </span><span class="annot"><span class="annottext">[Integer] -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgSetDriverValues"><span class="hs-identifier hs-var">cgSetDriverValues</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0x1b02e143e4f0e0e5</span></span><span class="hs-special">]</span><span>  </span><span class="hs-comment">-- remove this line to get a random test value</span><span>
+</span><span id="line-231"></span><span>        </span><span id="local-6989586621681160501"><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160501"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord64
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-232"></span><span>        </span><span class="annot"><span class="annottext">SWord8 -&gt; SBVCodeGen ()
+forall a. SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgReturn"><span class="hs-identifier hs-var">cgReturn</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBVCodeGen ()) -&gt; SWord8 -&gt; SBVCodeGen ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord64 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.PopulationCount.html#popCountFast"><span class="hs-identifier hs-var">popCountFast</span></a></span><span> </span><span class="annot"><span class="annottext">SWord64
+</span><a href="#local-6989586621681160501"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-233"></span></pre></body></html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Existentials.Diophantine</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Finding minimal natural number solutions to linear Diophantine equations,</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- using explicit quantification.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Existentials.Diophantine</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- * Representing solutions</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | For a homogeneous problem, the solution is any linear combination of the resulting vectors.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- For a non-homogeneous problem, the solution is any linear combination of the vectors in the</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- second component plus one of the vectors in the first component.</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">data</span><span> </span><span id="Solution"><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#Solution"><span class="hs-identifier hs-var">Solution</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Homogeneous"><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#Homogeneous"><span class="hs-identifier hs-var">Homogeneous</span></a></span></span><span>    </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-26"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="NonHomogeneous"><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#NonHomogeneous"><span class="hs-identifier hs-var">NonHomogeneous</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>              </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681161610"><span id="local-6989586621681161612"><span id="local-6989586621681161614"><span class="annot"><span class="annottext">Int -&gt; Solution -&gt; ShowS
+[Solution] -&gt; ShowS
+Solution -&gt; String
+(Int -&gt; Solution -&gt; ShowS)
+-&gt; (Solution -&gt; String) -&gt; ([Solution] -&gt; ShowS) -&gt; Show Solution
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Solution] -&gt; ShowS
+$cshowList :: [Solution] -&gt; ShowS
+show :: Solution -&gt; String
+$cshow :: Solution -&gt; String
+showsPrec :: Int -&gt; Solution -&gt; ShowS
+$cshowsPrec :: Int -&gt; Solution -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- * Solving diophantine equations</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | ldn: Solve a (L)inear (D)iophantine equation, returning minimal solutions over (N)aturals.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- The input is given as a rows of equations, with rhs values separated into a tuple. The first</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- parameter limits the search to bound: In case there are too many solutions, you might want</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- to limit your search space.</span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#ldn"><span class="hs-identifier hs-type">ldn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#Solution"><span class="hs-identifier hs-type">Solution</span></a></span><span>
+</span><span id="line-37"></span><span id="ldn"><span class="annot"><span class="annottext">ldn :: Maybe Int -&gt; [([Integer], Integer)] -&gt; IO Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#ldn"><span class="hs-identifier hs-var hs-var">ldn</span></a></span></span><span> </span><span id="local-6989586621681161607"><span class="annot"><span class="annottext">mbLim :: Maybe Int
+</span><a href="#local-6989586621681161607"><span class="hs-identifier hs-var">mbLim</span></a></span></span><span> </span><span id="local-6989586621681161606"><span class="annot"><span class="annottext">problem :: [([Integer], Integer)]
+</span><a href="#local-6989586621681161606"><span class="hs-identifier hs-var">problem</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681161605"><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161605"><span class="hs-identifier hs-var">solution</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; [[SInteger]] -&gt; IO [[Integer]]
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#basis"><span class="hs-identifier hs-var">basis</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621681161607"><span class="hs-identifier hs-var">mbLim</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Integer] -&gt; [SInteger]) -&gt; [[Integer]] -&gt; [[SInteger]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Integer -&gt; SInteger) -&gt; [Integer] -&gt; [SInteger]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; SInteger
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161602"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>                       </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681161601"><span class="hs-identifier hs-var">homogeneous</span></a></span><span>
+</span><span id="line-39"></span><span>                           </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Solution -&gt; IO Solution
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Solution -&gt; IO Solution) -&gt; Solution -&gt; IO Solution
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Integer]] -&gt; Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#Homogeneous"><span class="hs-identifier hs-var">Homogeneous</span></a></span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161605"><span class="hs-identifier hs-var">solution</span></a></span><span>
+</span><span id="line-40"></span><span>                           </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681161600"><span class="annot"><span class="annottext">ones :: [[Integer]]
+</span><a href="#local-6989586621681161600"><span class="hs-identifier hs-var hs-var">ones</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161599"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="hs-number">1</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681161599"><span class="annot"><span class="annottext">xs :: [Integer]
+</span><a href="#local-6989586621681161599"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161605"><span class="hs-identifier hs-var">solution</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-41"></span><span>                                       </span><span id="local-6989586621681161598"><span class="annot"><span class="annottext">zeros :: [[Integer]]
+</span><a href="#local-6989586621681161598"><span class="hs-identifier hs-var hs-var">zeros</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161597"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="hs-number">0</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681161597"><span class="annot"><span class="annottext">xs :: [Integer]
+</span><a href="#local-6989586621681161597"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161605"><span class="hs-identifier hs-var">solution</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-42"></span><span>                                   </span><span class="annot"><span class="annottext">Solution -&gt; IO Solution
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Solution -&gt; IO Solution) -&gt; Solution -&gt; IO Solution
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Integer]] -&gt; [[Integer]] -&gt; Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#NonHomogeneous"><span class="hs-identifier hs-var">NonHomogeneous</span></a></span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161600"><span class="hs-identifier hs-var">ones</span></a></span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161598"><span class="hs-identifier hs-var">zeros</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681161596"><span class="annot"><span class="annottext">rhs :: [Integer]
+</span><a href="#local-6989586621681161596"><span class="hs-identifier hs-var hs-var">rhs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(([Integer], Integer) -&gt; Integer)
+-&gt; [([Integer], Integer)] -&gt; [Integer]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">([Integer], Integer) -&gt; Integer
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">[([Integer], Integer)]
+</span><a href="#local-6989586621681161606"><span class="hs-identifier hs-var">problem</span></a></span><span>
+</span><span id="line-44"></span><span>        </span><span id="local-6989586621681161595"><span class="annot"><span class="annottext">lhs :: [[Integer]]
+</span><a href="#local-6989586621681161595"><span class="hs-identifier hs-var hs-var">lhs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(([Integer], Integer) -&gt; [Integer])
+-&gt; [([Integer], Integer)] -&gt; [[Integer]]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">([Integer], Integer) -&gt; [Integer]
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[([Integer], Integer)]
+</span><a href="#local-6989586621681161606"><span class="hs-identifier hs-var">problem</span></a></span><span>
+</span><span id="line-45"></span><span>        </span><span id="local-6989586621681161601"><span class="annot"><span class="annottext">homogeneous :: Bool
+</span><a href="#local-6989586621681161601"><span class="hs-identifier hs-var hs-var">homogeneous</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Bool) -&gt; [Integer] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161596"><span class="hs-identifier hs-var">rhs</span></a></span><span>
+</span><span id="line-46"></span><span>        </span><span id="local-6989586621681161602"><span class="annot"><span class="annottext">m :: [[Integer]]
+</span><a href="#local-6989586621681161602"><span class="hs-identifier hs-var hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681161601"><span class="hs-identifier hs-var">homogeneous</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161595"><span class="hs-identifier hs-var">lhs</span></a></span><span>
+</span><span id="line-47"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; [Integer] -&gt; [Integer])
+-&gt; [Integer] -&gt; [[Integer]] -&gt; [[Integer]]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681161592"><span class="annot"><span class="annottext">x :: Integer
+</span><a href="#local-6989586621681161592"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681161591"><span class="annot"><span class="annottext">y :: [Integer]
+</span><a href="#local-6989586621681161591"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681161592"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; [Integer] -&gt; [Integer]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161591"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161596"><span class="hs-identifier hs-var">rhs</span></a></span><span> </span><span class="annot"><span class="annottext">[[Integer]]
+</span><a href="#local-6989586621681161595"><span class="hs-identifier hs-var">lhs</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- | Find the basis solution. By definition, the basis has all non-trivial (i.e., non-0) solutions</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- that cannot be written as the sum of two other solutions. We use the mathematically equivalent</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- statement that a solution is in the basis if it's least according to the natural partial</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- order using the ordinary less-than relation.</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#basis"><span class="hs-identifier hs-type">basis</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-54"></span><span id="basis"><span class="annot"><span class="annottext">basis :: Maybe Int -&gt; [[SInteger]] -&gt; IO [[Integer]]
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#basis"><span class="hs-identifier hs-var hs-var">basis</span></a></span></span><span> </span><span id="local-6989586621681161590"><span class="annot"><span class="annottext">mbLim :: Maybe Int
+</span><a href="#local-6989586621681161590"><span class="hs-identifier hs-var">mbLim</span></a></span></span><span> </span><span id="local-6989586621681161589"><span class="annot"><span class="annottext">m :: [[SInteger]]
+</span><a href="#local-6989586621681161589"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AllSatResult -&gt; [[Integer]]
+forall a. SatModel a =&gt; AllSatResult -&gt; [a]
+</span><a href="Data.SBV.SMT.SMT.html#extractModels"><span class="hs-identifier hs-var">extractModels</span></a></span><span> </span><span class="annot"><span class="annottext">(AllSatResult -&gt; [[Integer]]) -&gt; IO AllSatResult -&gt; IO [[Integer]]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">`fmap`</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; SymbolicT IO SBool -&gt; IO AllSatResult
+forall a. Provable a =&gt; SMTConfig -&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSatWith"><span class="hs-identifier hs-var">allSatWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">allSatMaxModelCount :: Maybe Int
+</span><a href="Data.SBV.Core.Symbolic.html#allSatMaxModelCount"><span class="hs-identifier hs-var">allSatMaxModelCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621681161590"><span class="hs-identifier hs-var">mbLim</span></a></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool
+</span><a href="#local-6989586621681161584"><span class="hs-identifier hs-var">cond</span></a></span><span>
+</span><span id="line-55"></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681161584"><span class="annot"><span class="annottext">cond :: SymbolicT IO SBool
+</span><a href="#local-6989586621681161584"><span class="hs-identifier hs-var hs-var">cond</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681161583"><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161583"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Symbolic [SInteger]
+forall a. SymVal a =&gt; Int -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#mkExistVars"><span class="hs-identifier hs-var">mkExistVars</span></a></span><span>  </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681161581"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-56"></span><span>                 </span><span id="local-6989586621681161580"><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161580"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Symbolic [SInteger]
+forall a. SymVal a =&gt; Int -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#mkForallVars"><span class="hs-identifier hs-var">mkForallVars</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681161581"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>                 </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; SBool
+</span><a href="#local-6989586621681161578"><span class="hs-identifier hs-var">ok</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161583"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[SInteger] -&gt; SBool
+</span><a href="#local-6989586621681161578"><span class="hs-identifier hs-var">ok</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161580"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161583"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; [SInteger] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161580"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161580"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; [SInteger] -&gt; SBool
+forall a. OrdSymbolic a =&gt; [a] -&gt; [a] -&gt; SBool
+</span><a href="#local-6989586621681161572"><span class="hs-operator hs-var">`less`</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161583"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>       </span><span id="local-6989586621681161581"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681161581"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[[SInteger]] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[[SInteger]]
+</span><a href="#local-6989586621681161589"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[SInteger] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[[SInteger]] -&gt; [SInteger]
+forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">[[SInteger]]
+</span><a href="#local-6989586621681161589"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>       </span><span id="local-6989586621681161578"><span class="annot"><span class="annottext">ok :: [SInteger] -&gt; SBool
+</span><a href="#local-6989586621681161578"><span class="hs-identifier hs-var hs-var">ok</span></a></span></span><span> </span><span id="local-6989586621681161568"><span class="annot"><span class="annottext">xs :: [SInteger]
+</span><a href="#local-6989586621681161568"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SInteger -&gt; SBool) -&gt; [SInteger] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier hs-var">sAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161568"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(SInteger -&gt; SBool) -&gt; [SInteger] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161568"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAnd"><span class="hs-identifier hs-var">sAnd</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[SInteger] -&gt; SInteger
+forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SInteger -&gt; SInteger -&gt; SInteger)
+-&gt; [SInteger] -&gt; [SInteger] -&gt; [SInteger]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161560"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161568"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621681161560"><span class="annot"><span class="annottext">[SInteger]
+</span><a href="#local-6989586621681161560"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[SInteger]]
+</span><a href="#local-6989586621681161589"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>       </span><span id="local-6989586621681161559"><span class="annot"><span class="annottext">as :: [a]
+</span><a href="#local-6989586621681161559"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621681161572"><span class="annot"><span class="annottext">less :: [a] -&gt; [a] -&gt; SBool
+</span><a href="#local-6989586621681161572"><span class="hs-operator hs-var hs-var">`less`</span></a></span></span><span> </span><span id="local-6989586621681161558"><span class="annot"><span class="annottext">bs :: [a]
+</span><a href="#local-6989586621681161558"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAnd"><span class="hs-identifier hs-var">sAnd</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a -&gt; SBool) -&gt; [a] -&gt; [a] -&gt; [SBool]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">(.&lt;=)</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681161559"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681161558"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sOr"><span class="hs-identifier hs-var">sOr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a -&gt; SBool) -&gt; [a] -&gt; [a] -&gt; [SBool]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">(.&lt;)</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681161559"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681161558"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- * Examples</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--------------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | Solve the equation:</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--    @2x + y - z = 2@</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- &gt;&gt;&gt; test</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- NonHomogeneous [[1,0,0],[0,2,0]] [[0,1,1],[1,0,2]]</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- which means that the solutions are of the form:</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--    @(1, 0, 0) + k (0, 1, 1) + k' (1, 0, 2) = (1+k', k, k+2k')@</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- OR</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--    @(0, 2, 0) + k (0, 1, 1) + k' (1, 0, 2) = (k', 2+k, k+2k')@</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- for arbitrary @k@, @k'@. It's easy to see that these are really solutions</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- to the equation given. It's harder to see that they cover all possibilities,</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- but a moments thought reveals that is indeed the case.</span><span>
+</span><span id="line-90"></span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#test"><span class="hs-identifier hs-type">test</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#Solution"><span class="hs-identifier hs-type">Solution</span></a></span><span>
+</span><span id="line-91"></span><span id="test"><span class="annot"><span class="annottext">test :: IO Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#test"><span class="hs-identifier hs-var hs-var">test</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; [([Integer], Integer)] -&gt; IO Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#ldn"><span class="hs-identifier hs-var">ldn</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">,</span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | A puzzle: Five sailors and a monkey escape from a naufrage and reach an island with</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- coconuts. Before dawn, they gather a few of them and decide to sleep first and share</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- the next day. At night, however, one of them awakes, counts the nuts, makes five parts,</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- gives the remaining nut to the monkey, saves his share away, and sleeps. All other</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- sailors do the same, one by one. When they all wake up in the morning, they again make 5 shares,</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- and give the last remaining nut to the monkey. How many nuts were there at the beginning?</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- We can model this as a series of diophantine equations:</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--       x_0 = 5 x_1 + 1</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--     4 x_1 = 5 x_2 + 1</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--     4 x_2 = 5 x_3 + 1</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--     4 x_3 = 5 x_4 + 1</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--     4 x_4 = 5 x_5 + 1</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--     4 x_5 = 5 x_6 + 1</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- We need to solve for x_0, over the naturals. If you run this program, z3 takes its time (quite long!)</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- but, it eventually computes: [15621,3124,2499,1999,1599,1279,1023] as the answer.</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- That is:</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--   * There was a total of 15621 coconuts</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--   * 1st sailor: 15621 = 3124*5+1, leaving 15621-3124-1 = 12496</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--   * 2nd sailor: 12496 = 2499*5+1, leaving 12496-2499-1 =  9996</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--   * 3rd sailor:  9996 = 1999*5+1, leaving  9996-1999-1 =  7996</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--   * 4th sailor:  7996 = 1599*5+1, leaving  7996-1599-1 =  6396</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--   * 5th sailor:  6396 = 1279*5+1, leaving  6396-1279-1 =  5116</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   * In the morning, they had: 5116 = 1023*5+1.</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- Note that this is the minimum solution, that is, we are guaranteed that there's</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- no solution with less number of coconuts. In fact, any member of @[15625*k-4 | k &lt;- [1..]]@</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- is a solution, i.e., so are @31246@, @46871@, @62496@, @78121@, etc.</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- Note that we iteratively deepen our search by requesting increasing number of</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- solutions to avoid the all-sat pitfall.</span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#sailors"><span class="hs-identifier hs-type">sailors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span>
+</span><span id="line-133"></span><span id="sailors"><span class="annot"><span class="annottext">sailors :: IO [Integer]
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#sailors"><span class="hs-identifier hs-var hs-var">sailors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO [Integer]
+</span><a href="#local-6989586621681161552"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681161552"><span class="annot"><span class="annottext">search :: Int -&gt; IO [Integer]
+</span><a href="#local-6989586621681161552"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621681161551"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621681161551"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681161550"><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681161550"><span class="hs-identifier hs-var">soln</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe Int -&gt; [([Integer], Integer)] -&gt; IO Solution
+</span><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#ldn"><span class="hs-identifier hs-var">ldn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681161551"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>                                           </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>                                           </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>                                           </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span><span>                                           </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>                                           </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">,</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>                                           </span><span class="hs-special">]</span><span>
+</span><span id="line-141"></span><span>                      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Solution
+</span><a href="#local-6989586621681161550"><span class="hs-identifier hs-var">soln</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-142"></span><span>                        </span><span class="annot"><a href="Documentation.SBV.Examples.Existentials.Diophantine.html#NonHomogeneous"><span class="hs-identifier hs-type">NonHomogeneous</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681161549"><span class="annot"><span class="annottext">xs :: [Integer]
+</span><a href="#local-6989586621681161549"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Integer] -&gt; IO [Integer]
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681161549"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-143"></span><span>                        </span><span class="hs-identifier">_</span><span>                       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO [Integer]
+</span><a href="#local-6989586621681161552"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681161551"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span></pre></body></html>

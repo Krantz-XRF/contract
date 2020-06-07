@@ -1,0 +1,23 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Documentation.SBV.Examples.Queries.AllSat</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">sbv-8.6: SMT Based Verification: Symbolic Haskell theorem prover using SMT solving.</span><ul class="links" id="page-menu"><li><a href="src/Documentation.SBV.Examples.Queries.AllSat.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th valign="top">Copyright</th><td>(c) Levent Erkok</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>erkokl@gmail.com</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Documentation.SBV.Examples.Queries.AllSat</p></div><div id="description"><p class="caption">Description</p><div class="doc"><p>When we would like to find all solutions to a problem, we can query the
+ solver repeatedly, telling it to give us a new model each time. SBV already
+ provides <code><a href="Data-SBV.html#v:allSat" title="Data.SBV">allSat</a></code> that precisely does this. However, this example demonstrates
+ how the query mode can be used to achieve the same, and can also incorporate
+ extra conditions with easy as we walk through solutions.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:goodSum">goodSum</a> :: <a href="Data-SBV-Internals.html#t:Symbolic" title="Data.SBV.Internals">Symbolic</a> [(<a href="../base-4.13.0.0/Prelude.html#t:Integer" title="Prelude">Integer</a>, <a href="../base-4.13.0.0/Prelude.html#t:Integer" title="Prelude">Integer</a>)]</li><li class="src short"><a href="#v:demo">demo</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> ()</li></ul></details></div><div id="interface"><h1>Documentation</h1><div class="top"><p class="src"><a id="v:goodSum" class="def">goodSum</a> :: <a href="Data-SBV-Internals.html#t:Symbolic" title="Data.SBV.Internals">Symbolic</a> [(<a href="../base-4.13.0.0/Prelude.html#t:Integer" title="Prelude">Integer</a>, <a href="../base-4.13.0.0/Prelude.html#t:Integer" title="Prelude">Integer</a>)] <a href="src/Documentation.SBV.Examples.Queries.AllSat.html#goodSum" class="link">Source</a> <a href="#v:goodSum" class="selflink">#</a></p><div class="doc"><p>Find all solutions to <code>x + y .== 10</code> for positive <code>x</code> and <code>y</code>, but at each
+ iteration we would like to ensure that the value of <code>x</code> we get is at least twice as large as
+ the previous one. This is rather silly, but demonstrates how we can dynamically
+ query the result and put in new constraints based on those.</p></div></div><div class="top"><p class="src"><a id="v:demo" class="def">demo</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> () <a href="src/Documentation.SBV.Examples.Queries.AllSat.html#demo" class="link">Source</a> <a href="#v:demo" class="selflink">#</a></p><div class="doc"><p>Run the query. We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>demo
+</code></strong>Starting the all-sat engine!
+Iteration: 1
+Current solution is: (0,10)
+Iteration: 2
+Current solution is: (1,9)
+Iteration: 3
+Current solution is: (2,8)
+Iteration: 4
+Current solution is: (4,6)
+Iteration: 5
+Current solution is: (8,2)
+Iteration: 6
+No other solution!
+[(0,10),(1,9),(2,8),(4,6),(8,2)]
+</pre></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.23.0</p></div></body></html>

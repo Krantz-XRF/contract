@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Tools.CodeGen</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Code-generation from SBV programs.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Tools.CodeGen</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Code generation from symbolic programs</span></span><span>
+</span><span id="line-17"></span><span>        </span><span class="annot"><span class="hs-comment">-- $cCodeGeneration</span></span><span>
+</span><span id="line-18"></span><span>          </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#SBVCodeGen"><span class="hs-identifier">SBVCodeGen</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgSym"><span class="hs-identifier">cgSym</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Setting code-generation options</span></span><span>
+</span><span id="line-21"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgPerformRTCs"><span class="hs-identifier">cgPerformRTCs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgSetDriverValues"><span class="hs-identifier">cgSetDriverValues</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgGenerateDriver"><span class="hs-identifier">cgGenerateDriver</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgGenerateMakefile"><span class="hs-identifier">cgGenerateMakefile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgOverwriteFiles"><span class="hs-identifier">cgOverwriteFiles</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgShowU8UsingHex"><span class="hs-identifier">cgShowU8UsingHex</span></a></span><span> </span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Designating inputs</span></span><span>
+</span><span id="line-24"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier">cgInput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgInputArr"><span class="hs-identifier">cgInputArr</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Designating outputs</span></span><span>
+</span><span id="line-27"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier">cgOutput</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgOutputArr"><span class="hs-identifier">cgOutputArr</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Designating return values</span></span><span>
+</span><span id="line-30"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgReturn"><span class="hs-identifier">cgReturn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgReturnArr"><span class="hs-identifier">cgReturnArr</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Code generation with uninterpreted functions</span></span><span>
+</span><span id="line-33"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgAddPrototype"><span class="hs-identifier">cgAddPrototype</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgAddDecl"><span class="hs-identifier">cgAddDecl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgAddLDFlags"><span class="hs-identifier">cgAddLDFlags</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgIgnoreSAssert"><span class="hs-identifier">cgIgnoreSAssert</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Code generation with 'Data.SBV.SInteger' and 'Data.SBV.SReal' types</span></span><span>
+</span><span id="line-36"></span><span>        </span><span class="annot"><span class="hs-comment">-- $unboundedCGen</span></span><span>
+</span><span id="line-37"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgIntegerSize"><span class="hs-identifier">cgIntegerSize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#cgSRealType"><span class="hs-identifier">cgSRealType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html#CgSRealType"><span class="hs-identifier">CgSRealType</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>        </span><span class="annot"><span class="hs-comment">-- ** Compilation to C</span></span><span>
+</span><span id="line-40"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier">compileToC</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.C.html#compileToCLib"><span class="hs-identifier">compileToCLib</span></a></span><span>
+</span><span id="line-41"></span><span>       </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.C.html"><span class="hs-identifier">Data.SBV.Compilers.C</span></a></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Compilers.CodeGen.html"><span class="hs-identifier">Data.SBV.Compilers.CodeGen</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">{- $cCodeGeneration
+The SBV library can generate straight-line executable code in C. (While other target languages are
+certainly possible, currently only C is supported.) The generated code will perform no run-time memory-allocations,
+(no calls to @malloc@), so its memory usage can be predicted ahead of time. Also, the functions will execute precisely the
+same instructions in all calls, so they have predictable timing properties as well. The generated code
+has no loops or jumps, and is typically quite fast. While the generated code can be large due to complete unrolling,
+these characteristics make them suitable for use in hard real-time systems, as well as in traditional computing.
+-}</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">{- $unboundedCGen
+The types 'Data.SBV.SInteger' and 'Data.SBV.SReal' are unbounded quantities that have no direct counterparts in the C language. Therefore,
+it is not possible to generate standard C code for SBV programs using these types, unless custom libraries are available. To
+overcome this, SBV allows the user to explicitly set what the corresponding types should be for these two cases, using
+the functions below. Note that while these mappings will produce valid C code, the resulting code will be subject to
+overflow/underflows for 'Data.SBV.SInteger', and rounding for 'Data.SBV.SReal', so there is an implicit loss of precision.
+
+If the user does /not/ specify these mappings, then SBV will
+refuse to compile programs that involve these types.
+-}</span><span>
+</span><span id="line-65"></span></pre></body></html>

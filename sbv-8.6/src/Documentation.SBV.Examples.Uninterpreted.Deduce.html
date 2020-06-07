@@ -1,0 +1,554 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Uninterpreted.Deduce</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates uninterpreted sorts and how they can be used for deduction.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- This example is inspired by the discussion at &lt;http://stackoverflow.com/questions/10635783/using-axioms-for-deductions-in-z3&gt;,</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- essentially showing how to show the required deduction using SBV.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass     #-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Uninterpreted.Deduce</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Generics</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- we will have our own &quot;uninterpreted&quot; functions corresponding</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- to not/or/and, so hide their Prelude counterparts.</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">not</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">or</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">and</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- * Representing uninterpreted booleans</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | The uninterpreted sort 'B', corresponding to the carrier.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- To prevent SBV from translating it to an enumerated type, we simply attach an unused field</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">newtype</span><span> </span><span id="B"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#B"><span class="hs-identifier hs-var">B</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="B"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#B"><span class="hs-identifier hs-var">B</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681170081"><span id="local-6989586621681170083"><span class="annot"><span class="annottext">B -&gt; B -&gt; Bool
+(B -&gt; B -&gt; Bool) -&gt; (B -&gt; B -&gt; Bool) -&gt; Eq B
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: B -&gt; B -&gt; Bool
+$c/= :: B -&gt; B -&gt; Bool
+== :: B -&gt; B -&gt; Bool
+$c== :: B -&gt; B -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170065"><span id="local-6989586621681170067"><span id="local-6989586621681170069"><span id="local-6989586621681170071"><span id="local-6989586621681170073"><span id="local-6989586621681170075"><span id="local-6989586621681170077"><span class="annot"><span class="annottext">Eq B
+Eq B =&gt;
+(B -&gt; B -&gt; Ordering)
+-&gt; (B -&gt; B -&gt; Bool)
+-&gt; (B -&gt; B -&gt; Bool)
+-&gt; (B -&gt; B -&gt; Bool)
+-&gt; (B -&gt; B -&gt; Bool)
+-&gt; (B -&gt; B -&gt; B)
+-&gt; (B -&gt; B -&gt; B)
+-&gt; Ord B
+B -&gt; B -&gt; Bool
+B -&gt; B -&gt; Ordering
+B -&gt; B -&gt; B
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: B -&gt; B -&gt; B
+$cmin :: B -&gt; B -&gt; B
+max :: B -&gt; B -&gt; B
+$cmax :: B -&gt; B -&gt; B
+&gt;= :: B -&gt; B -&gt; Bool
+$c&gt;= :: B -&gt; B -&gt; Bool
+&gt; :: B -&gt; B -&gt; Bool
+$c&gt; :: B -&gt; B -&gt; Bool
+&lt;= :: B -&gt; B -&gt; Bool
+$c&lt;= :: B -&gt; B -&gt; Bool
+&lt; :: B -&gt; B -&gt; Bool
+$c&lt; :: B -&gt; B -&gt; Bool
+compare :: B -&gt; B -&gt; Ordering
+$ccompare :: B -&gt; B -&gt; Ordering
+$cp1Ord :: Eq B
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170058"><span id="local-6989586621681170060"><span id="local-6989586621681170062"><span class="annot"><span class="annottext">Int -&gt; B -&gt; ShowS
+[B] -&gt; ShowS
+B -&gt; String
+(Int -&gt; B -&gt; ShowS) -&gt; (B -&gt; String) -&gt; ([B] -&gt; ShowS) -&gt; Show B
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [B] -&gt; ShowS
+$cshowList :: [B] -&gt; ShowS
+show :: B -&gt; String
+$cshow :: B -&gt; String
+showsPrec :: Int -&gt; B -&gt; ShowS
+$cshowsPrec :: Int -&gt; B -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170049"><span id="local-6989586621681170051"><span id="local-6989586621681170053"><span id="local-6989586621681170055"><span class="annot"><span class="annottext">ReadPrec [B]
+ReadPrec B
+Int -&gt; ReadS B
+ReadS [B]
+(Int -&gt; ReadS B)
+-&gt; ReadS [B] -&gt; ReadPrec B -&gt; ReadPrec [B] -&gt; Read B
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [B]
+$creadListPrec :: ReadPrec [B]
+readPrec :: ReadPrec B
+$creadPrec :: ReadPrec B
+readList :: ReadS [B]
+$creadList :: ReadS [B]
+readsPrec :: Int -&gt; ReadS B
+$creadsPrec :: Int -&gt; ReadS B
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="%24cB"><span id="%24tB"><span id="local-6989586621681170019"><span id="local-6989586621681170021"><span id="local-6989586621681170023"><span id="local-6989586621681170025"><span id="local-6989586621681170027"><span id="local-6989586621681170029"><span id="local-6989586621681170031"><span id="local-6989586621681170033"><span id="local-6989586621681170035"><span id="local-6989586621681170037"><span id="local-6989586621681170039"><span id="local-6989586621681170041"><span id="local-6989586621681170043"><span id="local-6989586621681170045"><span class="annot"><span class="annottext">Typeable B
+DataType
+Constr
+Typeable B =&gt;
+(forall (c :: * -&gt; *).
+ (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+ -&gt; (forall g. g -&gt; c g) -&gt; B -&gt; c B)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c B)
+-&gt; (B -&gt; Constr)
+-&gt; (B -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c B))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c B))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; B -&gt; B)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; [u])
+-&gt; (forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B)
+-&gt; Data B
+B -&gt; DataType
+B -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; B -&gt; B
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; B -&gt; c B
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c B
+forall a.
+Typeable a =&gt;
+(forall (c :: * -&gt; *).
+ (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+ -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c B
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; B -&gt; c B
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c B)
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c B)
+$cB :: Constr
+$tB :: DataType
+gmapMo :: (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+gmapMp :: (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+gmapM :: (forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; B -&gt; m B
+gmapQi :: Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; u
+$cgmapQi :: forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; u
+gmapQ :: (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; B -&gt; [u]
+gmapQr :: (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+gmapQl :: (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; B -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; B -&gt; B
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; B -&gt; B
+dataCast2 :: (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c B)
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c B)
+dataCast1 :: (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c B)
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c B)
+dataTypeOf :: B -&gt; DataType
+$cdataTypeOf :: B -&gt; DataType
+toConstr :: B -&gt; Constr
+$ctoConstr :: B -&gt; Constr
+gunfold :: (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c B
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c B
+gfoldl :: (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; B -&gt; c B
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; B -&gt; c B
+$cp1Data :: Typeable B
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169978"><span id="local-6989586621681169980"><span id="local-6989586621681169982"><span id="local-6989586621681169984"><span id="local-6989586621681169986"><span id="local-6989586621681169988"><span id="local-6989586621681169990"><span id="local-6989586621681169992"><span id="local-6989586621681169994"><span id="local-6989586621681169996"><span id="local-6989586621681169998"><span id="local-6989586621681170000"><span id="local-6989586621681170002"><span id="local-6989586621681170004"><span id="local-6989586621681170006"><span id="local-6989586621681170008"><span id="local-6989586621681170010"><span id="local-6989586621681170012"><span class="annot"><span class="annottext">Typeable B
+HasKind B
+(HasKind B, Typeable B) =&gt;
+(forall (m :: * -&gt; *).
+ MonadSymbolic m =&gt;
+ Maybe Quantifier -&gt; Maybe String -&gt; m (SBV B))
+-&gt; (B -&gt; SBV B)
+-&gt; (CV -&gt; B)
+-&gt; (SBV B -&gt; (B -&gt; Bool) -&gt; Bool)
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; [String] -&gt; m [SBV B])
+-&gt; (SBV B -&gt; Maybe B)
+-&gt; (SBV B -&gt; Bool)
+-&gt; (SBV B -&gt; Bool)
+-&gt; SymVal B
+CV -&gt; B
+SBV B -&gt; Bool
+SBV B -&gt; Maybe B
+SBV B -&gt; (B -&gt; Bool) -&gt; Bool
+B -&gt; SBV B
+forall a.
+(HasKind a, Typeable a) =&gt;
+(forall (m :: * -&gt; *).
+ MonadSymbolic m =&gt;
+ Maybe Quantifier -&gt; Maybe String -&gt; m (SBV a))
+-&gt; (a -&gt; SBV a)
+-&gt; (CV -&gt; a)
+-&gt; (SBV a -&gt; (a -&gt; Bool) -&gt; Bool)
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV a])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV a])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV a])
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV a))
+-&gt; (forall (m :: * -&gt; *). MonadSymbolic m =&gt; [String] -&gt; m [SBV a])
+-&gt; (SBV a -&gt; Maybe a)
+-&gt; (SBV a -&gt; Bool)
+-&gt; (SBV a -&gt; Bool)
+-&gt; SymVal a
+forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B)
+forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B]
+forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B)
+forall (m :: * -&gt; *). MonadSymbolic m =&gt; [String] -&gt; m [SBV B]
+forall (m :: * -&gt; *).
+MonadSymbolic m =&gt;
+Maybe Quantifier -&gt; Maybe String -&gt; m (SBV B)
+isSymbolic :: SBV B -&gt; Bool
+$cisSymbolic :: SBV B -&gt; Bool
+isConcrete :: SBV B -&gt; Bool
+$cisConcrete :: SBV B -&gt; Bool
+unliteral :: SBV B -&gt; Maybe B
+$cunliteral :: SBV B -&gt; Maybe B
+symbolics :: [String] -&gt; m [SBV B]
+$csymbolics :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; [String] -&gt; m [SBV B]
+symbolic :: String -&gt; m (SBV B)
+$csymbolic :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B)
+mkFreeVars :: Int -&gt; m [SBV B]
+$cmkFreeVars :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B]
+free_ :: m (SBV B)
+$cfree_ :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B)
+free :: String -&gt; m (SBV B)
+$cfree :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B)
+mkExistVars :: Int -&gt; m [SBV B]
+$cmkExistVars :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B]
+exists_ :: m (SBV B)
+$cexists_ :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B)
+exists :: String -&gt; m (SBV B)
+$cexists :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B)
+mkForallVars :: Int -&gt; m [SBV B]
+$cmkForallVars :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; Int -&gt; m [SBV B]
+forall_ :: m (SBV B)
+$cforall_ :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; m (SBV B)
+forall :: String -&gt; m (SBV B)
+$cforall :: forall (m :: * -&gt; *). MonadSymbolic m =&gt; String -&gt; m (SBV B)
+isConcretely :: SBV B -&gt; (B -&gt; Bool) -&gt; Bool
+$cisConcretely :: SBV B -&gt; (B -&gt; Bool) -&gt; Bool
+fromCV :: CV -&gt; B
+$cfromCV :: CV -&gt; B
+literal :: B -&gt; SBV B
+$cliteral :: B -&gt; SBV B
+mkSymVal :: Maybe Quantifier -&gt; Maybe String -&gt; m (SBV B)
+$cmkSymVal :: forall (m :: * -&gt; *).
+MonadSymbolic m =&gt;
+Maybe Quantifier -&gt; Maybe String -&gt; m (SBV B)
+$cp2SymVal :: Typeable B
+$cp1SymVal :: HasKind B
+</span><a href="Data.SBV.Core.Data.html#C%3ASymVal"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">SymVal</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169941"><span id="local-6989586621681169943"><span id="local-6989586621681169945"><span id="local-6989586621681169947"><span id="local-6989586621681169949"><span id="local-6989586621681169951"><span id="local-6989586621681169953"><span id="local-6989586621681169955"><span id="local-6989586621681169957"><span id="local-6989586621681169959"><span id="local-6989586621681169961"><span id="local-6989586621681169963"><span id="local-6989586621681169965"><span id="local-6989586621681169967"><span id="local-6989586621681169969"><span id="local-6989586621681169971"><span id="local-6989586621681169973"><span id="local-6989586621681169975"><span class="annot"><span class="annottext">B -&gt; Bool
+B -&gt; Int
+B -&gt; String
+B -&gt; Kind
+(B -&gt; Kind)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Int)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; Bool)
+-&gt; (B -&gt; String)
+-&gt; HasKind B
+forall a.
+(a -&gt; Kind)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; Bool)
+-&gt; (a -&gt; String)
+-&gt; HasKind a
+showType :: B -&gt; String
+$cshowType :: B -&gt; String
+isEither :: B -&gt; Bool
+$cisEither :: B -&gt; Bool
+isMaybe :: B -&gt; Bool
+$cisMaybe :: B -&gt; Bool
+isTuple :: B -&gt; Bool
+$cisTuple :: B -&gt; Bool
+isSet :: B -&gt; Bool
+$cisSet :: B -&gt; Bool
+isList :: B -&gt; Bool
+$cisList :: B -&gt; Bool
+isString :: B -&gt; Bool
+$cisString :: B -&gt; Bool
+isChar :: B -&gt; Bool
+$cisChar :: B -&gt; Bool
+isUninterpreted :: B -&gt; Bool
+$cisUninterpreted :: B -&gt; Bool
+isUnbounded :: B -&gt; Bool
+$cisUnbounded :: B -&gt; Bool
+isDouble :: B -&gt; Bool
+$cisDouble :: B -&gt; Bool
+isFloat :: B -&gt; Bool
+$cisFloat :: B -&gt; Bool
+isReal :: B -&gt; Bool
+$cisReal :: B -&gt; Bool
+isBounded :: B -&gt; Bool
+$cisBounded :: B -&gt; Bool
+isBoolean :: B -&gt; Bool
+$cisBoolean :: B -&gt; Bool
+intSizeOf :: B -&gt; Int
+$cintSizeOf :: B -&gt; Int
+hasSign :: B -&gt; Bool
+$chasSign :: B -&gt; Bool
+kindOf :: B -&gt; Kind
+$ckindOf :: B -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#C%3AHasKind"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">HasKind</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Handy shortcut for the type of symbolic values over 'B'</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">type</span><span> </span><span id="SB"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-var">SB</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#B"><span class="hs-identifier hs-type">B</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- * Uninterpreted connectives over 'B'</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Uninterpreted logical connective 'and'</span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#and"><span class="hs-identifier hs-type">and</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span>
+</span><span id="line-45"></span><span id="and"><span class="annot"><span class="annottext">and :: SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#and"><span class="hs-identifier hs-var hs-var">and</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV B -&gt; SBV B -&gt; SBV B
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;AND&quot;</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Uninterpreted logical connective 'or'</span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#or"><span class="hs-identifier hs-type">or</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span>
+</span><span id="line-49"></span><span id="or"><span class="annot"><span class="annottext">or :: SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#or"><span class="hs-identifier hs-var hs-var">or</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV B -&gt; SBV B -&gt; SBV B
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;OR&quot;</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Uninterpreted logical connective 'not'</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-type">not</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#SB"><span class="hs-identifier hs-type">SB</span></a></span><span>
+</span><span id="line-53"></span><span id="not"><span class="annot"><span class="annottext">not :: SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var hs-var">not</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV B -&gt; SBV B
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;NOT&quot;</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- * Axioms of the logical system</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | Distributivity of OR over AND, as an axiom in terms of</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- the uninterpreted functions we have introduced. Note how</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- variables range over the uninterpreted sort 'B'.</span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax1"><span class="hs-identifier hs-type">ax1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="ax1"><span class="annot"><span class="annottext">ax1 :: [String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax1"><span class="hs-identifier hs-var hs-var">ax1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;(assert (forall ((p B) (q B) (r B))&quot;</span></span><span>
+</span><span id="line-64"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;   (= (AND (OR p q) (OR p r))&quot;</span></span><span>
+</span><span id="line-65"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;      (OR p (AND q r)))))&quot;</span></span><span>
+</span><span id="line-66"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | One of De Morgan's laws, again as an axiom in terms</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- of our uninterpeted logical connectives.</span><span>
+</span><span id="line-70"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax2"><span class="hs-identifier hs-type">ax2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-71"></span><span id="ax2"><span class="annot"><span class="annottext">ax2 :: [String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax2"><span class="hs-identifier hs-var hs-var">ax2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;(assert (forall ((p B) (q B))&quot;</span></span><span>
+</span><span id="line-72"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;   (= (NOT (OR p q))&quot;</span></span><span>
+</span><span id="line-73"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;      (AND (NOT p) (NOT q)))))&quot;</span></span><span>
+</span><span id="line-74"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Double negation axiom, similar to the above.</span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax3"><span class="hs-identifier hs-type">ax3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-78"></span><span id="ax3"><span class="annot"><span class="annottext">ax3 :: [String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax3"><span class="hs-identifier hs-var hs-var">ax3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;(assert (forall ((p B)) (= (NOT (NOT p)) p)))&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- * Demonstrated deduction</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- | Proves the equivalence @NOT (p OR (q AND r)) == (NOT p AND NOT q) OR (NOT p AND NOT r)@,</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- following from the axioms we have specified above. We have:</span><span>
+</span><span id="line-86"></span><span class="hs-comment">--</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- &gt;&gt;&gt; test</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#test"><span class="hs-identifier hs-type">test</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-90"></span><span id="test"><span class="annot"><span class="annottext">test :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#test"><span class="hs-identifier hs-var hs-var">test</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO ThmResult)
+-&gt; SymbolicT IO SBool -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; Symbolic ()
+</span><a href="Data.SBV.Client.BaseIO.html#addAxiom"><span class="hs-identifier hs-var">addAxiom</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;OR distributes over AND&quot;</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax1"><span class="hs-identifier hs-var">ax1</span></a></span><span>
+</span><span id="line-91"></span><span>                  </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; Symbolic ()
+</span><a href="Data.SBV.Client.BaseIO.html#addAxiom"><span class="hs-identifier hs-var">addAxiom</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;de Morgan&quot;</span></span><span>               </span><span class="annot"><span class="annottext">[String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax2"><span class="hs-identifier hs-var">ax2</span></a></span><span>
+</span><span id="line-92"></span><span>                  </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; Symbolic ()
+</span><a href="Data.SBV.Client.BaseIO.html#addAxiom"><span class="hs-identifier hs-var">addAxiom</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;double negation&quot;</span></span><span>         </span><span class="annot"><span class="annottext">[String]
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#ax3"><span class="hs-identifier hs-var">ax3</span></a></span><span>
+</span><span id="line-93"></span><span>                  </span><span id="local-6989586621681169928"><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169928"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV B)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;p&quot;</span></span><span>
+</span><span id="line-94"></span><span>                  </span><span id="local-6989586621681169926"><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169926"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV B)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;q&quot;</span></span><span>
+</span><span id="line-95"></span><span>                  </span><span id="local-6989586621681169925"><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169925"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV B)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;r&quot;</span></span><span>
+</span><span id="line-96"></span><span>                  </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>   </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169928"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#or"><span class="hs-operator hs-var">`or`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169926"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#and"><span class="hs-operator hs-var">`and`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169925"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span>                         </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169928"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#and"><span class="hs-operator hs-var">`and`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169926"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#or"><span class="hs-operator hs-var">`or`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169928"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#and"><span class="hs-operator hs-var">`and`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B -&gt; SBV B
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Deduce.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="annot"><span class="annottext">SBV B
+</span><a href="#local-6989586621681169925"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span></pre></body></html>

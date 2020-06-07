@@ -1,0 +1,401 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.Birthday</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- This is a formalization of the Cheryl's birthday problem, which went viral in April 2015.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- (See &lt;http://www.nytimes.com/2015/04/15/science/a-math-problem-from-singapore-goes-viral-when-is-cheryls-birthday.html&gt;.)</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Here's the puzzle:</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- Albert and Bernard just met Cheryl. &#8220;When&#8217;s your birthday?&#8221; Albert asked Cheryl.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Cheryl thought a second and said, &#8220;I&#8217;m not going to tell you, but I&#8217;ll give you some clues.&#8221; She wrote down a list of 10 dates:</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--   May 15, May 16, May 19</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   June 17, June 18</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   July 14, July 16</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   August 14, August 15, August 17</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &#8220;My birthday is one of these,&#8221; she said.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- Then Cheryl whispered in Albert&#8217;s ear the month &#8212; and only the month &#8212; of her birthday. To Bernard, she whispered the day, and only the day. </span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- &#8220;Can you figure it out now?&#8221; she asked Albert.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- Albert: I don&#8217;t know when your birthday is, but I know Bernard doesn&#8217;t know, either.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- Bernard: I didn&#8217;t know originally, but now I do.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- Albert: Well, now I know, too!</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- When is Cheryl&#8217;s birthday?</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- NB. Thanks to Amit Goel for suggesting the formalization strategy used in here.</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.Birthday</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- * Types and values</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- | Represent month by 8-bit words; We can also use an uninterpreted type, but numbers work well here.</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">type</span><span> </span><span id="Month"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Month"><span class="hs-identifier hs-var">Month</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | Represent day by 8-bit words; Again, an uninterpreted type would work as well.</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">type</span><span> </span><span id="Day"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Day"><span class="hs-identifier hs-var">Day</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Months referenced in the problem.</span><span>
+</span><span id="line-56"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-type">may</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#june"><span class="hs-identifier hs-type">june</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#july"><span class="hs-identifier hs-type">july</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-type">august</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-57"></span><span class="hs-special">[</span><span id="may"><span class="annot"><span class="annottext">may :: SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span></span><span class="hs-special">,</span><span> </span><span id="june"><span class="annot"><span class="annottext">june :: SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#june"><span class="hs-identifier hs-var">june</span></a></span></span><span class="hs-special">,</span><span> </span><span id="july"><span class="annot"><span class="annottext">july :: SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#july"><span class="hs-identifier hs-var">july</span></a></span></span><span class="hs-special">,</span><span> </span><span id="august"><span class="annot"><span class="annottext">august :: SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">6</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">7</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">8</span></span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- * Helper predicates</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Check that a given month/day combo is a possible birth-date.</span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-type">valid</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Month"><span class="hs-identifier hs-type">Month</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-65"></span><span id="valid"><span class="annot"><span class="annottext">valid :: SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var hs-var">valid</span></a></span></span><span> </span><span id="local-6989586621681164245"><span class="annot"><span class="annottext">month :: SWord8
+</span><a href="#local-6989586621681164245"><span class="hs-identifier hs-var">month</span></a></span></span><span> </span><span id="local-6989586621681164244"><span class="annot"><span class="annottext">day :: SWord8
+</span><a href="#local-6989586621681164244"><span class="hs-identifier hs-var">day</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164245"><span class="hs-identifier hs-var">month</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164244"><span class="hs-identifier hs-var">day</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(SWord8, SWord8) -&gt; [(SWord8, SWord8)] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#sElem"><span class="hs-operator hs-var">`sElem`</span></a></span><span> </span><span class="annot"><span class="annottext">[(SWord8, SWord8)]
+</span><a href="#local-6989586621681164242"><span class="hs-identifier hs-var">candidates</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681164242"><span class="hs-identifier hs-type">candidates</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Month"><span class="hs-identifier hs-type">Month</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>        </span><span id="local-6989586621681164242"><span class="annot"><span class="annottext">candidates :: [(SWord8, SWord8)]
+</span><a href="#local-6989586621681164242"><span class="hs-identifier hs-var hs-var">candidates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span>   </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">15</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>   </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">16</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>   </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">19</span></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#june"><span class="hs-identifier hs-var">june</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">17</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#june"><span class="hs-identifier hs-var">june</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">18</span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#july"><span class="hs-identifier hs-var">july</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">14</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#july"><span class="hs-identifier hs-var">july</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">16</span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">14</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">15</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">17</span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>                     </span><span class="hs-special">]</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | Assert that the given function holds for one of the possible days.</span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsDay"><span class="hs-identifier hs-type">existsDay</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-75"></span><span id="existsDay"><span class="annot"><span class="annottext">existsDay :: (SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsDay"><span class="hs-identifier hs-var hs-var">existsDay</span></a></span></span><span> </span><span id="local-6989586621681164240"><span class="annot"><span class="annottext">f :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164240"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; SBool) -&gt; [Word8] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier hs-var">sAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164240"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; (Word8 -&gt; SWord8) -&gt; Word8 -&gt; SBool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; SWord8
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">19</span></span><span class="hs-special">]</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- | Assert that the given function holds for all of the possible days.</span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallDay"><span class="hs-identifier hs-type">forallDay</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-79"></span><span id="forallDay"><span class="annot"><span class="annottext">forallDay :: (SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallDay"><span class="hs-identifier hs-var hs-var">forallDay</span></a></span></span><span> </span><span id="local-6989586621681164235"><span class="annot"><span class="annottext">f :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164235"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; SBool) -&gt; [Word8] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164235"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; (Word8 -&gt; SWord8) -&gt; Word8 -&gt; SBool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; SWord8
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">19</span></span><span class="hs-special">]</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- | Assert that the given function holds for one of the possible months.</span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-type">existsMonth</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Month"><span class="hs-identifier hs-type">Month</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-83"></span><span id="existsMonth"><span class="annot"><span class="annottext">existsMonth :: (SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-var hs-var">existsMonth</span></a></span></span><span> </span><span id="local-6989586621681164232"><span class="annot"><span class="annottext">f :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164232"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; [SWord8] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier hs-var">sAny</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164232"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | Assert that the given function holds for all of the possible months.</span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallMonth"><span class="hs-identifier hs-type">forallMonth</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#Month"><span class="hs-identifier hs-type">Month</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-87"></span><span id="forallMonth"><span class="annot"><span class="annottext">forallMonth :: (SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallMonth"><span class="hs-identifier hs-var hs-var">forallMonth</span></a></span></span><span> </span><span id="local-6989586621681164230"><span class="annot"><span class="annottext">f :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164230"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; [SWord8] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAll"><span class="hs-identifier hs-var">sAll</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164230"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#may"><span class="hs-identifier hs-var">may</span></a></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#august"><span class="hs-identifier hs-var">august</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- * The puzzle</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-----------------------------------------------------------------------------------------------</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | Encode the conversation as given in the puzzle.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- NB. Lee Pike pointed out that not all the constraints are actually necessary! (Private</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- communication.) The puzzle still has a unique solution if the statements @a1@ and @b1@</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- (i.e., Albert and Bernard saying they themselves do not know the answer) are removed.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- To experiment you can simply comment out those statements and observe that there still</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- is a unique solution. Thanks to Lee for pointing this out! In fact, it is instructive to</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- assert the conversation line-by-line, and see how the search-space gets reduced in each</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- step.</span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#puzzle"><span class="hs-identifier hs-type">puzzle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Predicate"><span class="hs-identifier hs-type">Predicate</span></a></span><span>
+</span><span id="line-103"></span><span id="puzzle"><span class="annot"><span class="annottext">puzzle :: Predicate
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#puzzle"><span class="hs-identifier hs-var hs-var">puzzle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681164228"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164228"><span class="hs-identifier hs-var">birthDay</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SWord8
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;birthDay&quot;</span></span><span>
+</span><span id="line-104"></span><span>            </span><span id="local-6989586621681164226"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164226"><span class="hs-identifier hs-var">birthMonth</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SWord8
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;birthMonth&quot;</span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span>            </span><span class="hs-comment">-- Albert: I do not know</span><span>
+</span><span id="line-107"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164225"><span class="annot"><span class="annottext">a1 :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164225"><span class="hs-identifier hs-var hs-var">a1</span></a></span></span><span> </span><span id="local-6989586621681164224"><span class="annot"><span class="annottext">m :: SWord8
+</span><a href="#local-6989586621681164224"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsDay"><span class="hs-identifier hs-var">existsDay</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164223"><span class="annot"><span class="annottext">d1 :: SWord8
+</span><a href="#local-6989586621681164223"><span class="hs-identifier hs-var">d1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsDay"><span class="hs-identifier hs-var">existsDay</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164222"><span class="annot"><span class="annottext">d2 :: SWord8
+</span><a href="#local-6989586621681164222"><span class="hs-identifier hs-var">d2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-108"></span><span>                           </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164223"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164222"><span class="hs-identifier hs-var">d2</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164224"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164223"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164224"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164222"><span class="hs-identifier hs-var">d2</span></a></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span>            </span><span class="hs-comment">-- Albert: I know that Bernard doesn't know</span><span>
+</span><span id="line-111"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164219"><span class="annot"><span class="annottext">a2 :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164219"><span class="hs-identifier hs-var hs-var">a2</span></a></span></span><span> </span><span id="local-6989586621681164218"><span class="annot"><span class="annottext">m :: SWord8
+</span><a href="#local-6989586621681164218"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallDay"><span class="hs-identifier hs-var">forallDay</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164217"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681164217"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164218"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164217"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span>
+</span><span id="line-112"></span><span>                          </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-var">existsMonth</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681164215"><span class="annot"><span class="annottext">m1 :: SWord8
+</span><a href="#local-6989586621681164215"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-var">existsMonth</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164214"><span class="annot"><span class="annottext">m2 :: SWord8
+</span><a href="#local-6989586621681164214"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-113"></span><span>                                </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164215"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164214"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164215"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164217"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164214"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164217"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span>            </span><span class="hs-comment">-- Bernard: I did not know</span><span>
+</span><span id="line-116"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164213"><span class="annot"><span class="annottext">b1 :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164213"><span class="hs-identifier hs-var hs-var">b1</span></a></span></span><span> </span><span id="local-6989586621681164212"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681164212"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-var">existsMonth</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164211"><span class="annot"><span class="annottext">m1 :: SWord8
+</span><a href="#local-6989586621681164211"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#existsMonth"><span class="hs-identifier hs-var">existsMonth</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164210"><span class="annot"><span class="annottext">m2 :: SWord8
+</span><a href="#local-6989586621681164210"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-117"></span><span>                           </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164211"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164210"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164211"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164212"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164210"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164212"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span>            </span><span class="hs-comment">-- Bernard: But now I know</span><span>
+</span><span id="line-120"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164209"><span class="annot"><span class="annottext">b2p :: SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164209"><span class="hs-identifier hs-var hs-var">b2p</span></a></span></span><span> </span><span id="local-6989586621681164208"><span class="annot"><span class="annottext">m :: SWord8
+</span><a href="#local-6989586621681164208"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681164207"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681164207"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164208"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164207"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164225"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164208"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164219"><span class="hs-identifier hs-var">a2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164208"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-121"></span><span>                </span><span id="local-6989586621681164206"><span class="annot"><span class="annottext">b2 :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164206"><span class="hs-identifier hs-var hs-var">b2</span></a></span></span><span>  </span><span id="local-6989586621681164205"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681164205"><span class="hs-identifier hs-var">d</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallMonth"><span class="hs-identifier hs-var">forallMonth</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164204"><span class="annot"><span class="annottext">m1 :: SWord8
+</span><a href="#local-6989586621681164204"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallMonth"><span class="hs-identifier hs-var">forallMonth</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164203"><span class="annot"><span class="annottext">m2 :: SWord8
+</span><a href="#local-6989586621681164203"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-122"></span><span>                                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164209"><span class="hs-identifier hs-var">b2p</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164204"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164205"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164209"><span class="hs-identifier hs-var">b2p</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164203"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164205"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164204"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164203"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>            </span><span class="hs-comment">-- Albert: Now I know too</span><span>
+</span><span id="line-125"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164201"><span class="annot"><span class="annottext">a3p :: SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164201"><span class="hs-identifier hs-var hs-var">a3p</span></a></span></span><span> </span><span id="local-6989586621681164200"><span class="annot"><span class="annottext">m :: SWord8
+</span><a href="#local-6989586621681164200"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681164199"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681164199"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164200"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164199"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164225"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164200"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164219"><span class="hs-identifier hs-var">a2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164200"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164213"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164199"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164206"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164199"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-126"></span><span>                </span><span id="local-6989586621681164198"><span class="annot"><span class="annottext">a3 :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164198"><span class="hs-identifier hs-var hs-var">a3</span></a></span></span><span> </span><span id="local-6989586621681164197"><span class="annot"><span class="annottext">m :: SWord8
+</span><a href="#local-6989586621681164197"><span class="hs-identifier hs-var">m</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallDay"><span class="hs-identifier hs-var">forallDay</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164196"><span class="annot"><span class="annottext">d1 :: SWord8
+</span><a href="#local-6989586621681164196"><span class="hs-identifier hs-var">d1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBool) -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#forallDay"><span class="hs-identifier hs-var">forallDay</span></a></span><span> </span><span class="annot"><span class="annottext">((SWord8 -&gt; SBool) -&gt; SBool) -&gt; (SWord8 -&gt; SBool) -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164195"><span class="annot"><span class="annottext">d2 :: SWord8
+</span><a href="#local-6989586621681164195"><span class="hs-identifier hs-var">d2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-127"></span><span>                                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164201"><span class="hs-identifier hs-var">a3p</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164197"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164196"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164201"><span class="hs-identifier hs-var">a3p</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164197"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164195"><span class="hs-identifier hs-var">d2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164196"><span class="hs-identifier hs-var">d1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164195"><span class="hs-identifier hs-var">d2</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span>            </span><span class="hs-comment">-- Assert all the statements made:</span><span>
+</span><span id="line-130"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164225"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164226"><span class="hs-identifier hs-var">birthMonth</span></a></span><span>
+</span><span id="line-131"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164219"><span class="hs-identifier hs-var">a2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164226"><span class="hs-identifier hs-var">birthMonth</span></a></span><span>
+</span><span id="line-132"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164213"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164228"><span class="hs-identifier hs-var">birthDay</span></a></span><span>
+</span><span id="line-133"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164206"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164228"><span class="hs-identifier hs-var">birthDay</span></a></span><span>
+</span><span id="line-134"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681164198"><span class="hs-identifier hs-var">a3</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164226"><span class="hs-identifier hs-var">birthMonth</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>            </span><span class="hs-comment">-- Find a valid birth-day that satisfies the above constraints:</span><span>
+</span><span id="line-137"></span><span>            </span><span class="annot"><span class="annottext">SBool -&gt; Predicate
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Predicate) -&gt; SBool -&gt; Predicate
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#valid"><span class="hs-identifier hs-var">valid</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164226"><span class="hs-identifier hs-var">birthMonth</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681164228"><span class="hs-identifier hs-var">birthDay</span></a></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- | Find all solutions to the birthday problem. We have:</span><span>
+</span><span id="line-140"></span><span class="hs-comment">--</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- &gt;&gt;&gt; cheryl</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-143"></span><span class="hs-comment">--   birthDay   = 16 :: Word8</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--   birthMonth =  7 :: Word8</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- This is the only solution.</span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#cheryl"><span class="hs-identifier hs-type">cheryl</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span id="cheryl"><span class="annot"><span class="annottext">cheryl :: IO ()
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#cheryl"><span class="hs-identifier hs-var hs-var">cheryl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AllSatResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(AllSatResult -&gt; IO ()) -&gt; IO AllSatResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">Predicate -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">Predicate
+</span><a href="Documentation.SBV.Examples.Puzzles.Birthday.html#puzzle"><span class="hs-identifier hs-var">puzzle</span></a></span><span>
+</span><span id="line-148"></span></pre></body></html>

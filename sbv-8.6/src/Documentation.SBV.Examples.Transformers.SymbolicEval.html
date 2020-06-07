@@ -1,0 +1,922 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Transformers.SymbolicEval</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Brian Schroeder</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- A demonstration of the use of the 'SymbolicT' and 'QueryT' transformers in</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- the setting of symbolic program evaluation.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- In this example, we perform symbolic evaluation across three steps:</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- 1. allocate free variables, so we can extract a model after evaluation</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- 2. perform symbolic evaluation of a program and an associated property</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- 3. querying the solver for whether it's possible to find a set of program</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--    inputs that falsify the property. if there is, we extract a model.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- To simplify the example, our programs always have exactly two integer inputs</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- named @x@ and @y@.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-pragma">{-# LANGUAGE DeriveFunctor              #-}</span><span>
+</span><span id="line-24"></span><span class="hs-pragma">{-# LANGUAGE GADTs                      #-}</span><span>
+</span><span id="line-25"></span><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
+</span><span id="line-26"></span><span class="hs-pragma">{-# LANGUAGE KindSignatures             #-}</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Transformers.SymbolicEval</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Except</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">MonadError</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mapExceptT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runExceptT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">throwError</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">runIdentity</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadReader</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">reader</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">asks</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runReaderT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">lift</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Dynamic.html"><span class="hs-identifier">Data.SBV.Dynamic</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier">SVal</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Internals.html"><span class="hs-identifier">Data.SBV.Internals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier">SBV</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier">SBV</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#unSBV"><span class="hs-identifier">unSBV</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Trans.html"><span class="hs-identifier">Data.SBV.Trans</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Trans.Control.html"><span class="hs-identifier">Data.SBV.Trans.Control</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- * Allocation of symbolic variables, so we can extract a model later.</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Monad for allocating free variables.</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">newtype</span><span> </span><span id="Alloc"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Alloc"><span class="hs-identifier hs-var">Alloc</span></a></span></span><span> </span><span id="local-6989586621681169678"><span class="annot"><a href="#local-6989586621681169678"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Alloc"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Alloc"><span class="hs-identifier hs-var">Alloc</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runAlloc"><span class="annot"><span class="annottext">Alloc a -&gt; SymbolicT (ExceptT String IO) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runAlloc"><span class="hs-identifier hs-var hs-var">runAlloc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SymbolicT"><span class="hs-identifier hs-type">SymbolicT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681169678"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681169640"><span id="local-6989586621681169642"><span class="annot"><span class="annottext">a -&gt; Alloc b -&gt; Alloc a
+(a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+(forall a b. (a -&gt; b) -&gt; Alloc a -&gt; Alloc b)
+-&gt; (forall a b. a -&gt; Alloc b -&gt; Alloc a) -&gt; Functor Alloc
+forall a b. a -&gt; Alloc b -&gt; Alloc a
+forall a b. (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: a -&gt; Alloc b -&gt; Alloc a
+$c&lt;$ :: forall a b. a -&gt; Alloc b -&gt; Alloc a
+fmap :: (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+$cfmap :: forall a b. (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169628"><span id="local-6989586621681169630"><span id="local-6989586621681169632"><span id="local-6989586621681169634"><span id="local-6989586621681169636"><span class="annot"><span class="annottext">Functor Alloc
+a -&gt; Alloc a
+Functor Alloc =&gt;
+(forall a. a -&gt; Alloc a)
+-&gt; (forall a b. Alloc (a -&gt; b) -&gt; Alloc a -&gt; Alloc b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; Alloc a -&gt; Alloc b -&gt; Alloc c)
+-&gt; (forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b)
+-&gt; (forall a b. Alloc a -&gt; Alloc b -&gt; Alloc a)
+-&gt; Applicative Alloc
+Alloc a -&gt; Alloc b -&gt; Alloc b
+Alloc a -&gt; Alloc b -&gt; Alloc a
+Alloc (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+(a -&gt; b -&gt; c) -&gt; Alloc a -&gt; Alloc b -&gt; Alloc c
+forall a. a -&gt; Alloc a
+forall a b. Alloc a -&gt; Alloc b -&gt; Alloc a
+forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b
+forall a b. Alloc (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+forall a b c. (a -&gt; b -&gt; c) -&gt; Alloc a -&gt; Alloc b -&gt; Alloc c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+&lt;* :: Alloc a -&gt; Alloc b -&gt; Alloc a
+$c&lt;* :: forall a b. Alloc a -&gt; Alloc b -&gt; Alloc a
+*&gt; :: Alloc a -&gt; Alloc b -&gt; Alloc b
+$c*&gt; :: forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b
+liftA2 :: (a -&gt; b -&gt; c) -&gt; Alloc a -&gt; Alloc b -&gt; Alloc c
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Alloc a -&gt; Alloc b -&gt; Alloc c
+&lt;*&gt; :: Alloc (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+$c&lt;*&gt; :: forall a b. Alloc (a -&gt; b) -&gt; Alloc a -&gt; Alloc b
+pure :: a -&gt; Alloc a
+$cpure :: forall a. a -&gt; Alloc a
+$cp1Applicative :: Functor Alloc
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169620"><span id="local-6989586621681169622"><span id="local-6989586621681169624"><span class="annot"><span class="annottext">Applicative Alloc
+a -&gt; Alloc a
+Applicative Alloc =&gt;
+(forall a b. Alloc a -&gt; (a -&gt; Alloc b) -&gt; Alloc b)
+-&gt; (forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b)
+-&gt; (forall a. a -&gt; Alloc a)
+-&gt; Monad Alloc
+Alloc a -&gt; (a -&gt; Alloc b) -&gt; Alloc b
+Alloc a -&gt; Alloc b -&gt; Alloc b
+forall a. a -&gt; Alloc a
+forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b
+forall a b. Alloc a -&gt; (a -&gt; Alloc b) -&gt; Alloc b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+return :: a -&gt; Alloc a
+$creturn :: forall a. a -&gt; Alloc a
+&gt;&gt; :: Alloc a -&gt; Alloc b -&gt; Alloc b
+$c&gt;&gt; :: forall a b. Alloc a -&gt; Alloc b -&gt; Alloc b
+&gt;&gt;= :: Alloc a -&gt; (a -&gt; Alloc b) -&gt; Alloc b
+$c&gt;&gt;= :: forall a b. Alloc a -&gt; (a -&gt; Alloc b) -&gt; Alloc b
+$cp1Monad :: Applicative Alloc
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169616"><span class="annot"><span class="annottext">Monad Alloc
+Monad Alloc =&gt; (forall a. IO a -&gt; Alloc a) -&gt; MonadIO Alloc
+IO a -&gt; Alloc a
+forall a. IO a -&gt; Alloc a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+liftIO :: IO a -&gt; Alloc a
+$cliftIO :: forall a. IO a -&gt; Alloc a
+$cp1MonadIO :: Monad Alloc
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>              </span><span id="local-6989586621681169610"><span id="local-6989586621681169612"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169606"><span class="annot"><span class="annottext">MonadIO Alloc
+Alloc State
+MonadIO Alloc =&gt; Alloc State -&gt; MonadSymbolic Alloc
+forall (m :: * -&gt; *). MonadIO m =&gt; m State -&gt; MonadSymbolic m
+symbolicEnv :: Alloc State
+$csymbolicEnv :: Alloc State
+$cp1MonadSymbolic :: MonadIO Alloc
+</span><a href="Data.SBV.Core.Symbolic.html#C%3AMonadSymbolic"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadSymbolic</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | Environment holding allocated variables.</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">data</span><span> </span><span id="Env"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-var">Env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Env"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-var">Env</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="envX"><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envX"><span class="hs-identifier hs-var hs-var">envX</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-52"></span><span>               </span><span class="hs-special">,</span><span> </span><span id="envY"><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envY"><span class="hs-identifier hs-var hs-var">envY</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-53"></span><span>               </span><span class="hs-special">,</span><span> </span><span id="result"><span class="annot"><span class="annottext">Env -&gt; Maybe SVal
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#result"><span class="hs-identifier hs-var hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-type">SVal</span></a></span><span> </span><span class="hs-comment">-- could be integer or bool. during</span><span>
+</span><span id="line-54"></span><span>                                      </span><span class="hs-comment">-- program evaluation, this is Nothing.</span><span>
+</span><span id="line-55"></span><span>                                      </span><span class="hs-comment">-- we only have a value during property</span><span>
+</span><span id="line-56"></span><span>                                      </span><span class="hs-comment">-- evaluation.</span><span>
+</span><span id="line-57"></span><span>               </span><span class="hs-special">}</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681169597"><span id="local-6989586621681169599"><span class="annot"><span class="annottext">Env -&gt; Env -&gt; Bool
+(Env -&gt; Env -&gt; Bool) -&gt; (Env -&gt; Env -&gt; Bool) -&gt; Eq Env
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Env -&gt; Env -&gt; Bool
+$c/= :: Env -&gt; Env -&gt; Bool
+== :: Env -&gt; Env -&gt; Bool
+$c== :: Env -&gt; Env -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169590"><span id="local-6989586621681169592"><span id="local-6989586621681169594"><span class="annot"><span class="annottext">Int -&gt; Env -&gt; ShowS
+[Env] -&gt; ShowS
+Env -&gt; String
+(Int -&gt; Env -&gt; ShowS)
+-&gt; (Env -&gt; String) -&gt; ([Env] -&gt; ShowS) -&gt; Show Env
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Env] -&gt; ShowS
+$cshowList :: [Env] -&gt; ShowS
+show :: Env -&gt; String
+$cshow :: Env -&gt; String
+showsPrec :: Int -&gt; Env -&gt; ShowS
+$cshowsPrec :: Int -&gt; Env -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Allocate an integer variable with the provided name.</span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#alloc"><span class="hs-identifier hs-type">alloc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Alloc"><span class="hs-identifier hs-type">Alloc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span id="alloc"><span class="annot"><span class="annottext">alloc :: String -&gt; Alloc (SBV Integer)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#alloc"><span class="hs-identifier hs-var hs-var">alloc</span></a></span></span><span> </span><span class="hs-string">&quot;&quot;</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Alloc (SBV Integer)
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="hs-string">&quot;tried to allocate unnamed value&quot;</span></span><span>
+</span><span id="line-63"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#alloc"><span class="hs-identifier hs-var">alloc</span></a></span><span> </span><span id="local-6989586621681169587"><span class="annot"><span class="annottext">nm :: String
+</span><a href="#local-6989586621681169587"><span class="hs-identifier hs-var">nm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Alloc (SBV Integer)
+forall a (m :: * -&gt; *).
+(SymVal a, MonadSymbolic m) =&gt;
+String -&gt; m (SBV a)
+</span><a href="Data.SBV.Core.Data.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681169587"><span class="hs-identifier hs-var">nm</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- | Allocate an 'Env' holding all input variables for the program.</span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#allocEnv"><span class="hs-identifier hs-type">allocEnv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Alloc"><span class="hs-identifier hs-type">Alloc</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span>
+</span><span id="line-67"></span><span id="allocEnv"><span class="annot"><span class="annottext">allocEnv :: Alloc Env
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#allocEnv"><span class="hs-identifier hs-var hs-var">allocEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-68"></span><span>    </span><span id="local-6989586621681169584"><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681169584"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Alloc (SBV Integer)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#alloc"><span class="hs-identifier hs-var">alloc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-69"></span><span>    </span><span id="local-6989586621681169583"><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681169583"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Alloc (SBV Integer)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#alloc"><span class="hs-identifier hs-var">alloc</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><span class="annottext">Env -&gt; Alloc Env
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Env -&gt; Alloc Env) -&gt; Env -&gt; Alloc Env
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; Maybe SVal -&gt; Env
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-var">Env</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681169584"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681169583"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe SVal
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- * Symbolic term evaluation</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | The term language we use to express programs and properties.</span><span>
+</span><span id="line-75"></span><span class="hs-keyword">data</span><span> </span><span id="Term"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-var">Term</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-operator">*</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-operator">*</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621681169656"><span id="Var"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>                       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169656"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-77"></span><span>    </span><span id="Lit"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>                      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-78"></span><span>    </span><span id="Plus"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Plus"><span class="hs-identifier hs-var">Plus</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-79"></span><span>    </span><span id="LessThan"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#LessThan"><span class="hs-identifier hs-var">LessThan</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-80"></span><span>    </span><span id="GreaterThan"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#GreaterThan"><span class="hs-identifier hs-var">GreaterThan</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-81"></span><span>    </span><span id="Equals"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Equals"><span class="hs-identifier hs-var">Equals</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-82"></span><span>    </span><span id="Not"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Not"><span class="hs-identifier hs-var">Not</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-83"></span><span>    </span><span id="Or"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Or"><span class="hs-identifier hs-var">Or</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-84"></span><span>    </span><span id="And"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#And"><span class="hs-identifier hs-var">And</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-85"></span><span>    </span><span id="Implies"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Implies"><span class="hs-identifier hs-var">Implies</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | Monad for performing symbolic evaluation.</span><span>
+</span><span id="line-88"></span><span class="hs-keyword">newtype</span><span> </span><span id="Eval"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Eval"><span class="hs-identifier hs-var">Eval</span></a></span></span><span> </span><span id="local-6989586621681169730"><span class="annot"><a href="#local-6989586621681169730"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Eval"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Eval"><span class="hs-identifier hs-var">Eval</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unEval"><span class="annot"><span class="annottext">Eval a -&gt; ReaderT Env (Except String) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unEval"><span class="hs-identifier hs-var hs-var">unEval</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Except</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681169730"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681169567"><span id="local-6989586621681169569"><span class="annot"><span class="annottext">a -&gt; Eval b -&gt; Eval a
+(a -&gt; b) -&gt; Eval a -&gt; Eval b
+(forall a b. (a -&gt; b) -&gt; Eval a -&gt; Eval b)
+-&gt; (forall a b. a -&gt; Eval b -&gt; Eval a) -&gt; Functor Eval
+forall a b. a -&gt; Eval b -&gt; Eval a
+forall a b. (a -&gt; b) -&gt; Eval a -&gt; Eval b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: a -&gt; Eval b -&gt; Eval a
+$c&lt;$ :: forall a b. a -&gt; Eval b -&gt; Eval a
+fmap :: (a -&gt; b) -&gt; Eval a -&gt; Eval b
+$cfmap :: forall a b. (a -&gt; b) -&gt; Eval a -&gt; Eval b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169556"><span id="local-6989586621681169558"><span id="local-6989586621681169560"><span id="local-6989586621681169562"><span id="local-6989586621681169564"><span class="annot"><span class="annottext">Functor Eval
+a -&gt; Eval a
+Functor Eval =&gt;
+(forall a. a -&gt; Eval a)
+-&gt; (forall a b. Eval (a -&gt; b) -&gt; Eval a -&gt; Eval b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; Eval a -&gt; Eval b -&gt; Eval c)
+-&gt; (forall a b. Eval a -&gt; Eval b -&gt; Eval b)
+-&gt; (forall a b. Eval a -&gt; Eval b -&gt; Eval a)
+-&gt; Applicative Eval
+Eval a -&gt; Eval b -&gt; Eval b
+Eval a -&gt; Eval b -&gt; Eval a
+Eval (a -&gt; b) -&gt; Eval a -&gt; Eval b
+(a -&gt; b -&gt; c) -&gt; Eval a -&gt; Eval b -&gt; Eval c
+forall a. a -&gt; Eval a
+forall a b. Eval a -&gt; Eval b -&gt; Eval a
+forall a b. Eval a -&gt; Eval b -&gt; Eval b
+forall a b. Eval (a -&gt; b) -&gt; Eval a -&gt; Eval b
+forall a b c. (a -&gt; b -&gt; c) -&gt; Eval a -&gt; Eval b -&gt; Eval c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+&lt;* :: Eval a -&gt; Eval b -&gt; Eval a
+$c&lt;* :: forall a b. Eval a -&gt; Eval b -&gt; Eval a
+*&gt; :: Eval a -&gt; Eval b -&gt; Eval b
+$c*&gt; :: forall a b. Eval a -&gt; Eval b -&gt; Eval b
+liftA2 :: (a -&gt; b -&gt; c) -&gt; Eval a -&gt; Eval b -&gt; Eval c
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Eval a -&gt; Eval b -&gt; Eval c
+&lt;*&gt; :: Eval (a -&gt; b) -&gt; Eval a -&gt; Eval b
+$c&lt;*&gt; :: forall a b. Eval (a -&gt; b) -&gt; Eval a -&gt; Eval b
+pure :: a -&gt; Eval a
+$cpure :: forall a. a -&gt; Eval a
+$cp1Applicative :: Functor Eval
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169549"><span id="local-6989586621681169551"><span id="local-6989586621681169553"><span class="annot"><span class="annottext">Applicative Eval
+a -&gt; Eval a
+Applicative Eval =&gt;
+(forall a b. Eval a -&gt; (a -&gt; Eval b) -&gt; Eval b)
+-&gt; (forall a b. Eval a -&gt; Eval b -&gt; Eval b)
+-&gt; (forall a. a -&gt; Eval a)
+-&gt; Monad Eval
+Eval a -&gt; (a -&gt; Eval b) -&gt; Eval b
+Eval a -&gt; Eval b -&gt; Eval b
+forall a. a -&gt; Eval a
+forall a b. Eval a -&gt; Eval b -&gt; Eval b
+forall a b. Eval a -&gt; (a -&gt; Eval b) -&gt; Eval b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+return :: a -&gt; Eval a
+$creturn :: forall a. a -&gt; Eval a
+&gt;&gt; :: Eval a -&gt; Eval b -&gt; Eval b
+$c&gt;&gt; :: forall a b. Eval a -&gt; Eval b -&gt; Eval b
+&gt;&gt;= :: Eval a -&gt; (a -&gt; Eval b) -&gt; Eval b
+$c&gt;&gt;= :: forall a b. Eval a -&gt; (a -&gt; Eval b) -&gt; Eval b
+$cp1Monad :: Applicative Eval
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169542"><span id="local-6989586621681169544"><span id="local-6989586621681169546"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169536"><span id="local-6989586621681169538"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- | Unsafe cast for symbolic values. In production code, we would check types instead.</span><span>
+</span><span id="line-92"></span><span id="local-6989586621681169745"><span id="local-6989586621681169746"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unsafeCastSBV"><span class="hs-identifier hs-type">unsafeCastSBV</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169746"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169745"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-93"></span><span id="unsafeCastSBV"><span class="annot"><span class="annottext">unsafeCastSBV :: SBV a -&gt; SBV b
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unsafeCastSBV"><span class="hs-identifier hs-var hs-var">unsafeCastSBV</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV b
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV b) -&gt; (SBV a -&gt; SVal) -&gt; SBV a -&gt; SBV b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SVal
+forall a. SBV a -&gt; SVal
+</span><a href="Data.SBV.Core.Data.html#unSBV"><span class="hs-identifier hs-var hs-var">unSBV</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | Symbolic evaluation function for 'Term'.</span><span>
+</span><span id="line-96"></span><span id="local-6989586621681169740"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-type">eval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169740"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Eval"><span class="hs-identifier hs-type">Eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169740"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-97"></span><span id="eval"><span class="annot"><span class="annottext">eval :: Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var hs-var">eval</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-string">&quot;x&quot;</span><span class="hs-special">)</span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Env -&gt; SBV r) -&gt; Eval (SBV r)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">((Env -&gt; SBV r) -&gt; Eval (SBV r)) -&gt; (Env -&gt; SBV r) -&gt; Eval (SBV r)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV r
+forall a b. SBV a -&gt; SBV b
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unsafeCastSBV"><span class="hs-identifier hs-var">unsafeCastSBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV r) -&gt; (Env -&gt; SBV Integer) -&gt; Env -&gt; SBV r
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envX"><span class="hs-identifier hs-var hs-var">envX</span></a></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-string">&quot;y&quot;</span><span class="hs-special">)</span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Env -&gt; SBV r) -&gt; Eval (SBV r)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">((Env -&gt; SBV r) -&gt; Eval (SBV r)) -&gt; (Env -&gt; SBV r) -&gt; Eval (SBV r)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV r
+forall a b. SBV a -&gt; SBV b
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unsafeCastSBV"><span class="hs-identifier hs-var">unsafeCastSBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV r) -&gt; (Env -&gt; SBV Integer) -&gt; Env -&gt; SBV r
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envY"><span class="hs-identifier hs-var hs-var">envY</span></a></span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-string">&quot;result&quot;</span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169532"><span class="annot"><span class="annottext">Maybe SVal
+</span><a href="#local-6989586621681169532"><span class="hs-identifier hs-var">mRes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Env -&gt; Maybe SVal) -&gt; Eval (Maybe SVal)
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">reader</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; Maybe SVal
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#result"><span class="hs-identifier hs-var hs-var">result</span></a></span><span>
+</span><span id="line-100"></span><span>                              </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe SVal
+</span><a href="#local-6989586621681169532"><span class="hs-identifier hs-var">mRes</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-101"></span><span>                                </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Eval (SBV r)
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unknown variable&quot;</span></span><span>
+</span><span id="line-102"></span><span>                                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681169531"><span class="annot"><span class="annottext">sv :: SVal
+</span><a href="#local-6989586621681169531"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV r -&gt; Eval (SBV r)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(SBV r -&gt; Eval (SBV r)) -&gt; SBV r -&gt; Eval (SBV r)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV r
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">SVal
+</span><a href="#local-6989586621681169531"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Eval (SBV r)
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unknown variable&quot;</span></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span> </span><span id="local-6989586621681169530"><span class="annot"><span class="annottext">i :: Integer
+</span><a href="#local-6989586621681169530"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; Eval (SBV r)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(SBV Integer -&gt; Eval (SBV r)) -&gt; SBV Integer -&gt; Eval (SBV r)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; SBV Integer
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681169530"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span>        </span><span id="local-6989586621681169528"><span class="annot"><span class="annottext">t1 :: Term Integer
+</span><a href="#local-6989586621681169528"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169527"><span class="annot"><span class="annottext">t2 :: Term Integer
+</span><a href="#local-6989586621681169527"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBV Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span>   </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBV Integer)
+-&gt; Eval (SBV Integer) -&gt; Eval (SBV Integer -&gt; SBV Integer)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169528"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBV Integer -&gt; SBV Integer)
+-&gt; Eval (SBV Integer) -&gt; Eval (SBV Integer)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169527"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#LessThan"><span class="hs-identifier hs-type">LessThan</span></a></span><span>    </span><span id="local-6989586621681169524"><span class="annot"><span class="annottext">t1 :: Term Integer
+</span><a href="#local-6989586621681169524"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169523"><span class="annot"><span class="annottext">t2 :: Term Integer
+</span><a href="#local-6989586621681169523"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">(.&lt;)</span></a></span><span>  </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool)
+-&gt; Eval (SBV Integer) -&gt; Eval (SBV Integer -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169524"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBV Integer -&gt; SBool) -&gt; Eval (SBV Integer) -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169523"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-107"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#GreaterThan"><span class="hs-identifier hs-type">GreaterThan</span></a></span><span> </span><span id="local-6989586621681169521"><span class="annot"><span class="annottext">t1 :: Term Integer
+</span><a href="#local-6989586621681169521"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169520"><span class="annot"><span class="annottext">t2 :: Term Integer
+</span><a href="#local-6989586621681169520"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">(.&gt;)</span></a></span><span>  </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool)
+-&gt; Eval (SBV Integer) -&gt; Eval (SBV Integer -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169521"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBV Integer -&gt; SBool) -&gt; Eval (SBV Integer) -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169520"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-108"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Equals"><span class="hs-identifier hs-type">Equals</span></a></span><span>      </span><span id="local-6989586621681169518"><span class="annot"><span class="annottext">t1 :: Term Integer
+</span><a href="#local-6989586621681169518"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169517"><span class="annot"><span class="annottext">t2 :: Term Integer
+</span><a href="#local-6989586621681169517"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">(.==)</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool)
+-&gt; Eval (SBV Integer) -&gt; Eval (SBV Integer -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169518"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBV Integer -&gt; SBool) -&gt; Eval (SBV Integer) -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Eval (SBV Integer)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169517"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Not"><span class="hs-identifier hs-type">Not</span></a></span><span>         </span><span id="local-6989586621681169515"><span class="annot"><span class="annottext">t :: Term Bool
+</span><a href="#local-6989586621681169515"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span>  </span><span class="annot"><span class="annottext">(SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169515"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Or"><span class="hs-identifier hs-type">Or</span></a></span><span>          </span><span id="local-6989586621681169513"><span class="annot"><span class="annottext">t1 :: Term Bool
+</span><a href="#local-6989586621681169513"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169512"><span class="annot"><span class="annottext">t2 :: Term Bool
+</span><a href="#local-6989586621681169512"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">(.||)</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval (SBool -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169513"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169512"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#And"><span class="hs-identifier hs-type">And</span></a></span><span>         </span><span id="local-6989586621681169510"><span class="annot"><span class="annottext">t1 :: Term Bool
+</span><a href="#local-6989586621681169510"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169509"><span class="annot"><span class="annottext">t2 :: Term Bool
+</span><a href="#local-6989586621681169509"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">(.&amp;&amp;)</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval (SBool -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169510"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169509"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Implies"><span class="hs-identifier hs-type">Implies</span></a></span><span>     </span><span id="local-6989586621681169507"><span class="annot"><span class="annottext">t1 :: Term Bool
+</span><a href="#local-6989586621681169507"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span id="local-6989586621681169506"><span class="annot"><span class="annottext">t2 :: Term Bool
+</span><a href="#local-6989586621681169506"><span class="hs-identifier hs-var">t2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">(.=&gt;)</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval (SBool -&gt; SBool)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169507"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">Eval (SBool -&gt; SBool) -&gt; Eval SBool -&gt; Eval SBool
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Eval SBool
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169506"><span class="hs-identifier hs-var">t2</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- | Runs symbolic evaluation, sending a 'Term' to a symbolic value (or</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- failing). Used for symbolic evaluation of programs and properties.</span><span>
+</span><span id="line-116"></span><span id="local-6989586621681169723"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runEval"><span class="hs-identifier hs-type">runEval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169723"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Except</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169723"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-117"></span><span id="runEval"><span class="annot"><span class="annottext">runEval :: Env -&gt; Term a -&gt; Except String (SBV a)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runEval"><span class="hs-identifier hs-var hs-var">runEval</span></a></span></span><span> </span><span id="local-6989586621681169503"><span class="annot"><span class="annottext">env :: Env
+</span><a href="#local-6989586621681169503"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681169502"><span class="annot"><span class="annottext">term :: Term a
+</span><a href="#local-6989586621681169502"><span class="hs-identifier hs-var">term</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT Env (Except String) (SBV a) -&gt; Env -&gt; Except String (SBV a)
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var hs-var">runReaderT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Eval (SBV a) -&gt; ReaderT Env (Except String) (SBV a)
+forall a. Eval a -&gt; ReaderT Env (Except String) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#unEval"><span class="hs-identifier hs-var hs-var">unEval</span></a></span><span> </span><span class="annot"><span class="annottext">(Eval (SBV a) -&gt; ReaderT Env (Except String) (SBV a))
+-&gt; Eval (SBV a) -&gt; ReaderT Env (Except String) (SBV a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Term a -&gt; Eval (SBV a)
+forall r. Term r -&gt; Eval (SBV r)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621681169502"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169503"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- | A program that can reference two input variables, @x@ and @y@.</span><span>
+</span><span id="line-120"></span><span class="hs-keyword">newtype</span><span> </span><span id="Program"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-var">Program</span></a></span></span><span> </span><span id="local-6989586621681169657"><span class="annot"><a href="#local-6989586621681169657"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Program"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-var">Program</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169657"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- | A symbolic value representing the result of running a program -- its</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- output.</span><span>
+</span><span id="line-124"></span><span class="hs-keyword">newtype</span><span> </span><span id="Result"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Result"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-type">SVal</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- | Makes a 'Result' from a symbolic value.</span><span>
+</span><span id="line-127"></span><span id="local-6989586621681169725"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkResult"><span class="hs-identifier hs-type">mkResult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169725"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-type">Result</span></a></span></span><span>
+</span><span id="line-128"></span><span id="mkResult"><span class="annot"><span class="annottext">mkResult :: SBV a -&gt; Result
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkResult"><span class="hs-identifier hs-var hs-var">mkResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; Result
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-var">Result</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; Result) -&gt; (SBV a -&gt; SVal) -&gt; SBV a -&gt; Result
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SVal
+forall a. SBV a -&gt; SVal
+</span><a href="Data.SBV.Core.Data.html#unSBV"><span class="hs-identifier hs-var hs-var">unSBV</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- | Performs symbolic evaluation of a 'Program'.</span><span>
+</span><span id="line-131"></span><span id="local-6989586621681169665"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runProgramEval"><span class="hs-identifier hs-type">runProgramEval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169665"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Except</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-type">Result</span></a></span></span><span>
+</span><span id="line-132"></span><span id="runProgramEval"><span class="annot"><span class="annottext">runProgramEval :: Env -&gt; Program a -&gt; Except String Result
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runProgramEval"><span class="hs-identifier hs-var hs-var">runProgramEval</span></a></span></span><span> </span><span id="local-6989586621681169497"><span class="annot"><span class="annottext">env :: Env
+</span><a href="#local-6989586621681169497"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span id="local-6989586621681169496"><span class="annot"><span class="annottext">term :: Term a
+</span><a href="#local-6989586621681169496"><span class="hs-identifier hs-var">term</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Result
+forall a. SBV a -&gt; Result
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkResult"><span class="hs-identifier hs-var">mkResult</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; Result)
+-&gt; ExceptT String Identity (SBV a) -&gt; Except String Result
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; Term a -&gt; ExceptT String Identity (SBV a)
+forall a. Env -&gt; Term a -&gt; Except String (SBV a)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runEval"><span class="hs-identifier hs-var">runEval</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169497"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621681169496"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- * Property evaluation</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- | A property describes a quality of a 'Program'. It is a 'Term' yields a</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- boolean value.</span><span>
+</span><span id="line-138"></span><span class="hs-keyword">newtype</span><span> </span><span id="Property"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-var">Property</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Property"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-var">Property</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- | Performs symbolic evaluation of a 'Property.</span><span>
+</span><span id="line-141"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runPropertyEval"><span class="hs-identifier hs-type">runPropertyEval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-type">Property</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Except</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span id="runPropertyEval"><span class="annot"><span class="annottext">runPropertyEval :: Result -&gt; Env -&gt; Property -&gt; Except String SBool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runPropertyEval"><span class="hs-identifier hs-var hs-var">runPropertyEval</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span id="local-6989586621681169493"><span class="annot"><span class="annottext">res :: SVal
+</span><a href="#local-6989586621681169493"><span class="hs-identifier hs-var">res</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681169492"><span class="annot"><span class="annottext">env :: Env
+</span><a href="#local-6989586621681169492"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-type">Property</span></a></span><span> </span><span id="local-6989586621681169491"><span class="annot"><span class="annottext">term :: Term Bool
+</span><a href="#local-6989586621681169491"><span class="hs-identifier hs-var">term</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><span class="annottext">Env -&gt; Term Bool -&gt; Except String SBool
+forall a. Env -&gt; Term a -&gt; Except String (SBV a)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runEval"><span class="hs-identifier hs-var">runEval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169492"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">result :: Maybe SVal
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#result"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; Maybe SVal
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SVal
+</span><a href="#local-6989586621681169493"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term Bool
+</span><a href="#local-6989586621681169491"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- * Checking whether a program satisfies a property</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- | The result of 'check'ing the combination of a 'Program' and a 'Property'.</span><span>
+</span><span id="line-148"></span><span class="hs-keyword">data</span><span> </span><span id="CheckResult"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-var">CheckResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Proved"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Proved"><span class="hs-identifier hs-var">Proved</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Counterexample"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Counterexample"><span class="hs-identifier hs-var">Counterexample</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681169485"><span id="local-6989586621681169487"><span class="annot"><span class="annottext">CheckResult -&gt; CheckResult -&gt; Bool
+(CheckResult -&gt; CheckResult -&gt; Bool)
+-&gt; (CheckResult -&gt; CheckResult -&gt; Bool) -&gt; Eq CheckResult
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: CheckResult -&gt; CheckResult -&gt; Bool
+$c/= :: CheckResult -&gt; CheckResult -&gt; Bool
+== :: CheckResult -&gt; CheckResult -&gt; Bool
+$c== :: CheckResult -&gt; CheckResult -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169479"><span id="local-6989586621681169481"><span id="local-6989586621681169483"><span class="annot"><span class="annottext">Int -&gt; CheckResult -&gt; ShowS
+[CheckResult] -&gt; ShowS
+CheckResult -&gt; String
+(Int -&gt; CheckResult -&gt; ShowS)
+-&gt; (CheckResult -&gt; String)
+-&gt; ([CheckResult] -&gt; ShowS)
+-&gt; Show CheckResult
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [CheckResult] -&gt; ShowS
+$cshowList :: [CheckResult] -&gt; ShowS
+show :: CheckResult -&gt; String
+$cshow :: CheckResult -&gt; String
+showsPrec :: Int -&gt; CheckResult -&gt; ShowS
+$cshowsPrec :: Int -&gt; CheckResult -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- | Sends an 'Identity' computation to an arbitrary monadic computation.</span><span>
+</span><span id="line-152"></span><span id="local-6989586621681169666"><span id="local-6989586621681169667"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#generalize"><span class="hs-identifier hs-type">generalize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681169667"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621681169666"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681169667"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169666"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-153"></span><span id="generalize"><span class="annot"><span class="annottext">generalize :: Identity a -&gt; m a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#generalize"><span class="hs-identifier hs-var hs-var">generalize</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; (Identity a -&gt; a) -&gt; Identity a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Identity a -&gt; a
+forall a. Identity a -&gt; a
+</span><span class="hs-identifier hs-var hs-var">runIdentity</span></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- | Monad for querying a solver.</span><span>
+</span><span id="line-156"></span><span class="hs-keyword">newtype</span><span> </span><span id="Q"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Q"><span class="hs-identifier hs-var">Q</span></a></span></span><span> </span><span id="local-6989586621681169659"><span class="annot"><a href="#local-6989586621681169659"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Q"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Q"><span class="hs-identifier hs-var">Q</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runQ"><span class="annot"><span class="annottext">Q a -&gt; QueryT (ExceptT String IO) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runQ"><span class="hs-identifier hs-var hs-var">runQ</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryT"><span class="hs-identifier hs-type">QueryT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681169659"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681169472"><span id="local-6989586621681169474"><span class="annot"><span class="annottext">a -&gt; Q b -&gt; Q a
+(a -&gt; b) -&gt; Q a -&gt; Q b
+(forall a b. (a -&gt; b) -&gt; Q a -&gt; Q b)
+-&gt; (forall a b. a -&gt; Q b -&gt; Q a) -&gt; Functor Q
+forall a b. a -&gt; Q b -&gt; Q a
+forall a b. (a -&gt; b) -&gt; Q a -&gt; Q b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: a -&gt; Q b -&gt; Q a
+$c&lt;$ :: forall a b. a -&gt; Q b -&gt; Q a
+fmap :: (a -&gt; b) -&gt; Q a -&gt; Q b
+$cfmap :: forall a b. (a -&gt; b) -&gt; Q a -&gt; Q b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169461"><span id="local-6989586621681169463"><span id="local-6989586621681169465"><span id="local-6989586621681169467"><span id="local-6989586621681169469"><span class="annot"><span class="annottext">Functor Q
+a -&gt; Q a
+Functor Q =&gt;
+(forall a. a -&gt; Q a)
+-&gt; (forall a b. Q (a -&gt; b) -&gt; Q a -&gt; Q b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; Q a -&gt; Q b -&gt; Q c)
+-&gt; (forall a b. Q a -&gt; Q b -&gt; Q b)
+-&gt; (forall a b. Q a -&gt; Q b -&gt; Q a)
+-&gt; Applicative Q
+Q a -&gt; Q b -&gt; Q b
+Q a -&gt; Q b -&gt; Q a
+Q (a -&gt; b) -&gt; Q a -&gt; Q b
+(a -&gt; b -&gt; c) -&gt; Q a -&gt; Q b -&gt; Q c
+forall a. a -&gt; Q a
+forall a b. Q a -&gt; Q b -&gt; Q a
+forall a b. Q a -&gt; Q b -&gt; Q b
+forall a b. Q (a -&gt; b) -&gt; Q a -&gt; Q b
+forall a b c. (a -&gt; b -&gt; c) -&gt; Q a -&gt; Q b -&gt; Q c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+&lt;* :: Q a -&gt; Q b -&gt; Q a
+$c&lt;* :: forall a b. Q a -&gt; Q b -&gt; Q a
+*&gt; :: Q a -&gt; Q b -&gt; Q b
+$c*&gt; :: forall a b. Q a -&gt; Q b -&gt; Q b
+liftA2 :: (a -&gt; b -&gt; c) -&gt; Q a -&gt; Q b -&gt; Q c
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; Q a -&gt; Q b -&gt; Q c
+&lt;*&gt; :: Q (a -&gt; b) -&gt; Q a -&gt; Q b
+$c&lt;*&gt; :: forall a b. Q (a -&gt; b) -&gt; Q a -&gt; Q b
+pure :: a -&gt; Q a
+$cpure :: forall a. a -&gt; Q a
+$cp1Applicative :: Functor Q
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169454"><span id="local-6989586621681169456"><span id="local-6989586621681169458"><span class="annot"><span class="annottext">Applicative Q
+a -&gt; Q a
+Applicative Q =&gt;
+(forall a b. Q a -&gt; (a -&gt; Q b) -&gt; Q b)
+-&gt; (forall a b. Q a -&gt; Q b -&gt; Q b)
+-&gt; (forall a. a -&gt; Q a)
+-&gt; Monad Q
+Q a -&gt; (a -&gt; Q b) -&gt; Q b
+Q a -&gt; Q b -&gt; Q b
+forall a. a -&gt; Q a
+forall a b. Q a -&gt; Q b -&gt; Q b
+forall a b. Q a -&gt; (a -&gt; Q b) -&gt; Q b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+return :: a -&gt; Q a
+$creturn :: forall a. a -&gt; Q a
+&gt;&gt; :: Q a -&gt; Q b -&gt; Q b
+$c&gt;&gt; :: forall a b. Q a -&gt; Q b -&gt; Q b
+&gt;&gt;= :: Q a -&gt; (a -&gt; Q b) -&gt; Q b
+$c&gt;&gt;= :: forall a b. Q a -&gt; (a -&gt; Q b) -&gt; Q b
+$cp1Monad :: Applicative Q
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169451"><span class="annot"><span class="annottext">Monad Q
+Monad Q =&gt; (forall a. IO a -&gt; Q a) -&gt; MonadIO Q
+IO a -&gt; Q a
+forall a. IO a -&gt; Q a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+liftIO :: IO a -&gt; Q a
+$cliftIO :: forall a. IO a -&gt; Q a
+$cp1MonadIO :: Monad Q
+</span><a href="#local-6989586621681169451"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169446"><span id="local-6989586621681169448"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169443"><span class="annot"><span class="annottext">Monad Q
+Q State
+Monad Q =&gt; Q State -&gt; MonadQuery Q
+forall (m :: * -&gt; *). Monad m =&gt; m State -&gt; MonadQuery m
+queryState :: Q State
+$cqueryState :: Q State
+$cp1MonadQuery :: Monad Q
+</span><a href="Data.SBV.Core.Symbolic.html#C%3AMonadQuery"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadQuery</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | Creates a computation that queries a solver and yields a 'CheckResult'.</span><span>
+</span><span id="line-160"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkQuery"><span class="hs-identifier hs-type">mkQuery</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Q"><span class="hs-identifier hs-type">Q</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span>
+</span><span id="line-161"></span><span id="mkQuery"><span class="annot"><span class="annottext">mkQuery :: Env -&gt; Q CheckResult
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkQuery"><span class="hs-identifier hs-var hs-var">mkQuery</span></a></span></span><span> </span><span id="local-6989586621681169440"><span class="annot"><span class="annottext">env :: Env
+</span><a href="#local-6989586621681169440"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-162"></span><span>    </span><span id="local-6989586621681169439"><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169439"><span class="hs-identifier hs-var">satResult</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Q CheckSatResult
+forall (m :: * -&gt; *). (MonadIO m, MonadQuery m) =&gt; m CheckSatResult
+</span><a href="Data.SBV.Control.Utils.html#checkSat"><span class="hs-identifier hs-var">checkSat</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169439"><span class="hs-identifier hs-var">satResult</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-164"></span><span>        </span><span class="annot"><a href="Data.SBV.Control.Types.html#Sat"><span class="hs-identifier hs-type">Sat</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; CheckResult
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Counterexample"><span class="hs-identifier hs-var">Counterexample</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; CheckResult)
+-&gt; Q Integer -&gt; Q (Integer -&gt; CheckResult)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; Q Integer
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m, SMTValue a) =&gt;
+SBV a -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envX"><span class="hs-identifier hs-var hs-var">envX</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169440"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span>                                </span><span class="annot"><span class="annottext">Q (Integer -&gt; CheckResult) -&gt; Q Integer -&gt; Q CheckResult
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; Q Integer
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadQuery m, SMTValue a) =&gt;
+SBV a -&gt; m a
+</span><a href="Data.SBV.Control.Utils.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Env -&gt; SBV Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#envY"><span class="hs-identifier hs-var hs-var">envY</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169440"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>        </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unsat"><span class="hs-identifier hs-type">Unsat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CheckResult -&gt; Q CheckResult
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">CheckResult
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Proved"><span class="hs-identifier hs-var">Proved</span></a></span><span>
+</span><span id="line-167"></span><span>        </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unk"><span class="hs-identifier hs-type">Unk</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Q CheckResult
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unknown&quot;</span></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- | Checks a 'Property' of a 'Program' (or fails).</span><span>
+</span><span id="line-170"></span><span id="local-6989586621681169658"><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#check"><span class="hs-identifier hs-type">check</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681169658"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-type">Property</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-171"></span><span id="check"><span class="annot"><span class="annottext">check :: Program a -&gt; Property -&gt; IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#check"><span class="hs-identifier hs-var hs-var">check</span></a></span></span><span> </span><span id="local-6989586621681169432"><span class="annot"><span class="annottext">program :: Program a
+</span><a href="#local-6989586621681169432"><span class="hs-identifier hs-var">program</span></a></span></span><span> </span><span id="local-6989586621681169431"><span class="annot"><span class="annottext">prop :: Property
+</span><a href="#local-6989586621681169431"><span class="hs-identifier hs-var">prop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ExceptT String IO CheckResult -&gt; IO (Either String CheckResult)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">(ExceptT String IO CheckResult -&gt; IO (Either String CheckResult))
+-&gt; ExceptT String IO CheckResult -&gt; IO (Either String CheckResult)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+-&gt; SymbolicT (ExceptT String IO) CheckResult
+-&gt; ExceptT String IO CheckResult
+forall (m :: * -&gt; *) a.
+MonadIO m =&gt;
+SMTConfig -&gt; SymbolicT m a -&gt; m a
+</span><a href="Data.SBV.Provers.Prover.html#runSMTWith"><span class="hs-identifier hs-var">runSMTWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT (ExceptT String IO) CheckResult
+ -&gt; ExceptT String IO CheckResult)
+-&gt; SymbolicT (ExceptT String IO) CheckResult
+-&gt; ExceptT String IO CheckResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-172"></span><span>    </span><span id="local-6989586621681169428"><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169428"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alloc Env -&gt; SymbolicT (ExceptT String IO) Env
+forall a. Alloc a -&gt; SymbolicT (ExceptT String IO) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runAlloc"><span class="hs-identifier hs-var hs-var">runAlloc</span></a></span><span> </span><span class="annot"><span class="annottext">Alloc Env
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#allocEnv"><span class="hs-identifier hs-var">allocEnv</span></a></span><span>
+</span><span id="line-173"></span><span>    </span><span id="local-6989586621681169427"><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681169427"><span class="hs-identifier hs-var">test</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ExceptT String IO SBool -&gt; SymbolicT (ExceptT String IO) SBool
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(ExceptT String IO SBool -&gt; SymbolicT (ExceptT String IO) SBool)
+-&gt; ExceptT String IO SBool -&gt; SymbolicT (ExceptT String IO) SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Identity (Either String SBool) -&gt; IO (Either String SBool))
+-&gt; Except String SBool -&gt; ExceptT String IO SBool
+forall (m :: * -&gt; *) e a (n :: * -&gt; *) e' b.
+(m (Either e a) -&gt; n (Either e' b))
+-&gt; ExceptT e m a -&gt; ExceptT e' n b
+</span><span class="hs-identifier hs-var">mapExceptT</span></span><span> </span><span class="annot"><span class="annottext">Identity (Either String SBool) -&gt; IO (Either String SBool)
+forall (m :: * -&gt; *) a. Monad m =&gt; Identity a -&gt; m a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#generalize"><span class="hs-identifier hs-var">generalize</span></a></span><span> </span><span class="annot"><span class="annottext">(Except String SBool -&gt; ExceptT String IO SBool)
+-&gt; Except String SBool -&gt; ExceptT String IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-174"></span><span>        </span><span id="local-6989586621681169426"><span class="annot"><span class="annottext">Result
+</span><a href="#local-6989586621681169426"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Env -&gt; Program a -&gt; Except String Result
+forall a. Env -&gt; Program a -&gt; Except String Result
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runProgramEval"><span class="hs-identifier hs-var">runProgramEval</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169428"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Program a
+</span><a href="#local-6989586621681169432"><span class="hs-identifier hs-var">program</span></a></span><span>
+</span><span id="line-175"></span><span>        </span><span class="annot"><span class="annottext">Result -&gt; Env -&gt; Property -&gt; Except String SBool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runPropertyEval"><span class="hs-identifier hs-var">runPropertyEval</span></a></span><span> </span><span class="annot"><span class="annottext">Result
+</span><a href="#local-6989586621681169426"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169428"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621681169431"><span class="hs-identifier hs-var">prop</span></a></span><span>
+</span><span id="line-176"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT (ExceptT String IO) ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT (ExceptT String IO) ())
+-&gt; SBool -&gt; SymbolicT (ExceptT String IO) ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681169427"><span class="hs-identifier hs-var">test</span></a></span><span>
+</span><span id="line-177"></span><span>    </span><span class="annot"><span class="annottext">QueryT (ExceptT String IO) CheckResult
+-&gt; SymbolicT (ExceptT String IO) CheckResult
+forall (m :: * -&gt; *) a. ExtractIO m =&gt; QueryT m a -&gt; SymbolicT m a
+</span><a href="Data.SBV.Trans.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(QueryT (ExceptT String IO) CheckResult
+ -&gt; SymbolicT (ExceptT String IO) CheckResult)
+-&gt; QueryT (ExceptT String IO) CheckResult
+-&gt; SymbolicT (ExceptT String IO) CheckResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Q CheckResult -&gt; QueryT (ExceptT String IO) CheckResult
+forall a. Q a -&gt; QueryT (ExceptT String IO) a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#runQ"><span class="hs-identifier hs-var hs-var">runQ</span></a></span><span> </span><span class="annot"><span class="annottext">(Q CheckResult -&gt; QueryT (ExceptT String IO) CheckResult)
+-&gt; Q CheckResult -&gt; QueryT (ExceptT String IO) CheckResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; Q CheckResult
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#mkQuery"><span class="hs-identifier hs-var">mkQuery</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621681169428"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- * Some examples</span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- | Check that @x+y+1@ generates a counter-example for the property that the</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- result is less than @10@ when @x+y@ is at least @9@. We have:</span><span>
+</span><span id="line-183"></span><span class="hs-comment">--</span><span>
+</span><span id="line-184"></span><span class="hs-comment">-- &gt;&gt;&gt; ex1</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- Right (Counterexample 0 9)</span><span>
+</span><span id="line-186"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex1"><span class="hs-identifier hs-type">ex1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-187"></span><span id="ex1"><span class="annot"><span class="annottext">ex1 :: IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex1"><span class="hs-identifier hs-var hs-var">ex1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Program Integer -&gt; Property -&gt; IO (Either String CheckResult)
+forall a. Program a -&gt; Property -&gt; IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#check"><span class="hs-identifier hs-var">check</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Integer -&gt; Program Integer
+forall a. Term a -&gt; Program a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-var">Program</span></a></span><span>  </span><span class="annot"><span class="annottext">(Term Integer -&gt; Program Integer)
+-&gt; Term Integer -&gt; Program Integer
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Plus"><span class="hs-operator hs-var">`Plus`</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Plus"><span class="hs-operator hs-var">`Plus`</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Bool -&gt; Property
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-var">Property</span></a></span><span> </span><span class="annot"><span class="annottext">(Term Bool -&gt; Property) -&gt; Term Bool -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;result&quot;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#LessThan"><span class="hs-operator hs-var">`LessThan`</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- | Check that the program @x+y@ correctly produces a result greater than @1@ when</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- both @x@ and @y@ are at least @1@. We have:</span><span>
+</span><span id="line-192"></span><span class="hs-comment">--</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- &gt;&gt;&gt; ex2</span><span>
+</span><span id="line-194"></span><span class="hs-comment">-- Right Proved</span><span>
+</span><span id="line-195"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex2"><span class="hs-identifier hs-type">ex2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-196"></span><span id="ex2"><span class="annot"><span class="annottext">ex2 :: IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex2"><span class="hs-identifier hs-var hs-var">ex2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Program Integer -&gt; Property -&gt; IO (Either String CheckResult)
+forall a. Program a -&gt; Property -&gt; IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#check"><span class="hs-identifier hs-var">check</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Integer -&gt; Program Integer
+forall a. Term a -&gt; Program a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-var">Program</span></a></span><span>  </span><span class="annot"><span class="annottext">(Term Integer -&gt; Program Integer)
+-&gt; Term Integer -&gt; Program Integer
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Plus"><span class="hs-operator hs-var">`Plus`</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-197"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Bool -&gt; Property
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-var">Property</span></a></span><span> </span><span class="annot"><span class="annottext">(Term Bool -&gt; Property) -&gt; Term Bool -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Integer -&gt; Term Bool
+</span><a href="#local-6989586621681169421"><span class="hs-identifier hs-var">positive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term Bool -&gt; Term Bool -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#And"><span class="hs-operator hs-var">`And`</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Bool
+</span><a href="#local-6989586621681169421"><span class="hs-identifier hs-var">positive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>                </span><span class="annot"><span class="annottext">Term Bool -&gt; Term Bool -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Implies"><span class="hs-operator hs-var">`Implies`</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;result&quot;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#GreaterThan"><span class="hs-operator hs-var">`GreaterThan`</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681169421"><span class="annot"><span class="annottext">positive :: Term Integer -&gt; Term Bool
+</span><a href="#local-6989586621681169421"><span class="hs-identifier hs-var hs-var">positive</span></a></span></span><span> </span><span id="local-6989586621681169420"><span class="annot"><span class="annottext">t :: Term Integer
+</span><a href="#local-6989586621681169420"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term Integer
+</span><a href="#local-6989586621681169420"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#GreaterThan"><span class="hs-operator hs-var">`GreaterThan`</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- | Check that we catch the cases properly through the monad stack when there is a</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- syntax error, like an undefined variable. We have:</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- &gt;&gt;&gt; ex3</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- Left &quot;unknown variable&quot;</span><span>
+</span><span id="line-206"></span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex3"><span class="hs-identifier hs-type">ex3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#CheckResult"><span class="hs-identifier hs-type">CheckResult</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-207"></span><span id="ex3"><span class="annot"><span class="annottext">ex3 :: IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#ex3"><span class="hs-identifier hs-var hs-var">ex3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Program Any -&gt; Property -&gt; IO (Either String CheckResult)
+forall a. Program a -&gt; Property -&gt; IO (Either String CheckResult)
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#check"><span class="hs-identifier hs-var">check</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Any -&gt; Program Any
+forall a. Term a -&gt; Program a
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Program"><span class="hs-identifier hs-var">Program</span></a></span><span>  </span><span class="annot"><span class="annottext">(Term Any -&gt; Program Any) -&gt; Term Any -&gt; Program Any
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Any
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;notAValidVar&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-208"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Bool -&gt; Property
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Property"><span class="hs-identifier hs-var">Property</span></a></span><span> </span><span class="annot"><span class="annottext">(Term Bool -&gt; Property) -&gt; Term Bool -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Term Integer
+forall r. String -&gt; Term r
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;result&quot;</span></span><span> </span><span class="annot"><span class="annottext">Term Integer -&gt; Term Integer -&gt; Term Bool
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#LessThan"><span class="hs-operator hs-var">`LessThan`</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Term Integer
+</span><a href="Documentation.SBV.Examples.Transformers.SymbolicEval.html#Lit"><span class="hs-identifier hs-var">Lit</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span></pre></body></html>

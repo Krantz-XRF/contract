@@ -1,0 +1,246 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.CodeGeneration.GCD</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Computing GCD symbolically, and generating C code for it. This example</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- illustrates symbolic termination related issues when programming with</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- SBV, when the termination of a recursive algorithm crucially depends</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- on the value of a symbolic variable. The technique we use is to statically</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- enforce termination by using a recursion depth counter.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.CodeGeneration.GCD</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- * Computing GCD</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- | The symbolic GCD algorithm, over two 8-bit numbers. We define @sgcd a 0@ to</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- be @a@ for all @a@, which implies @sgcd 0 0 = 0@. Note that this is essentially</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- Euclid's algorithm, except with a recursion depth counter. We need the depth</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- counter since the algorithm is not /symbolically terminating/, as we don't have</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- a means of determining that the second argument (@b@) will eventually reach 0 in a symbolic</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- context. Hence we stop after 12 iterations. Why 12? We've empirically determined that this</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- algorithm will recurse at most 12 times for arbitrary 8-bit numbers. Of course, this is</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- a claim that we shall prove below.</span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcd"><span class="hs-identifier hs-type">sgcd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-36"></span><span id="sgcd"><span class="annot"><span class="annottext">sgcd :: SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcd"><span class="hs-identifier hs-var hs-var">sgcd</span></a></span></span><span> </span><span id="local-6989586621681160475"><span class="annot"><span class="annottext">a :: SWord8
+</span><a href="#local-6989586621681160475"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681160474"><span class="annot"><span class="annottext">b :: SWord8
+</span><a href="#local-6989586621681160474"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160473"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160475"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160474"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="hs-number">12</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681160473"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-38"></span><span>        </span><span id="local-6989586621681160473"><span class="annot"><span class="annottext">go :: SWord8 -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160473"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681160472"><span class="annot"><span class="annottext">x :: SWord8
+</span><a href="#local-6989586621681160472"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681160471"><span class="annot"><span class="annottext">y :: SWord8
+</span><a href="#local-6989586621681160471"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681160470"><span class="annot"><span class="annottext">c :: SWord8
+</span><a href="#local-6989586621681160470"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160470"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160471"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>   </span><span class="hs-comment">-- stop if y is 0, or if we reach the recursion depth</span><span>
+</span><span id="line-39"></span><span>                       </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160472"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-40"></span><span>                       </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="#local-6989586621681160473"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160471"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160466"><span class="hs-identifier hs-var">y'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160470"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>          </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160466"><span class="annot"><span class="annottext">y' :: SWord8
+</span><a href="#local-6989586621681160466"><span class="hs-identifier hs-var">y'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160472"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; (SWord8, SWord8)
+forall a. SDivisible a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Core.Model.html#sQuotRem"><span class="hs-operator hs-var">`sQuotRem`</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160471"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- * Verification</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">{- $VerificationIntro
+We prove that 'sgcd' does indeed compute the common divisor of the given numbers.
+Our predicate takes @x@, @y@, and @k@. We show that what 'sgcd' returns is indeed a common divisor,
+and it is at least as large as any given @k@, provided @k@ is a common divisor as well.
+-}</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | We have:</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- &gt;&gt;&gt; prove sgcdIsCorrect</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcdIsCorrect"><span class="hs-identifier hs-type">sgcdIsCorrect</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-58"></span><span id="sgcdIsCorrect"><span class="annot"><span class="annottext">sgcdIsCorrect :: SWord8 -&gt; SWord8 -&gt; SWord8 -&gt; SBool
+</span><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcdIsCorrect"><span class="hs-identifier hs-var hs-var">sgcdIsCorrect</span></a></span></span><span> </span><span id="local-6989586621681160463"><span class="annot"><span class="annottext">x :: SWord8
+</span><a href="#local-6989586621681160463"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681160462"><span class="annot"><span class="annottext">y :: SWord8
+</span><a href="#local-6989586621681160462"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681160461"><span class="annot"><span class="annottext">k :: SWord8
+</span><a href="#local-6989586621681160461"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160462"><span class="hs-identifier hs-var">y</span></a></span><span>  </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>                        </span><span class="hs-comment">-- if y is 0</span><span>
+</span><span id="line-59"></span><span>                          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160460"><span class="hs-identifier hs-var">k'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160463"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>                        </span><span class="hs-comment">-- then k' must be x, nothing else to prove by definition</span><span>
+</span><span id="line-60"></span><span>                          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681160459"><span class="hs-identifier hs-var">isCommonDivisor</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160460"><span class="hs-identifier hs-var">k'</span></a></span><span>  </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span>          </span><span class="hs-comment">-- otherwise, k' is a common divisor and</span><span>
+</span><span id="line-61"></span><span>                          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; SBool
+</span><a href="#local-6989586621681160459"><span class="hs-identifier hs-var">isCommonDivisor</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160461"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160460"><span class="hs-identifier hs-var">k'</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160461"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- if k is a common divisor as well, then k' is at least as large as k</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160460"><span class="annot"><span class="annottext">k' :: SWord8
+</span><a href="#local-6989586621681160460"><span class="hs-identifier hs-var hs-var">k'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcd"><span class="hs-identifier hs-var">sgcd</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160463"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160462"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-63"></span><span>        </span><span id="local-6989586621681160459"><span class="annot"><span class="annottext">isCommonDivisor :: SWord8 -&gt; SBool
+</span><a href="#local-6989586621681160459"><span class="hs-identifier hs-var hs-var">isCommonDivisor</span></a></span></span><span> </span><span id="local-6989586621681160455"><span class="annot"><span class="annottext">a :: SWord8
+</span><a href="#local-6989586621681160455"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160454"><span class="hs-identifier hs-var">z1</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160453"><span class="hs-identifier hs-var">z2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-64"></span><span>           </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160454"><span class="annot"><span class="annottext">z1 :: SWord8
+</span><a href="#local-6989586621681160454"><span class="hs-identifier hs-var">z1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160463"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; (SWord8, SWord8)
+forall a. SDivisible a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Core.Model.html#sQuotRem"><span class="hs-operator hs-var">`sQuotRem`</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160455"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-65"></span><span>                 </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160453"><span class="annot"><span class="annottext">z2 :: SWord8
+</span><a href="#local-6989586621681160453"><span class="hs-identifier hs-var">z2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160462"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; (SWord8, SWord8)
+forall a. SDivisible a =&gt; a -&gt; a -&gt; (a, a)
+</span><a href="Data.SBV.Core.Model.html#sQuotRem"><span class="hs-operator hs-var">`sQuotRem`</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160455"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- * Code generation</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">{- $VerificationIntro
+Now that we have proof our 'sgcd' implementation is correct, we can go ahead
+and generate C code for it.
+-}</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | This call will generate the required C files. The following is the function</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- body generated for 'sgcd'. (We are not showing the generated header, @Makefile@,</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- and the driver programs for brevity.) Note that the generated function is</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- a constant time algorithm for GCD. It is not necessarily fastest, but it will take</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- precisely the same amount of time for all values of @x@ and @y@.</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- &gt; /* File: &quot;sgcd.c&quot;. Automatically generated by SBV. Do not edit! */</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- &gt; </span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- &gt; #include &lt;stdio.h&gt;</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- &gt; #include &lt;stdlib.h&gt;</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- &gt; #include &lt;inttypes.h&gt;</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- &gt; #include &lt;stdint.h&gt;</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- &gt; #include &lt;stdbool.h&gt;</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- &gt; #include &quot;sgcd.h&quot;</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt; </span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- &gt; SWord8 sgcd(const SWord8 x, const SWord8 y)</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt; {</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- &gt;   const SWord8 s0 = x;</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- &gt;   const SWord8 s1 = y;</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- &gt;   const SBool  s3 = s1 == 0;</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- &gt;   const SWord8 s4 = (s1 == 0) ? s0 : (s0 % s1);</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- &gt;   const SWord8 s5 = s3 ? s0 : s4;</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- &gt;   const SBool  s6 = 0 == s5;</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &gt;   const SWord8 s7 = (s5 == 0) ? s1 : (s1 % s5);</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- &gt;   const SWord8 s8 = s6 ? s1 : s7;</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- &gt;   const SBool  s9 = 0 == s8;</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- &gt;   const SWord8 s10 = (s8 == 0) ? s5 : (s5 % s8);</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &gt;   const SWord8 s11 = s9 ? s5 : s10;</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- &gt;   const SBool  s12 = 0 == s11;</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- &gt;   const SWord8 s13 = (s11 == 0) ? s8 : (s8 % s11);</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- &gt;   const SWord8 s14 = s12 ? s8 : s13;</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- &gt;   const SBool  s15 = 0 == s14;</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- &gt;   const SWord8 s16 = (s14 == 0) ? s11 : (s11 % s14);</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- &gt;   const SWord8 s17 = s15 ? s11 : s16;</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- &gt;   const SBool  s18 = 0 == s17;</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- &gt;   const SWord8 s19 = (s17 == 0) ? s14 : (s14 % s17);</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- &gt;   const SWord8 s20 = s18 ? s14 : s19;</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- &gt;   const SBool  s21 = 0 == s20;</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- &gt;   const SWord8 s22 = (s20 == 0) ? s17 : (s17 % s20);</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- &gt;   const SWord8 s23 = s21 ? s17 : s22;</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- &gt;   const SBool  s24 = 0 == s23;</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- &gt;   const SWord8 s25 = (s23 == 0) ? s20 : (s20 % s23);</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- &gt;   const SWord8 s26 = s24 ? s20 : s25;</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- &gt;   const SBool  s27 = 0 == s26;</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- &gt;   const SWord8 s28 = (s26 == 0) ? s23 : (s23 % s26);</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- &gt;   const SWord8 s29 = s27 ? s23 : s28;</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- &gt;   const SBool  s30 = 0 == s29;</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- &gt;   const SWord8 s31 = (s29 == 0) ? s26 : (s26 % s29);</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- &gt;   const SWord8 s32 = s30 ? s26 : s31;</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- &gt;   const SBool  s33 = 0 == s32;</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- &gt;   const SWord8 s34 = (s32 == 0) ? s29 : (s29 % s32);</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- &gt;   const SWord8 s35 = s33 ? s29 : s34;</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- &gt;   const SBool  s36 = 0 == s35;</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- &gt;   const SWord8 s37 = s36 ? s32 : s35;</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- &gt;   const SWord8 s38 = s33 ? s29 : s37;</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- &gt;   const SWord8 s39 = s30 ? s26 : s38;</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- &gt;   const SWord8 s40 = s27 ? s23 : s39;</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- &gt;   const SWord8 s41 = s24 ? s20 : s40;</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- &gt;   const SWord8 s42 = s21 ? s17 : s41;</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- &gt;   const SWord8 s43 = s18 ? s14 : s42;</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- &gt;   const SWord8 s44 = s15 ? s11 : s43;</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- &gt;   const SWord8 s45 = s12 ? s8 : s44;</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- &gt;   const SWord8 s46 = s9 ? s5 : s45;</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- &gt;   const SWord8 s47 = s6 ? s1 : s46;</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- &gt;   const SWord8 s48 = s3 ? s0 : s47;</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- &gt;   </span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- &gt;   return s48;</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- &gt; }</span><span>
+</span><span id="line-144"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#genGCDInC"><span class="hs-identifier hs-type">genGCDInC</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span id="genGCDInC"><span class="annot"><span class="annottext">genGCDInC :: IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#genGCDInC"><span class="hs-identifier hs-var hs-var">genGCDInC</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="hs-string">&quot;sgcd&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-146"></span><span>                </span><span id="local-6989586621681160450"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160450"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord8
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-147"></span><span>                </span><span id="local-6989586621681160448"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160448"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord8
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-148"></span><span>                </span><span class="annot"><span class="annottext">SWord8 -&gt; SBVCodeGen ()
+forall a. SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgReturn"><span class="hs-identifier hs-var">cgReturn</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord8 -&gt; SBVCodeGen ()) -&gt; SWord8 -&gt; SBVCodeGen ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+</span><a href="Documentation.SBV.Examples.CodeGeneration.GCD.html#sgcd"><span class="hs-identifier hs-var">sgcd</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160450"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160448"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-149"></span></pre></body></html>

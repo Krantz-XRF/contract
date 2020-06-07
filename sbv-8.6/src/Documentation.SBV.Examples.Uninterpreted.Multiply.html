@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Uninterpreted.Multiply</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates how to use uninterpreted function models to synthesize</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- a simple two-bit multiplier.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Uninterpreted.Multiply</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | The uninterpreted implementation of our 2x2 multiplier. We simply</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- receive two 2-bit values, and return the high and the low bit of the</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- resulting multiplication via two uninterpreted functions that we</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- called @mul22_hi@ and @mul22_lo@. Note that there is absolutely</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- no computation going on here, aside from simply passing the arguments</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- to the uninterpreted functions and stitching it back together.</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- NB. While definining @mul22_lo@ we used our domain knowledge that the</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- low-bit of the multiplication only depends on the low bits of the inputs.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- However, this is merely a simplifying assumption; we could have passed</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- all the arguments as well.</span><span>
+</span><span id="line-32"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Multiply.html#mul22"><span class="hs-identifier hs-type">mul22</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span id="mul22"><span class="annot"><span class="annottext">mul22 :: (SBool, SBool) -&gt; (SBool, SBool) -&gt; (SBool, SBool)
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Multiply.html#mul22"><span class="hs-identifier hs-var hs-var">mul22</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681170228"><span class="annot"><span class="annottext">a1 :: SBool
+</span><a href="#local-6989586621681170228"><span class="hs-identifier hs-var">a1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170227"><span class="annot"><span class="annottext">a0 :: SBool
+</span><a href="#local-6989586621681170227"><span class="hs-identifier hs-var">a0</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681170226"><span class="annot"><span class="annottext">b1 :: SBool
+</span><a href="#local-6989586621681170226"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170225"><span class="annot"><span class="annottext">b0 :: SBool
+</span><a href="#local-6989586621681170225"><span class="hs-identifier hs-var">b0</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170224"><span class="hs-identifier hs-var">mul22_hi</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170223"><span class="hs-identifier hs-var">mul22_lo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681170224"><span class="annot"><span class="annottext">mul22_hi :: SBool
+</span><a href="#local-6989586621681170224"><span class="hs-identifier hs-var hs-var">mul22_hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mul22_hi&quot;</span></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170228"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170227"><span class="hs-identifier hs-var">a0</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170226"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170225"><span class="hs-identifier hs-var">b0</span></a></span><span>
+</span><span id="line-35"></span><span>        </span><span id="local-6989586621681170223"><span class="annot"><span class="annottext">mul22_lo :: SBool
+</span><a href="#local-6989586621681170223"><span class="hs-identifier hs-var hs-var">mul22_lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mul22_lo&quot;</span></span><span>    </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170227"><span class="hs-identifier hs-var">a0</span></a></span><span>    </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170225"><span class="hs-identifier hs-var">b0</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Synthesize a 2x2 multiplier. We use 8-bit inputs merely because that is</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- the lowest bit-size SBV supports but that is more or less irrelevant. (Larger</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- sizes would work too.) We simply assert this for all input values, extract</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- the bottom two bits, and assert that our &quot;uninterpreted&quot; implementation in 'mul22'</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- is precisely the same. We have:</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- &gt;&gt;&gt; sat synthMul22</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   mul22_hi :: Bool -&gt; Bool -&gt; Bool -&gt; Bool -&gt; Bool</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   mul22_hi False True  True  False = True</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--   mul22_hi False True  True  True  = True</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--   mul22_hi True  False False True  = True</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--   mul22_hi True  False True  True  = True</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--   mul22_hi True  True  False True  = True</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--   mul22_hi True  True  True  False = True</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--   mul22_hi _     _     _     _     = False</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--   mul22_lo :: Bool -&gt; Bool -&gt; Bool</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   mul22_lo True True = True</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   mul22_lo _    _    = False</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- It is easy to see that the low bit is simply the logical-and of the low bits. It takes a moment of</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- staring, but you can see that the high bit is correct as well: The logical formula is @a1b xor a0b1@,</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- and if you work out the truth-table presented, you'll see that it is exactly that. Of course,</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- you can use SBV to prove this. First, define the model we were given to make it symbolic:</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- mul22_hi :: SBool -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- mul22_hi a1 a0 b1 b0 = ite ([a1, a0, b1, b0] .== [sFalse, sTrue , sTrue , sFalse]) sTrue</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--                      $ ite ([a1, a0, b1, b0] .== [sFalse, sTrue , sTrue , sTrue ]) sTrue</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--                      $ ite ([a1, a0, b1, b0] .== [sTrue , sFalse, sFalse, sTrue ]) sTrue</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--                      $ ite ([a1, a0, b1, b0] .== [sTrue , sFalse, sTrue , sTrue ]) sTrue</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--                      $ ite ([a1, a0, b1, b0] .== [sTrue , sTrue , sFalse, sTrue ]) sTrue</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--                      $ ite ([a1, a0, b1, b0] .== [sTrue , sTrue , sTrue , sFalse]) sTrue</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--                        sFalse</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Now we can say:</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \a1 a0 b1 b0 -&gt; mul22_hi a1 a0 b1 b0 .== (a1 .&amp;&amp; b0) .&lt;+&gt; (a0 .&amp;&amp; b1)</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- and rest assured that we have a correctly synthesized circuit!</span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Multiply.html#synthMul22"><span class="hs-identifier hs-type">synthMul22</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span>
+</span><span id="line-82"></span><span id="synthMul22"><span class="annot"><span class="annottext">synthMul22 :: Goal
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Multiply.html#synthMul22"><span class="hs-identifier hs-var hs-var">synthMul22</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681170220"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170220"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SWord8
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;a&quot;</span></span><span>
+</span><span id="line-83"></span><span>                </span><span id="local-6989586621681170218"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170218"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic SWord8
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;b&quot;</span></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681170217"><span class="annot"><span class="annottext">lsb2 :: SBV a -&gt; (SBool, SBool)
+</span><a href="#local-6989586621681170217"><span class="hs-identifier hs-var hs-var">lsb2</span></a></span></span><span> </span><span id="local-6989586621681170216"><span class="annot"><span class="annottext">x :: SBV a
+</span><a href="#local-6989586621681170216"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">[</span><span id="local-6989586621681170215"><span class="annot"><span class="annottext">x1 :: SBool
+</span><a href="#local-6989586621681170215"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170214"><span class="annot"><span class="annottext">x0 :: SBool
+</span><a href="#local-6989586621681170214"><span class="hs-identifier hs-var">x0</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; [SBool]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">([SBool] -&gt; [SBool]) -&gt; [SBool] -&gt; [SBool]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [SBool] -&gt; [SBool]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">([SBool] -&gt; [SBool]) -&gt; [SBool] -&gt; [SBool]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; [SBool]
+forall a. SFiniteBits a =&gt; SBV a -&gt; [SBool]
+</span><a href="Data.SBV.Core.Model.html#blastLE"><span class="hs-identifier hs-var">blastLE</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681170216"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-86"></span><span>                             </span><span class="hs-keyword">in</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170215"><span class="hs-identifier hs-var">x1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170214"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SBool, SBool) -&gt; (SBool, SBool) -&gt; (SBool, SBool)
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Multiply.html#mul22"><span class="hs-identifier hs-var">mul22</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; (SBool, SBool)
+forall a. SFiniteBits a =&gt; SBV a -&gt; (SBool, SBool)
+</span><a href="#local-6989586621681170217"><span class="hs-identifier hs-var">lsb2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170220"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8 -&gt; (SBool, SBool)
+forall a. SFiniteBits a =&gt; SBV a -&gt; (SBool, SBool)
+</span><a href="#local-6989586621681170217"><span class="hs-identifier hs-var">lsb2</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170218"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(SBool, SBool) -&gt; (SBool, SBool) -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; (SBool, SBool)
+forall a. SFiniteBits a =&gt; SBV a -&gt; (SBool, SBool)
+</span><a href="#local-6989586621681170217"><span class="hs-identifier hs-var">lsb2</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170220"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681170218"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span></pre></body></html>

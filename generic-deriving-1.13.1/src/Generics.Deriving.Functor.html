@@ -1,0 +1,503 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE BangPatterns #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeSynonymInstances #-}</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE DefaultSignatures #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 705
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 708
+</span><span class="hs-pragma">{-# LANGUAGE EmptyCase #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 710
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#elif __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.Functor</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Generic Functor class</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier">GFunctor</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Default method</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier">gmapdefault</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Internal Functor class</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier">GFunctor'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Const</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ZipList</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">First</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Last</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Product</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Dual</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Generics.Deriving.Base.html"><span class="hs-identifier">Generics.Deriving.Base</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Complex</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Complex</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,6,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Down</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Down</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Proxy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Alt</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Product</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Product</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Sum</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">First</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Last</span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Arg</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Max</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Min</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Option</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WrappedMonoid</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- Generic fmap</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">class</span><span> </span><span id="GFunctor%27"><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-var">GFunctor'</span></a></span></span><span> </span><span id="local-6989586621679119955"><span class="annot"><a href="#local-6989586621679119955"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621679119957"><span id="local-6989586621679119958"><span id="gmap%27"><span class="annot"><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-type">gmap'</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119958"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119957"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119955"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119958"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119955"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119957"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621679119757"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; V1 a -&gt; V1 b
+</span><a href="#local-6989586621679119757"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679119756"><span class="annot"><span class="annottext">x :: V1 a
+</span><a href="#local-6989586621679119756"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">V1 a
+</span><a href="#local-6989586621679119756"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 708
+</span><span>                </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-cpp">
+#else
+</span><span>                </span><span class="hs-glyph">!</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">error</span><span> </span><span class="hs-string">&quot;Void gmap&quot;</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-87"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-88"></span><span>  </span><span id="local-6989586621679119754"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; U1 a -&gt; U1 b
+</span><a href="#local-6989586621679119754"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">U1 b
+forall k (p :: k). U1 p
+</span><span class="hs-identifier hs-var">U1</span></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-91"></span><span>  </span><span id="local-6989586621679119751"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; Par1 a -&gt; Par1 b
+</span><a href="#local-6989586621679119751"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119750"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119750"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span id="local-6989586621679119748"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621679119748"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Par1 b
+forall p. p -&gt; Par1 p
+</span><span class="hs-identifier hs-var">Par1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119750"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679119748"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span id="local-6989586621679119746"><span id="local-6989586621679119747"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119747"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119746"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-94"></span><span>  </span><span id="local-6989586621679119744"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; K1 i c a -&gt; K1 i c b
+</span><a href="#local-6989586621679119744"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679119742"><span class="annot"><span class="annottext">a :: c
+</span><a href="#local-6989586621679119742"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">c -&gt; K1 i c b
+forall k i c (p :: k). c -&gt; K1 i c p
+</span><span class="hs-identifier hs-var">K1</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679119742"><span class="hs-identifier hs-var">a</span></a></span></span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span id="local-6989586621679119741"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119741"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119741"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621679119739"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; Rec1 f a -&gt; Rec1 f b
+</span><a href="#local-6989586621679119739"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119738"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119738"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span id="local-6989586621679119736"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679119736"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; Rec1 f b
+forall k (f :: k -&gt; *) (p :: k). f p -&gt; Rec1 f p
+</span><span class="hs-identifier hs-var">Rec1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. GFunctor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-var">gmap</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119738"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679119736"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span id="local-6989586621679119732"><span id="local-6989586621679119733"><span id="local-6989586621679119734"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119734"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119733"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119732"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119734"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621679119730"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; M1 i c f a -&gt; M1 i c f b
+</span><a href="#local-6989586621679119730"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119729"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119729"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679119727"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679119727"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; M1 i c f b
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). f p -&gt; M1 i c f p
+</span><span class="hs-identifier hs-var">M1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119729"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679119727"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span id="local-6989586621679119725"><span id="local-6989586621679119726"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119726"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119725"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119726"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679119725"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621679119723"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; (:+:) f g a -&gt; (:+:) f g b
+</span><a href="#local-6989586621679119723"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119722"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119722"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679119720"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679119720"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; (:+:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). f p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">L1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119722"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679119720"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>  </span><span class="annot"><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span id="local-6989586621679119719"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119719"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679119717"><span class="annot"><span class="annottext">a :: g a
+</span><a href="#local-6989586621679119717"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g b -&gt; (:+:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). g p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">R1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; g a -&gt; g b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119719"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679119717"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span id="local-6989586621679119715"><span id="local-6989586621679119716"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119716"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119715"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119716"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679119715"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621679119713"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; (:*:) f g a -&gt; (:*:) f g b
+</span><a href="#local-6989586621679119713"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119712"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119712"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679119711"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679119711"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679119709"><span class="annot"><span class="annottext">b :: g a
+</span><a href="#local-6989586621679119709"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119712"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679119711"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f b -&gt; g b -&gt; (:*:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k).
+f p -&gt; g p -&gt; (:*:) f g p
+</span><span class="hs-operator hs-var">:*:</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; g a -&gt; g b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119712"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679119709"><span class="hs-identifier hs-var">b</span></a></span></span></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span id="local-6989586621679119707"><span id="local-6989586621679119708"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119708"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119707"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119708"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:.:</span></span><span> </span><span class="annot"><a href="#local-6989586621679119707"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621679119705"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; (:.:) f g a -&gt; (:.:) f g b
+</span><a href="#local-6989586621679119705"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span id="local-6989586621679119704"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119704"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Comp1</span></span><span> </span><span id="local-6989586621679119702"><span class="annot"><span class="annottext">x :: f (g a)
+</span><a href="#local-6989586621679119702"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f (g b) -&gt; (:.:) f g b
+forall k2 k1 (f :: k2 -&gt; *) (g :: k1 -&gt; k2) (p :: k1).
+f (g p) -&gt; (:.:) f g p
+</span><span class="hs-identifier hs-var">Comp1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(g a -&gt; g b) -&gt; f (g a) -&gt; f (g b)
+forall (f :: * -&gt; *) a b. GFunctor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-var">gmap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; g a -&gt; g b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119704"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f (g a)
+</span><a href="#local-6989586621679119702"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UAddr</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621679119700"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UAddr a -&gt; UAddr b
+</span><a href="#local-6989586621679119700"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UAddr</span></span><span> </span><span id="local-6989586621679119698"><span class="annot"><a href="#local-6989586621679119698"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; UAddr b
+forall k (p :: k). Addr# -&gt; URec (Ptr ()) p
+</span><span class="hs-identifier hs-var">UAddr</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679119698"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UChar</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621679119696"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UChar a -&gt; UChar b
+</span><a href="#local-6989586621679119696"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UChar</span></span><span> </span><span id="local-6989586621679119694"><span class="annot"><a href="#local-6989586621679119694"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char# -&gt; UChar b
+forall k (p :: k). Char# -&gt; URec Char p
+</span><span class="hs-identifier hs-var">UChar</span></span><span> </span><span class="annot"><span class="annottext">Char#
+</span><a href="#local-6989586621679119694"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UDouble</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621679119692"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UDouble a -&gt; UDouble b
+</span><a href="#local-6989586621679119692"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UDouble</span></span><span> </span><span id="local-6989586621679119690"><span class="annot"><a href="#local-6989586621679119690"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double# -&gt; UDouble b
+forall k (p :: k). Double# -&gt; URec Double p
+</span><span class="hs-identifier hs-var">UDouble</span></span><span> </span><span class="annot"><span class="annottext">Double#
+</span><a href="#local-6989586621679119690"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UFloat</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621679119688"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UFloat a -&gt; UFloat b
+</span><a href="#local-6989586621679119688"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UFloat</span></span><span> </span><span id="local-6989586621679119686"><span class="annot"><a href="#local-6989586621679119686"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float# -&gt; UFloat b
+forall k (p :: k). Float# -&gt; URec Float p
+</span><span class="hs-identifier hs-var">UFloat</span></span><span> </span><span class="annot"><span class="annottext">Float#
+</span><a href="#local-6989586621679119686"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UInt</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621679119684"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UInt a -&gt; UInt b
+</span><a href="#local-6989586621679119684"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UInt</span></span><span> </span><span id="local-6989586621679119682"><span class="annot"><a href="#local-6989586621679119682"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; UInt b
+forall k (p :: k). Int# -&gt; URec Int p
+</span><span class="hs-identifier hs-var">UInt</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679119682"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UWord</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621679119680"><span class="annot"><span class="annottext">gmap' :: (a -&gt; b) -&gt; UWord a -&gt; UWord b
+</span><a href="#local-6989586621679119680"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UWord</span></span><span> </span><span id="local-6989586621679119678"><span class="annot"><a href="#local-6989586621679119678"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; UWord b
+forall k (p :: k). Word# -&gt; URec Word p
+</span><span class="hs-identifier hs-var">UWord</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679119678"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">class</span><span> </span><span id="GFunctor"><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-var">GFunctor</span></a></span></span><span> </span><span id="local-6989586621679119930"><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621679119928"><span id="local-6989586621679119929"><span id="gmap"><span class="annot"><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-type">gmap</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119929"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119928"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119929"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119928"><span class="hs-identifier hs-type">b</span></a></span></span></span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span>  </span><span id="local-6989586621679119676"><span id="local-6989586621679119677"><span class="hs-keyword">default</span><span> </span><span id="gmap"><span class="annot"><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-type">gmap</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-134"></span><span>               </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119677"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119676"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119677"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119930"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119676"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621679119675"><span class="annot"><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-var hs-var">gmap</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-138"></span><span id="local-6989586621679119863"><span id="local-6989586621679119864"><span id="local-6989586621679119865"><span class="annot"><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-type">gmapdefault</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119865"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679119865"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679119864"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119863"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119865"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119864"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679119865"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119863"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-140"></span><span id="gmapdefault"><span class="annot"><span class="annottext">gmapdefault :: (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var hs-var">gmapdefault</span></a></span></span><span> </span><span id="local-6989586621679119674"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679119674"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep1 f b -&gt; f b
+forall k (f :: k -&gt; *) (a :: k). Generic1 f =&gt; Rep1 f a -&gt; f a
+</span><span class="hs-identifier hs-var">to1</span></span><span> </span><span class="annot"><span class="annottext">(Rep1 f b -&gt; f b) -&gt; (f a -&gt; Rep1 f b) -&gt; f a -&gt; f b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Rep1 f a -&gt; Rep1 f b
+forall (f :: * -&gt; *) a b. GFunctor' f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmap%27"><span class="hs-identifier hs-var">gmap'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679119674"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Rep1 f a -&gt; Rep1 f b) -&gt; (f a -&gt; Rep1 f a) -&gt; f a -&gt; Rep1 f b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f a -&gt; Rep1 f a
+forall k (f :: k -&gt; *) (a :: k). Generic1 f =&gt; f a -&gt; Rep1 f a
+</span><span class="hs-identifier hs-var">from1</span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- Base types instances</span><span>
+</span><span id="line-143"></span><span id="local-6989586621679119670"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679119670"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-144"></span><span>  </span><span id="local-6989586621679119667"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; (r -&gt; a) -&gt; r -&gt; b
+</span><a href="#local-6989586621679119667"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (r -&gt; a) -&gt; r -&gt; b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span id="local-6989586621679119666"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679119666"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-147"></span><span>  </span><span id="local-6989586621679119664"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; (a, a) -&gt; (a, b)
+</span><a href="#local-6989586621679119664"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (a, a) -&gt; (a, b)
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-150"></span><span>  </span><span id="local-6989586621679119662"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><a href="#local-6989586621679119662"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,8,0)
+</span><span id="local-6989586621679119661"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119661"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Alt</span></span><span> </span><span class="annot"><a href="#local-6989586621679119661"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-154"></span><span>  </span><span id="local-6989586621679119659"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Alt f a -&gt; Alt f b
+</span><a href="#local-6989586621679119659"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Alt f a -&gt; Alt f b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679119658"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Arg</span></span><span> </span><span class="annot"><a href="#local-6989586621679119658"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621679119656"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Arg a a -&gt; Arg a b
+</span><a href="#local-6989586621679119656"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Arg a a -&gt; Arg a b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Complex</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621679119654"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Complex a -&gt; Complex b
+</span><a href="#local-6989586621679119654"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Complex a -&gt; Complex b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-167"></span><span id="local-6989586621679119653"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Const</span></span><span> </span><span class="annot"><a href="#local-6989586621679119653"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-168"></span><span>  </span><span id="local-6989586621679119651"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Const m a -&gt; Const m b
+</span><a href="#local-6989586621679119651"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Const m a -&gt; Const m b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Down</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621679119649"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Down a -&gt; Down b
+</span><a href="#local-6989586621679119649"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Down a -&gt; Down b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621679119647"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Dual a -&gt; Dual b
+</span><a href="#local-6989586621679119647"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Dual a -&gt; Dual b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span id="local-6989586621679119646"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621679119646"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>  </span><span id="local-6989586621679119644"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Either a a -&gt; Either a b
+</span><a href="#local-6989586621679119644"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Either a a -&gt; Either a b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.First</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-180"></span><span>  </span><span id="local-6989586621679119642"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; First a -&gt; First b
+</span><a href="#local-6989586621679119642"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; First a -&gt; First b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Semigroup.First</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621679119640"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; First a -&gt; First b
+</span><a href="#local-6989586621679119640"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; First a -&gt; First b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-189"></span><span>  </span><span id="local-6989586621679119638"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Identity a -&gt; Identity b
+</span><a href="#local-6989586621679119638"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Identity a -&gt; Identity b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-192"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-193"></span><span>  </span><span id="local-6989586621679119636"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; IO a -&gt; IO b
+</span><a href="#local-6989586621679119636"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Last</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-196"></span><span>  </span><span id="local-6989586621679119634"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Last a -&gt; Last b
+</span><a href="#local-6989586621679119634"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Last a -&gt; Last b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup.Last</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-200"></span><span>  </span><span id="local-6989586621679119632"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Last a -&gt; Last b
+</span><a href="#local-6989586621679119632"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Last a -&gt; Last b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Max</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-203"></span><span>  </span><span id="local-6989586621679119630"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Max a -&gt; Max b
+</span><a href="#local-6989586621679119630"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Max a -&gt; Max b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-206"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-207"></span><span>  </span><span id="local-6989586621679119628"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+</span><a href="#local-6989586621679119628"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Min</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-211"></span><span>  </span><span id="local-6989586621679119626"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Min a -&gt; Min b
+</span><a href="#local-6989586621679119626"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Min a -&gt; Min b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-214"></span><span>  </span><span id="local-6989586621679119624"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+</span><a href="#local-6989586621679119624"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; NonEmpty a -&gt; NonEmpty b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Option</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-217"></span><span>  </span><span id="local-6989586621679119622"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Option a -&gt; Option b
+</span><a href="#local-6989586621679119622"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Option a -&gt; Option b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-220"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Product</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-221"></span><span>  </span><span id="local-6989586621679119620"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Product a -&gt; Product b
+</span><a href="#local-6989586621679119620"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Product a -&gt; Product b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679119618"><span id="local-6989586621679119619"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119619"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119618"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor.Product</span></span><span> </span><span class="annot"><a href="#local-6989586621679119619"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119618"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-225"></span><span>  </span><span id="local-6989586621679119616"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Product f g a -&gt; Product f g b
+</span><a href="#local-6989586621679119616"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Product f g a -&gt; Product f g b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-230"></span><span>  </span><span id="local-6989586621679119614"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Proxy a -&gt; Proxy b
+</span><a href="#local-6989586621679119614"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Proxy a -&gt; Proxy b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-233"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Sum</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-234"></span><span>  </span><span id="local-6989586621679119612"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Sum a -&gt; Sum b
+</span><a href="#local-6989586621679119612"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Sum a -&gt; Sum b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679119610"><span id="local-6989586621679119611"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119611"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119610"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor.Sum</span></span><span> </span><span class="annot"><a href="#local-6989586621679119611"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679119610"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-238"></span><span>  </span><span id="local-6989586621679119608"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Sum f g a -&gt; Sum f g b
+</span><a href="#local-6989586621679119608"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; Sum f g a -&gt; Sum f g b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span></span></span><span>
+</span><span id="line-239"></span><span>
+</span><span id="line-240"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">WrappedMonoid</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-241"></span><span>  </span><span id="local-6989586621679119606"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; WrappedMonoid a -&gt; WrappedMonoid b
+</span><a href="#local-6989586621679119606"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; WrappedMonoid a -&gt; WrappedMonoid b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-244"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ZipList</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-245"></span><span>  </span><span id="local-6989586621679119604"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+</span><a href="#local-6989586621679119604"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span>
+</span><span id="line-246"></span></pre></body></html>

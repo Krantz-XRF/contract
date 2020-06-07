@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Lists.Fibonacci</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Joel Burget</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Define the fibonacci sequence as an SBV symbolic list.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Lists.Fibonacci</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Data.SBV.List.html"><span class="hs-identifier">Data.SBV.List</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator">(.!!)</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.List.html"><span class="hs-identifier">Data.SBV.List</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- | Compute a prefix of the fibonacci numbers. We have:</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt;&gt;&gt; mkFibs 10</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- [1,1,2,3,5,8,13,21,34,55]</span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Documentation.SBV.Examples.Lists.Fibonacci.html#mkFibs"><span class="hs-identifier hs-type">mkFibs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span id="mkFibs"><span class="annot"><span class="annottext">mkFibs :: Int -&gt; IO [Integer]
+</span><a href="Documentation.SBV.Examples.Lists.Fibonacci.html#mkFibs"><span class="hs-identifier hs-var hs-var">mkFibs</span></a></span></span><span> </span><span id="local-6989586621681162076"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681162076"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Integer] -&gt; [Integer]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681162076"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">([Integer] -&gt; [Integer]) -&gt; IO [Integer] -&gt; IO [Integer]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Symbolic [Integer] -&gt; IO [Integer]
+forall a. Symbolic a -&gt; IO a
+</span><a href="Data.SBV.Client.BaseIO.html#runSMT"><span class="hs-identifier hs-var">runSMT</span></a></span><span> </span><span class="annot"><span class="annottext">Symbolic [Integer]
+</span><a href="Documentation.SBV.Examples.Lists.Fibonacci.html#genFibs"><span class="hs-identifier hs-var">genFibs</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Generate fibonacci numbers as a sequence. Note that we constrain only</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- the first 200 entries.</span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Documentation.SBV.Examples.Lists.Fibonacci.html#genFibs"><span class="hs-identifier hs-type">genFibs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">]</span><span>
+</span><span id="line-32"></span><span id="genFibs"><span class="annot"><span class="annottext">genFibs :: Symbolic [Integer]
+</span><a href="Documentation.SBV.Examples.Lists.Fibonacci.html#genFibs"><span class="hs-identifier hs-var hs-var">genFibs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681162071"><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SList Integer)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SList a)
+</span><a href="Data.SBV.Client.BaseIO.html#sList"><span class="hs-identifier hs-var">sList</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;fibs&quot;</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span>             </span><span class="hs-comment">-- constrain the length</span><span>
+</span><span id="line-35"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger
+</span><a href="Data.SBV.List.html#length"><span class="hs-identifier hs-var">L.length</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">200</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>             </span><span class="hs-comment">-- Constrain first two elements</span><span>
+</span><span id="line-38"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-39"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>             </span><span class="hs-comment">-- Constrain an arbitrary element at index `i`</span><span>
+</span><span id="line-42"></span><span>             </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681162066"><span class="annot"><span class="annottext">constr :: SInteger -&gt; m ()
+</span><a href="#local-6989586621681162066"><span class="hs-identifier hs-var hs-var">constr</span></a></span></span><span> </span><span id="local-6989586621681162065"><span class="annot"><span class="annottext">i :: SInteger
+</span><a href="#local-6989586621681162065"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; m ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; m ()) -&gt; SBool -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681162065"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681162065"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; SInteger -&gt; SInteger
+forall a. SymVal a =&gt; SList a -&gt; SInteger -&gt; SBV a
+</span><a href="Data.SBV.List.html#.%21%21"><span class="hs-operator hs-var">.!!</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681162065"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span>             </span><span class="hs-comment">-- Constrain the remaining elts</span><span>
+</span><span id="line-45"></span><span>             </span><span class="annot"><span class="annottext">(Int -&gt; SymbolicT IO ()) -&gt; [Int] -&gt; SymbolicT IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SInteger -&gt; m ()
+</span><a href="#local-6989586621681162066"><span class="hs-identifier hs-var">constr</span></a></span><span> </span><span class="annot"><span class="annottext">(SInteger -&gt; SymbolicT IO ())
+-&gt; (Int -&gt; SInteger) -&gt; Int -&gt; SymbolicT IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SInteger
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-glyph">::</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">197</span></span><span class="hs-special">]</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span>             </span><span class="annot"><span class="annottext">Query [Integer] -&gt; Symbolic [Integer]
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query [Integer] -&gt; Symbolic [Integer])
+-&gt; Query [Integer] -&gt; Symbolic [Integer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681162060"><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681162060"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-var">checkSat</span></a></span><span>
+</span><span id="line-48"></span><span>                        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681162060"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-49"></span><span>                          </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unk"><span class="hs-identifier hs-type">Unk</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query [Integer]
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Solver returned unknown!&quot;</span></span><span>
+</span><span id="line-50"></span><span>                          </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unsat"><span class="hs-identifier hs-type">Unsat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query [Integer]
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Solver couldn't generate the fibonacci sequence!&quot;</span></span><span>
+</span><span id="line-51"></span><span>                          </span><span class="annot"><a href="Data.SBV.Control.Types.html#Sat"><span class="hs-identifier hs-type">Sat</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SList Integer -&gt; Query [Integer]
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">SList Integer
+</span><a href="#local-6989586621681162071"><span class="hs-identifier hs-var">fibs</span></a></span><span>
+</span><span id="line-52"></span></pre></body></html>

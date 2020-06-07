@@ -1,0 +1,835 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Either</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Joel Burget</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--                 Levent Erkok</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Symbolic coproduct, symbolic version of Haskell's 'Either' type.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE Rank2Types          #-}</span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE TypeApplications    #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators       #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Either</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Constructing sums</span></span><span>
+</span><span id="line-22"></span><span>      </span><span class="annot"><a href="Data.SBV.Either.html#sLeft"><span class="hs-identifier">sLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#sRight"><span class="hs-identifier">sRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#liftEither"><span class="hs-identifier">liftEither</span></a></span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Destructing sums</span></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#either"><span class="hs-identifier">either</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Mapping functions</span></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#bimap"><span class="hs-identifier">bimap</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#first"><span class="hs-identifier">first</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#second"><span class="hs-identifier">second</span></a></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Scrutinizing branches of a sum</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#isLeft"><span class="hs-identifier">isLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#isRight"><span class="hs-identifier">isRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#fromLeft"><span class="hs-identifier">fromLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Either.html#fromRight"><span class="hs-identifier">fromRight</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">either</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Proxy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html"><span class="hs-identifier">Data.SBV.Core.Model</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- instances only</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- For doctest use only</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.SBV.Core.Model</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.SBV.Provers.Prover</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Construct an @SEither a b@ from an @SBV a@</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- &gt;&gt;&gt; sLeft 3 :: SEither Integer Bool</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- Left 3 :: SEither Integer Bool</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Data.SBV.Either.html#sLeft"><span class="hs-identifier hs-type">sLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150820"><span class="annot"><a href="#local-6989586621681150820"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150819"><span class="annot"><a href="#local-6989586621681150819"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150820"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150819"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150820"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150820"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150819"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-50"></span><span id="sLeft"><span class="annot"><span class="annottext">sLeft :: SBV a -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sLeft"><span class="hs-identifier hs-var hs-var">sLeft</span></a></span></span><span> </span><span id="local-6989586621681150771"><span class="annot"><span class="annottext">sa :: SBV a
+</span><a href="#local-6989586621681150771"><span class="hs-identifier hs-var">sa</span></a></span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681150770"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681150770"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Maybe a
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681150771"><span class="hs-identifier hs-var">sa</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; SEither a b
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Either a b
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681150770"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SEither a b
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SEither a b) -&gt; SVal -&gt; SEither a b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150765"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681150763"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681150762"><span class="annot"><span class="annottext">k1 :: Kind
+</span><a href="#local-6989586621681150762"><span class="hs-identifier hs-var hs-var">k1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy a -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy a
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150820"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>        </span><span id="local-6989586621681150760"><span class="annot"><span class="annottext">k2 :: Kind
+</span><a href="#local-6989586621681150760"><span class="hs-identifier hs-var hs-var">k2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy b -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy b
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150819"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>        </span><span id="local-6989586621681150765"><span class="annot"><span class="annottext">k :: Kind
+</span><a href="#local-6989586621681150765"><span class="hs-identifier hs-var hs-var">k</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#KEither"><span class="hs-identifier hs-var">KEither</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150762"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150760"><span class="hs-identifier hs-var">k2</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>        </span><span id="local-6989586621681150763"><span class="annot"><span class="annottext">res :: State -&gt; IO SV
+</span><a href="#local-6989586621681150763"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span id="local-6989586621681150758"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681150758"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681150757"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150757"><span class="hs-identifier hs-var">asv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV a -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150758"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681150771"><span class="hs-identifier hs-var">sa</span></a></span><span>
+</span><span id="line-60"></span><span>                    </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150758"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150765"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherConstructor"><span class="hs-identifier hs-var">EitherConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150762"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150760"><span class="hs-identifier hs-var">k2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150757"><span class="hs-identifier hs-var">asv</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Return 'sTrue' if the given symbolic value is 'Left', 'sFalse' otherwise</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- &gt;&gt;&gt; isLeft (sLeft 3 :: SEither Integer Bool)</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; isLeft (sRight sTrue :: SEither Integer Bool)</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- False</span><span>
+</span><span id="line-68"></span><span id="local-6989586621681150751"><span id="local-6989586621681150752"><span class="annot"><a href="Data.SBV.Either.html#isLeft"><span class="hs-identifier hs-type">isLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150752"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150751"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150752"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150751"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-69"></span><span id="isLeft"><span class="annot"><span class="annottext">isLeft :: SEither a b -&gt; SBV Bool
+</span><a href="Data.SBV.Either.html#isLeft"><span class="hs-identifier hs-var hs-var">isLeft</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV Bool)
+-&gt; (SBV b -&gt; SBV Bool) -&gt; SEither a b -&gt; SBV Bool
+forall a b c.
+(SymVal a, SymVal b, SymVal c) =&gt;
+(SBV a -&gt; SBV c) -&gt; (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SBV c
+</span><a href="Data.SBV.Either.html#either"><span class="hs-identifier hs-var">either</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Bool -&gt; SBV a -&gt; SBV Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBV Bool
+</span><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier hs-var">sTrue</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Bool -&gt; SBV b -&gt; SBV Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBV Bool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- | Construct an @SEither a b@ from an @SBV b@</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- &gt;&gt;&gt; sRight sFalse :: SEither Integer Bool</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- Right False :: SEither Integer Bool</span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Data.SBV.Either.html#sRight"><span class="hs-identifier hs-type">sRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150818"><span class="annot"><a href="#local-6989586621681150818"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150817"><span class="annot"><a href="#local-6989586621681150817"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150818"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150817"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150817"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150818"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150817"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-76"></span><span id="sRight"><span class="annot"><span class="annottext">sRight :: SBV b -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sRight"><span class="hs-identifier hs-var hs-var">sRight</span></a></span></span><span> </span><span id="local-6989586621681150747"><span class="annot"><span class="annottext">sb :: SBV b
+</span><a href="#local-6989586621681150747"><span class="hs-identifier hs-var">sb</span></a></span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681150746"><span class="annot"><span class="annottext">b :: b
+</span><a href="#local-6989586621681150746"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SBV b -&gt; Maybe b
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SBV b
+</span><a href="#local-6989586621681150747"><span class="hs-identifier hs-var">sb</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Either a b -&gt; SEither a b
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; Either a b
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681150746"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SEither a b
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SEither a b) -&gt; SVal -&gt; SEither a b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150745"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681150744"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681150743"><span class="annot"><span class="annottext">k1 :: Kind
+</span><a href="#local-6989586621681150743"><span class="hs-identifier hs-var hs-var">k1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy a -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy a
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150818"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>        </span><span id="local-6989586621681150742"><span class="annot"><span class="annottext">k2 :: Kind
+</span><a href="#local-6989586621681150742"><span class="hs-identifier hs-var hs-var">k2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy b -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy b
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150817"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>        </span><span id="local-6989586621681150745"><span class="annot"><span class="annottext">k :: Kind
+</span><a href="#local-6989586621681150745"><span class="hs-identifier hs-var hs-var">k</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#KEither"><span class="hs-identifier hs-var">KEither</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150743"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150742"><span class="hs-identifier hs-var">k2</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>        </span><span id="local-6989586621681150744"><span class="annot"><span class="annottext">res :: State -&gt; IO SV
+</span><a href="#local-6989586621681150744"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span id="local-6989586621681150741"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681150741"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681150740"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150740"><span class="hs-identifier hs-var">bsv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV b -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150741"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SBV b
+</span><a href="#local-6989586621681150747"><span class="hs-identifier hs-var">sb</span></a></span><span>
+</span><span id="line-86"></span><span>                    </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150741"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150745"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherConstructor"><span class="hs-identifier hs-var">EitherConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150743"><span class="hs-identifier hs-var">k1</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150742"><span class="hs-identifier hs-var">k2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150740"><span class="hs-identifier hs-var">bsv</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- | Return 'sTrue' if the given symbolic value is 'Right', 'sFalse' otherwise</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt;&gt;&gt; isRight (sLeft 3 :: SEither Integer Bool)</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- False</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt;&gt;&gt; isRight (sRight sTrue :: SEither Integer Bool)</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-94"></span><span id="local-6989586621681150790"><span id="local-6989586621681150791"><span class="annot"><a href="Data.SBV.Either.html#isRight"><span class="hs-identifier hs-type">isRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150791"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150790"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150791"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150790"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-95"></span><span id="isRight"><span class="annot"><span class="annottext">isRight :: SEither a b -&gt; SBV Bool
+</span><a href="Data.SBV.Either.html#isRight"><span class="hs-identifier hs-var hs-var">isRight</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV Bool)
+-&gt; (SBV b -&gt; SBV Bool) -&gt; SEither a b -&gt; SBV Bool
+forall a b c.
+(SymVal a, SymVal b, SymVal c) =&gt;
+(SBV a -&gt; SBV c) -&gt; (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SBV c
+</span><a href="Data.SBV.Either.html#either"><span class="hs-identifier hs-var">either</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Bool -&gt; SBV a -&gt; SBV Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBV Bool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Bool -&gt; SBV b -&gt; SBV Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBV Bool
+</span><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier hs-var">sTrue</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Construct an @SEither a b@ from an @Either (SBV a) (SBV b)@</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &gt;&gt;&gt; liftEither (Left 3 :: Either SInteger SBool)</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- Left 3 :: SEither Integer Bool</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- &gt;&gt;&gt; liftEither (Right sTrue :: Either SInteger SBool)</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- Right True :: SEither Integer Bool</span><span>
+</span><span id="line-103"></span><span id="local-6989586621681150738"><span id="local-6989586621681150739"><span class="annot"><a href="Data.SBV.Either.html#liftEither"><span class="hs-identifier hs-type">liftEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150739"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150738"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150739"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150738"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150739"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150738"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-104"></span><span id="liftEither"><span class="annot"><span class="annottext">liftEither :: Either (SBV a) (SBV b) -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#liftEither"><span class="hs-identifier hs-var hs-var">liftEither</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SEither a b)
+-&gt; (SBV b -&gt; SEither a b) -&gt; Either (SBV a) (SBV b) -&gt; SEither a b
+forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">Prelude.either</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SEither a b
+forall a b. (SymVal a, SymVal b) =&gt; SBV a -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sLeft"><span class="hs-identifier hs-var">sLeft</span></a></span><span> </span><span class="annot"><span class="annottext">SBV b -&gt; SEither a b
+forall a b. (SymVal a, SymVal b) =&gt; SBV b -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sRight"><span class="hs-identifier hs-var">sRight</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- | Case analysis for symbolic 'Either's. If the value 'isLeft', apply the</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- first function; if it 'isRight', apply the second function.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- &gt;&gt;&gt; either (*2) (*3) (sLeft 3)</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- 6 :: SInteger</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- &gt;&gt;&gt; either (*2) (*3) (sRight 3)</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- 9 :: SInteger</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- &gt;&gt;&gt; let f = uninterpret &quot;f&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- &gt;&gt;&gt; let g = uninterpret &quot;g&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; either f g (sLeft x) .== f x</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; either f g (sRight x) .== g x</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Data.SBV.Either.html#either"><span class="hs-identifier hs-type">either</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150834"><span class="annot"><a href="#local-6989586621681150834"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150833"><span class="annot"><a href="#local-6989586621681150833"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span id="local-6989586621681150832"><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150834"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150833"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>       </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150834"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150833"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150834"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150833"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-123"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-124"></span><span id="either"><span class="annot"><span class="annottext">either :: (SBV a -&gt; SBV c) -&gt; (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SBV c
+</span><a href="Data.SBV.Either.html#either"><span class="hs-identifier hs-var hs-var">either</span></a></span></span><span> </span><span id="local-6989586621681150737"><span class="annot"><span class="annottext">brA :: SBV a -&gt; SBV c
+</span><a href="#local-6989586621681150737"><span class="hs-identifier hs-var">brA</span></a></span></span><span> </span><span id="local-6989586621681150736"><span class="annot"><span class="annottext">brB :: SBV b -&gt; SBV c
+</span><a href="#local-6989586621681150736"><span class="hs-identifier hs-var">brB</span></a></span></span><span> </span><span id="local-6989586621681150735"><span class="annot"><span class="annottext">sab :: SEither a b
+</span><a href="#local-6989586621681150735"><span class="hs-identifier hs-var">sab</span></a></span></span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681150734"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681150734"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SEither a b -&gt; Maybe (Either a b)
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150735"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV c
+</span><a href="#local-6989586621681150737"><span class="hs-identifier hs-var">brA</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV c) -&gt; SBV a -&gt; SBV c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SBV a
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681150734"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681150733"><span class="annot"><span class="annottext">b :: b
+</span><a href="#local-6989586621681150733"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SEither a b -&gt; Maybe (Either a b)
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150735"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV b -&gt; SBV c
+</span><a href="#local-6989586621681150736"><span class="hs-identifier hs-var">brB</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV b -&gt; SBV c) -&gt; SBV b -&gt; SBV c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; SBV b
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681150733"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV c
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV c) -&gt; SVal -&gt; SBV c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150732"><span class="hs-identifier hs-var">kc</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681150731"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681150730"><span class="annot"><span class="annottext">ka :: Kind
+</span><a href="#local-6989586621681150730"><span class="hs-identifier hs-var hs-var">ka</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy a -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy a
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150834"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>        </span><span id="local-6989586621681150729"><span class="annot"><span class="annottext">kb :: Kind
+</span><a href="#local-6989586621681150729"><span class="hs-identifier hs-var hs-var">kb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy b -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy b
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150833"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>        </span><span id="local-6989586621681150732"><span class="annot"><span class="annottext">kc :: Kind
+</span><a href="#local-6989586621681150732"><span class="hs-identifier hs-var hs-var">kc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy c -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy c
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150832"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span>        </span><span id="local-6989586621681150731"><span class="annot"><span class="annottext">res :: State -&gt; IO SV
+</span><a href="#local-6989586621681150731"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span id="local-6989586621681150728"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681150727"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150727"><span class="hs-identifier hs-var">abv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SEither a b -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150735"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span>                    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681150726"><span class="annot"><span class="annottext">leftVal :: SBV a
+</span><a href="#local-6989586621681150726"><span class="hs-identifier hs-var hs-var">leftVal</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV a
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV a) -&gt; SVal -&gt; SBV a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150730"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">((State -&gt; IO SV) -&gt; Cached SV) -&gt; (State -&gt; IO SV) -&gt; Cached SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150730"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherAccess"><span class="hs-identifier hs-var">EitherAccess</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150727"><span class="hs-identifier hs-var">abv</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-138"></span><span>                        </span><span id="local-6989586621681150724"><span class="annot"><span class="annottext">rightVal :: SBV a
+</span><a href="#local-6989586621681150724"><span class="hs-identifier hs-var hs-var">rightVal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV a
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV a) -&gt; SVal -&gt; SBV a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150729"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">((State -&gt; IO SV) -&gt; Cached SV) -&gt; (State -&gt; IO SV) -&gt; Cached SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150729"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherAccess"><span class="hs-identifier hs-var">EitherAccess</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span>  </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150727"><span class="hs-identifier hs-var">abv</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span>                        </span><span id="local-6989586621681150723"><span class="annot"><span class="annottext">leftRes :: SBV c
+</span><a href="#local-6989586621681150723"><span class="hs-identifier hs-var hs-var">leftRes</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV c
+</span><a href="#local-6989586621681150737"><span class="hs-identifier hs-var">brA</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+forall a. SBV a
+</span><a href="#local-6989586621681150726"><span class="hs-identifier hs-var">leftVal</span></a></span><span>
+</span><span id="line-141"></span><span>                        </span><span id="local-6989586621681150722"><span class="annot"><span class="annottext">rightRes :: SBV c
+</span><a href="#local-6989586621681150722"><span class="hs-identifier hs-var hs-var">rightRes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV b -&gt; SBV c
+</span><a href="#local-6989586621681150736"><span class="hs-identifier hs-var">brB</span></a></span><span> </span><span class="annot"><span class="annottext">SBV b
+forall a. SBV a
+</span><a href="#local-6989586621681150724"><span class="hs-identifier hs-var">rightVal</span></a></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span>                    </span><span id="local-6989586621681150721"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150721"><span class="hs-identifier hs-var">br1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV c -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SBV c
+</span><a href="#local-6989586621681150723"><span class="hs-identifier hs-var">leftRes</span></a></span><span>
+</span><span id="line-144"></span><span>                    </span><span id="local-6989586621681150720"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150720"><span class="hs-identifier hs-var">br2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV c -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SBV c
+</span><a href="#local-6989586621681150722"><span class="hs-identifier hs-var">rightRes</span></a></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span>                    </span><span class="hs-comment">--  Which branch are we in? Return the appropriate value:</span><span>
+</span><span id="line-147"></span><span>                    </span><span id="local-6989586621681150719"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150719"><span class="hs-identifier hs-var">onLeft</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherIs"><span class="hs-identifier hs-var">EitherIs</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150730"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150729"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150727"><span class="hs-identifier hs-var">abv</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-148"></span><span>                    </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150728"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150732"><span class="hs-identifier hs-var">kc</span></a></span><span> </span><span class="annot"><span class="annottext">(SBVExpr -&gt; IO SV) -&gt; SBVExpr -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="annot"><span class="annottext">Op
+</span><a href="Data.SBV.Core.Symbolic.html#Ite"><span class="hs-identifier hs-var">Ite</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150719"><span class="hs-identifier hs-var">onLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150721"><span class="hs-identifier hs-var">br1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150720"><span class="hs-identifier hs-var">br2</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- | Map over both sides of a symbolic 'Either' at the same time</span><span>
+</span><span id="line-151"></span><span class="hs-comment">--</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- &gt;&gt;&gt; let f = uninterpret &quot;f&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- &gt;&gt;&gt; let g = uninterpret &quot;g&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; fromLeft (bimap f g (sLeft x)) .== f x</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; fromRight (bimap f g (sRight x)) .== g x</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-158"></span><span class="annot"><a href="Data.SBV.Either.html#bimap"><span class="hs-identifier hs-type">bimap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150801"><span class="annot"><a href="#local-6989586621681150801"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150800"><span class="annot"><a href="#local-6989586621681150800"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span id="local-6989586621681150799"><span class="annot"><a href="#local-6989586621681150799"><span class="hs-identifier hs-type">c</span></a></span></span><span> </span><span id="local-6989586621681150798"><span class="annot"><a href="#local-6989586621681150798"><span class="hs-identifier hs-type">d</span></a></span></span><span class="hs-operator">.</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150801"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150800"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150799"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150798"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>      </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150801"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150800"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150799"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150798"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150801"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150799"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-162"></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150800"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150798"><span class="hs-identifier hs-type">d</span></a></span><span>
+</span><span id="line-163"></span><span id="bimap"><span class="annot"><span class="annottext">bimap :: (SBV a -&gt; SBV b) -&gt; (SBV c -&gt; SBV d) -&gt; SEither a c -&gt; SEither b d
+</span><a href="Data.SBV.Either.html#bimap"><span class="hs-identifier hs-var hs-var">bimap</span></a></span></span><span> </span><span id="local-6989586621681150715"><span class="annot"><span class="annottext">brA :: SBV a -&gt; SBV b
+</span><a href="#local-6989586621681150715"><span class="hs-identifier hs-var">brA</span></a></span></span><span> </span><span id="local-6989586621681150714"><span class="annot"><span class="annottext">brC :: SBV c -&gt; SBV d
+</span><a href="#local-6989586621681150714"><span class="hs-identifier hs-var">brC</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SEither b d)
+-&gt; (SBV c -&gt; SEither b d) -&gt; SEither a c -&gt; SEither b d
+forall a b c.
+(SymVal a, SymVal b, SymVal c) =&gt;
+(SBV a -&gt; SBV c) -&gt; (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SBV c
+</span><a href="Data.SBV.Either.html#either"><span class="hs-identifier hs-var">either</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV b -&gt; SEither b d
+forall a b. (SymVal a, SymVal b) =&gt; SBV a -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sLeft"><span class="hs-identifier hs-var">sLeft</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV b -&gt; SEither b d) -&gt; (SBV a -&gt; SBV b) -&gt; SBV a -&gt; SEither b d
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV b
+</span><a href="#local-6989586621681150715"><span class="hs-identifier hs-var">brA</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV d -&gt; SEither b d
+forall a b. (SymVal a, SymVal b) =&gt; SBV b -&gt; SEither a b
+</span><a href="Data.SBV.Either.html#sRight"><span class="hs-identifier hs-var">sRight</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV d -&gt; SEither b d) -&gt; (SBV c -&gt; SBV d) -&gt; SBV c -&gt; SEither b d
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SBV c -&gt; SBV d
+</span><a href="#local-6989586621681150714"><span class="hs-identifier hs-var">brC</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- | Map over the left side of an 'Either'</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- &gt;&gt;&gt; let f = uninterpret &quot;f&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; first f (sLeft x :: SEither Integer Integer) .== sLeft (f x)</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; first f (sRight x :: SEither Integer Integer) .== sRight x</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-172"></span><span id="local-6989586621681150710"><span id="local-6989586621681150711"><span id="local-6989586621681150712"><span class="annot"><a href="Data.SBV.Either.html#first"><span class="hs-identifier hs-type">first</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150712"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150711"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150710"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150712"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150711"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150712"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150710"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150711"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150710"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-173"></span><span id="first"><span class="annot"><span class="annottext">first :: (SBV a -&gt; SBV b) -&gt; SEither a c -&gt; SEither b c
+</span><a href="Data.SBV.Either.html#first"><span class="hs-identifier hs-var hs-var">first</span></a></span></span><span> </span><span id="local-6989586621681150709"><span class="annot"><span class="annottext">f :: SBV a -&gt; SBV b
+</span><a href="#local-6989586621681150709"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV b) -&gt; (SBV c -&gt; SBV c) -&gt; SEither a c -&gt; SEither b c
+forall a b c d.
+(SymVal a, SymVal b, SymVal c, SymVal d) =&gt;
+(SBV a -&gt; SBV b) -&gt; (SBV c -&gt; SBV d) -&gt; SEither a c -&gt; SEither b d
+</span><a href="Data.SBV.Either.html#bimap"><span class="hs-identifier hs-var">bimap</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV b
+</span><a href="#local-6989586621681150709"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBV c -&gt; SBV c
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- | Map over the right side of an 'Either'</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- &gt;&gt;&gt; let f = uninterpret &quot;f&quot; :: SInteger -&gt; SInteger</span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; second f (sRight x :: SEither Integer Integer) .== sRight (f x)</span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; second f (sLeft x :: SEither Integer Integer) .== sLeft x</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-182"></span><span id="local-6989586621681150705"><span id="local-6989586621681150706"><span id="local-6989586621681150707"><span class="annot"><a href="Data.SBV.Either.html#second"><span class="hs-identifier hs-type">second</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150707"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150706"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150705"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150706"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150705"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150707"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150706"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150707"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150705"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-183"></span><span id="second"><span class="annot"><span class="annottext">second :: (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SEither a c
+</span><a href="Data.SBV.Either.html#second"><span class="hs-identifier hs-var hs-var">second</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV a) -&gt; (SBV b -&gt; SBV c) -&gt; SEither a b -&gt; SEither a c
+forall a b c d.
+(SymVal a, SymVal b, SymVal c, SymVal d) =&gt;
+(SBV a -&gt; SBV b) -&gt; (SBV c -&gt; SBV d) -&gt; SEither a c -&gt; SEither b d
+</span><a href="Data.SBV.Either.html#bimap"><span class="hs-identifier hs-var">bimap</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- | Return the value from the left component. The behavior is undefined if</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- passed a right value.</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--</span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- &gt;&gt;&gt; fromLeft (sLeft (literal 'a') :: SEither Char Integer)</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- 'a' :: SChar</span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; fromLeft (sLeft x :: SEither Char Integer) .== (x :: SChar)</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- &gt;&gt;&gt; sat $ \x -&gt; x .== (fromLeft (sRight 4 :: SEither Char Integer))</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-194"></span><span class="hs-comment">--   s0 = '\NUL' :: Char</span><span>
+</span><span id="line-195"></span><span class="hs-comment">--</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- Note how we get a satisfying assignment in the last case: The behavior</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- is unspecified, thus the SMT solver picks whatever satisfies the</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- constraints, if there is one.</span><span>
+</span><span id="line-199"></span><span class="annot"><a href="Data.SBV.Either.html#fromLeft"><span class="hs-identifier hs-type">fromLeft</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150704"><span class="annot"><a href="#local-6989586621681150704"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150703"><span class="annot"><a href="#local-6989586621681150703"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150704"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150703"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150704"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150703"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150704"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-200"></span><span id="fromLeft"><span class="annot"><span class="annottext">fromLeft :: SEither a b -&gt; SBV a
+</span><a href="Data.SBV.Either.html#fromLeft"><span class="hs-identifier hs-var hs-var">fromLeft</span></a></span></span><span> </span><span id="local-6989586621681150702"><span class="annot"><span class="annottext">sab :: SEither a b
+</span><a href="#local-6989586621681150702"><span class="hs-identifier hs-var">sab</span></a></span></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681150701"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621681150701"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SEither a b -&gt; Maybe (Either a b)
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150702"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; SBV a
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681150701"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-204"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV a
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV a) -&gt; SVal -&gt; SBV a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150700"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681150699"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681150700"><span class="annot"><span class="annottext">ka :: Kind
+</span><a href="#local-6989586621681150700"><span class="hs-identifier hs-var hs-var">ka</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy a -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy a
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150704"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-206"></span><span>        </span><span id="local-6989586621681150698"><span class="annot"><span class="annottext">kb :: Kind
+</span><a href="#local-6989586621681150698"><span class="hs-identifier hs-var hs-var">kb</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy b -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy b
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150703"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-207"></span><span>        </span><span id="local-6989586621681150697"><span class="annot"><span class="annottext">kEither :: Kind
+</span><a href="#local-6989586621681150697"><span class="hs-identifier hs-var hs-var">kEither</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#KEither"><span class="hs-identifier hs-var">KEither</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150700"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150698"><span class="hs-identifier hs-var">kb</span></a></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span>        </span><span class="hs-comment">-- We play the usual trick here of creating a left value and asserting equivalence</span><span>
+</span><span id="line-210"></span><span>        </span><span class="hs-comment">-- under implication. This will be underspecified as required should the value</span><span>
+</span><span id="line-211"></span><span>        </span><span class="hs-comment">-- received be a right thing.</span><span>
+</span><span id="line-212"></span><span>        </span><span id="local-6989586621681150699"><span class="annot"><span class="annottext">res :: State -&gt; IO SV
+</span><a href="#local-6989586621681150699"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span id="local-6989586621681150696"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-comment">-- grab an internal variable and make a left out of it</span><span>
+</span><span id="line-213"></span><span>                    </span><span id="local-6989586621681150695"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150695"><span class="hs-identifier hs-var">e</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#internalVariable"><span class="hs-identifier hs-var">internalVariable</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150700"><span class="hs-identifier hs-var">ka</span></a></span><span>
+</span><span id="line-214"></span><span>                    </span><span id="local-6989586621681150693"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150693"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150697"><span class="hs-identifier hs-var">kEither</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherConstructor"><span class="hs-identifier hs-var">EitherConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150700"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150698"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150695"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span>                    </span><span class="hs-comment">-- Create the condition that it is equal to the input</span><span>
+</span><span id="line-217"></span><span>                    </span><span id="local-6989586621681150692"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150692"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SEither a b -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150702"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-218"></span><span>                    </span><span id="local-6989586621681150691"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150691"><span class="hs-identifier hs-var">eq</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="annot"><span class="annottext">Op
+</span><a href="Data.SBV.Core.Symbolic.html#Equal"><span class="hs-identifier hs-var">Equal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150693"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150692"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>
+</span><span id="line-220"></span><span>                    </span><span class="hs-comment">-- Gotta make sure we do this only when input is not right</span><span>
+</span><span id="line-221"></span><span>                    </span><span id="local-6989586621681150689"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150689"><span class="hs-identifier hs-var">caseRight</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV Bool -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SEither a b -&gt; SBV Bool
+forall a b. (SymVal a, SymVal b) =&gt; SEither a b -&gt; SBV Bool
+</span><a href="Data.SBV.Either.html#isRight"><span class="hs-identifier hs-var">isRight</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150702"><span class="hs-identifier hs-var">sab</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-222"></span><span>                    </span><span id="local-6989586621681150688"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150688"><span class="hs-identifier hs-var">require</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="annot"><span class="annottext">Op
+</span><a href="Data.SBV.Core.Symbolic.html#Or"><span class="hs-identifier hs-var">Or</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150689"><span class="hs-identifier hs-var">caseRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150691"><span class="hs-identifier hs-var">eq</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span>                    </span><span class="hs-comment">-- register the constraint:</span><span>
+</span><span id="line-225"></span><span>                    </span><span class="annot"><span class="annottext">State -&gt; Bool -&gt; [(String, String)] -&gt; SVal -&gt; IO ()
+</span><a href="Data.SBV.Core.Symbolic.html#internalConstraint"><span class="hs-identifier hs-var">internalConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150696"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; IO ()) -&gt; SVal -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">((State -&gt; IO SV) -&gt; Cached SV) -&gt; (State -&gt; IO SV) -&gt; Cached SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SV -&gt; IO SV
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150688"><span class="hs-identifier hs-var">require</span></a></span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span>                    </span><span class="hs-comment">-- We're good to go</span><span>
+</span><span id="line-228"></span><span>                    </span><span class="annot"><span class="annottext">SV -&gt; IO SV
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150695"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="hs-comment">-- | Return the value from the right component. The behavior is undefined if</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- passed a left value.</span><span>
+</span><span id="line-232"></span><span class="hs-comment">--</span><span>
+</span><span id="line-233"></span><span class="hs-comment">-- &gt;&gt;&gt; fromRight (sRight (literal 'a') :: SEither Integer Char)</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- 'a' :: SChar</span><span>
+</span><span id="line-235"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; fromRight (sRight x :: SEither Char Integer) .== (x :: SInteger)</span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-237"></span><span class="hs-comment">-- &gt;&gt;&gt; sat $ \x -&gt; x .== (fromRight (sLeft (literal 'a') :: SEither Char Integer))</span><span>
+</span><span id="line-238"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-239"></span><span class="hs-comment">--   s0 = 0 :: Integer</span><span>
+</span><span id="line-240"></span><span class="hs-comment">--</span><span>
+</span><span id="line-241"></span><span class="hs-comment">-- Note how we get a satisfying assignment in the last case: The behavior</span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- is unspecified, thus the SMT solver picks whatever satisfies the</span><span>
+</span><span id="line-243"></span><span class="hs-comment">-- constraints, if there is one.</span><span>
+</span><span id="line-244"></span><span class="annot"><a href="Data.SBV.Either.html#fromRight"><span class="hs-identifier hs-type">fromRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681150685"><span class="annot"><a href="#local-6989586621681150685"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621681150684"><span class="annot"><a href="#local-6989586621681150684"><span class="hs-identifier hs-type">b</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150685"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150684"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SEither"><span class="hs-identifier hs-type">SEither</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150685"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150684"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681150684"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-245"></span><span id="fromRight"><span class="annot"><span class="annottext">fromRight :: SEither a b -&gt; SBV b
+</span><a href="Data.SBV.Either.html#fromRight"><span class="hs-identifier hs-var hs-var">fromRight</span></a></span></span><span> </span><span id="local-6989586621681150683"><span class="annot"><span class="annottext">sab :: SEither a b
+</span><a href="#local-6989586621681150683"><span class="hs-identifier hs-var">sab</span></a></span></span><span>
+</span><span id="line-246"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681150682"><span class="annot"><span class="annottext">b :: b
+</span><a href="#local-6989586621681150682"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SEither a b -&gt; Maybe (Either a b)
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150683"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-247"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; SBV b
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681150682"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-248"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-249"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SBV b
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SBV b) -&gt; SVal -&gt; SBV b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150681"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681150680"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-250"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681150679"><span class="annot"><span class="annottext">ka :: Kind
+</span><a href="#local-6989586621681150679"><span class="hs-identifier hs-var hs-var">ka</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy a -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy a
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150685"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-251"></span><span>        </span><span id="local-6989586621681150681"><span class="annot"><span class="annottext">kb :: Kind
+</span><a href="#local-6989586621681150681"><span class="hs-identifier hs-var hs-var">kb</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy b -&gt; Kind
+forall a. HasKind a =&gt; a -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#kindOf"><span class="hs-identifier hs-var">kindOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy b
+forall k (t :: k). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621681150684"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-252"></span><span>        </span><span id="local-6989586621681150678"><span class="annot"><span class="annottext">kEither :: Kind
+</span><a href="#local-6989586621681150678"><span class="hs-identifier hs-var hs-var">kEither</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#KEither"><span class="hs-identifier hs-var">KEither</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150679"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150681"><span class="hs-identifier hs-var">kb</span></a></span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span>        </span><span class="hs-comment">-- We play the usual trick here of creating a right value and asserting equivalence</span><span>
+</span><span id="line-255"></span><span>        </span><span class="hs-comment">-- under implication. This will be underspecified as required should the value</span><span>
+</span><span id="line-256"></span><span>        </span><span class="hs-comment">-- received be a right thing.</span><span>
+</span><span id="line-257"></span><span>        </span><span id="local-6989586621681150680"><span class="annot"><span class="annottext">res :: State -&gt; IO SV
+</span><a href="#local-6989586621681150680"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span id="local-6989586621681150677"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-comment">-- grab an internal variable and make a right out of it</span><span>
+</span><span id="line-258"></span><span>                    </span><span id="local-6989586621681150676"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150676"><span class="hs-identifier hs-var">e</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#internalVariable"><span class="hs-identifier hs-var">internalVariable</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150681"><span class="hs-identifier hs-var">kb</span></a></span><span>
+</span><span id="line-259"></span><span>                    </span><span id="local-6989586621681150675"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150675"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150678"><span class="hs-identifier hs-var">kEither</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Bool -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#EitherConstructor"><span class="hs-identifier hs-var">EitherConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150679"><span class="hs-identifier hs-var">ka</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681150681"><span class="hs-identifier hs-var">kb</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150676"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-260"></span><span>
+</span><span id="line-261"></span><span>                    </span><span class="hs-comment">-- Create the condition that it is equal to the input</span><span>
+</span><span id="line-262"></span><span>                    </span><span id="local-6989586621681150674"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150674"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SEither a b -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150683"><span class="hs-identifier hs-var">sab</span></a></span><span>
+</span><span id="line-263"></span><span>                    </span><span id="local-6989586621681150673"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150673"><span class="hs-identifier hs-var">eq</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="annot"><span class="annottext">Op
+</span><a href="Data.SBV.Core.Symbolic.html#Equal"><span class="hs-identifier hs-var">Equal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150675"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150674"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span>                    </span><span class="hs-comment">-- Gotta make sure we do this only when input is not left</span><span>
+</span><span id="line-266"></span><span>                    </span><span id="local-6989586621681150672"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150672"><span class="hs-identifier hs-var">caseLeft</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SBV Bool -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SEither a b -&gt; SBV Bool
+forall a b. (SymVal a, SymVal b) =&gt; SEither a b -&gt; SBV Bool
+</span><a href="Data.SBV.Either.html#isLeft"><span class="hs-identifier hs-var">isLeft</span></a></span><span> </span><span class="annot"><span class="annottext">SEither a b
+</span><a href="#local-6989586621681150683"><span class="hs-identifier hs-var">sab</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-267"></span><span>                    </span><span id="local-6989586621681150671"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150671"><span class="hs-identifier hs-var">require</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="annot"><span class="annottext">Op
+</span><a href="Data.SBV.Core.Symbolic.html#Or"><span class="hs-identifier hs-var">Or</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150672"><span class="hs-identifier hs-var">caseLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150673"><span class="hs-identifier hs-var">eq</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span>                    </span><span class="hs-comment">-- register the constraint:</span><span>
+</span><span id="line-270"></span><span>                    </span><span class="annot"><span class="annottext">State -&gt; Bool -&gt; [(String, String)] -&gt; SVal -&gt; IO ()
+</span><a href="Data.SBV.Core.Symbolic.html#internalConstraint"><span class="hs-identifier hs-var">internalConstraint</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681150677"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; IO ()) -&gt; SVal -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KBool"><span class="hs-identifier hs-var">KBool</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">((State -&gt; IO SV) -&gt; Cached SV) -&gt; (State -&gt; IO SV) -&gt; Cached SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SV -&gt; IO SV
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150671"><span class="hs-identifier hs-var">require</span></a></span><span>
+</span><span id="line-271"></span><span>
+</span><span id="line-272"></span><span>                    </span><span class="hs-comment">-- We're good to go</span><span>
+</span><span id="line-273"></span><span>                    </span><span class="annot"><span class="annottext">SV -&gt; IO SV
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681150676"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-274"></span><span>
+</span><span id="line-275"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="hs-pragma">module</span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Reduce duplication&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-276"></span></pre></body></html>

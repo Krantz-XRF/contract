@@ -1,0 +1,190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Control</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Control sublanguage for interacting with SMT solvers.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Control</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-17"></span><span>     </span><span class="annot"><span class="hs-comment">-- $queryIntro</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span>     </span><span class="annot"><span class="hs-comment">-- * User queries</span></span><span>
+</span><span id="line-20"></span><span>       </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier">ExtractIO</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#MonadQuery"><span class="hs-identifier">MonadQuery</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Queriable"><span class="hs-identifier">Queriable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Fresh"><span class="hs-identifier">Fresh</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier">Query</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.html#query"><span class="hs-identifier">query</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Create a fresh variable</span></span><span>
+</span><span id="line-23"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier">freshVar_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshVar"><span class="hs-identifier">freshVar</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Create a fresh array</span></span><span>
+</span><span id="line-26"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshArray_"><span class="hs-identifier">freshArray_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#freshArray"><span class="hs-identifier">freshArray</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Checking satisfiability</span></span><span>
+</span><span id="line-29"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#CheckSatResult"><span class="hs-identifier">CheckSatResult</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier">checkSat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#ensureSat"><span class="hs-identifier">ensureSat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatUsing"><span class="hs-identifier">checkSatUsing</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatAssuming"><span class="hs-identifier">checkSatAssuming</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#checkSatAssumingWithUnsatisfiableSet"><span class="hs-identifier">checkSatAssumingWithUnsatisfiableSet</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Querying the solver</span></span><span>
+</span><span id="line-32"></span><span>     </span><span class="annot"><span class="hs-comment">-- ** Extracting values</span></span><span>
+</span><span id="line-33"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTValue"><span class="hs-identifier">SMTValue</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier">getValue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#registerUISMTFunction"><span class="hs-identifier">registerUISMTFunction</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getFunction"><span class="hs-identifier">getFunction</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUninterpretedValue"><span class="hs-identifier">getUninterpretedValue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getModel"><span class="hs-identifier">getModel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssignment"><span class="hs-identifier">getAssignment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getSMTResult"><span class="hs-identifier">getSMTResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUnknownReason"><span class="hs-identifier">getUnknownReason</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getObservables"><span class="hs-identifier">getObservables</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>     </span><span class="annot"><span class="hs-comment">-- ** Extracting the unsat core</span></span><span>
+</span><span id="line-36"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getUnsatCore"><span class="hs-identifier">getUnsatCore</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span>     </span><span class="annot"><span class="hs-comment">-- ** Extracting a proof</span></span><span>
+</span><span id="line-39"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getProof"><span class="hs-identifier">getProof</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>     </span><span class="annot"><span class="hs-comment">-- ** Extracting interpolants</span></span><span>
+</span><span id="line-42"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInterpolantMathSAT"><span class="hs-identifier">getInterpolantMathSAT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInterpolantZ3"><span class="hs-identifier">getInterpolantZ3</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span>     </span><span class="annot"><span class="hs-comment">-- ** Extracting assertions</span></span><span>
+</span><span id="line-45"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssertions"><span class="hs-identifier">getAssertions</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Getting solver information</span></span><span>
+</span><span id="line-48"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoFlag"><span class="hs-identifier">SMTInfoFlag</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTErrorBehavior"><span class="hs-identifier">SMTErrorBehavior</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTInfoResponse"><span class="hs-identifier">SMTInfoResponse</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getInfo"><span class="hs-identifier">getInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getOption"><span class="hs-identifier">getOption</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Entering and exiting assertion stack</span></span><span>
+</span><span id="line-52"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#getAssertionStackDepth"><span class="hs-identifier">getAssertionStackDepth</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#push"><span class="hs-identifier">push</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#pop"><span class="hs-identifier">pop</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#inNewAssertionStack"><span class="hs-identifier">inNewAssertionStack</span></a></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Higher level tactics</span></span><span>
+</span><span id="line-55"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#caseSplit"><span class="hs-identifier">caseSplit</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Resetting the solver state</span></span><span>
+</span><span id="line-58"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#resetAssertions"><span class="hs-identifier">resetAssertions</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Constructing assignments</span></span><span>
+</span><span id="line-61"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#%7C-%3E"><span class="hs-operator">(|-&gt;)</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Terminating the query</span></span><span>
+</span><span id="line-64"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#mkSMTResult"><span class="hs-identifier">mkSMTResult</span></a></span><span>
+</span><span id="line-65"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#exit"><span class="hs-identifier">exit</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Controlling the solver behavior</span></span><span>
+</span><span id="line-68"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#ignoreExitCode"><span class="hs-identifier">ignoreExitCode</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#timeout"><span class="hs-identifier">timeout</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Miscellaneous</span></span><span>
+</span><span id="line-71"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#queryDebug"><span class="hs-identifier">queryDebug</span></a></span><span>
+</span><span id="line-72"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#echo"><span class="hs-identifier">echo</span></a></span><span>
+</span><span id="line-73"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html#io"><span class="hs-identifier">io</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span>     </span><span class="annot"><span class="hs-comment">-- * Solver options</span></span><span>
+</span><span id="line-76"></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Types.html#SMTOption"><span class="hs-identifier">SMTOption</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>     </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html"><span class="hs-identifier">Data.SBV.Core.Symbolic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#MonadQuery"><span class="hs-identifier">MonadQuery</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier">Query</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Queriable"><span class="hs-identifier">Queriable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Fresh"><span class="hs-identifier">Fresh</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier">Symbolic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#QueryContext"><span class="hs-identifier">QueryContext</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.BaseIO.html"><span class="hs-identifier">Data.SBV.Control.BaseIO</span></a></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html"><span class="hs-identifier">Data.SBV.Control.Query</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><a href="Data.SBV.Control.Query.html#getInfo"><span class="hs-identifier">getInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getOption"><span class="hs-identifier">getOption</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getUnknownReason"><span class="hs-identifier">getUnknownReason</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#getObservables"><span class="hs-identifier">getObservables</span></a></span><span>
+</span><span id="line-83"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getSMTResult"><span class="hs-identifier">getSMTResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getLexicographicOptResults"><span class="hs-identifier">getLexicographicOptResults</span></a></span><span>
+</span><span id="line-84"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getIndependentOptResults"><span class="hs-identifier">getIndependentOptResults</span></a></span><span>
+</span><span id="line-85"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getParetoOptResults"><span class="hs-identifier">getParetoOptResults</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getModel"><span class="hs-identifier">getModel</span></a></span><span>
+</span><span id="line-86"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#checkSatAssuming"><span class="hs-identifier">checkSatAssuming</span></a></span><span>
+</span><span id="line-87"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#checkSatAssumingWithUnsatisfiableSet"><span class="hs-identifier">checkSatAssumingWithUnsatisfiableSet</span></a></span><span>
+</span><span id="line-88"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getAssertionStackDepth"><span class="hs-identifier">getAssertionStackDepth</span></a></span><span>
+</span><span id="line-89"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#inNewAssertionStack"><span class="hs-identifier">inNewAssertionStack</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#push"><span class="hs-identifier">push</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#pop"><span class="hs-identifier">pop</span></a></span><span>
+</span><span id="line-90"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#caseSplit"><span class="hs-identifier">caseSplit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#resetAssertions"><span class="hs-identifier">resetAssertions</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#echo"><span class="hs-identifier">echo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#exit"><span class="hs-identifier">exit</span></a></span><span>
+</span><span id="line-91"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getUnsatCore"><span class="hs-identifier">getUnsatCore</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getProof"><span class="hs-identifier">getProof</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getInterpolantMathSAT"><span class="hs-identifier">getInterpolantMathSAT</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getInterpolantZ3"><span class="hs-identifier">getInterpolantZ3</span></a></span><span>
+</span><span id="line-92"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getAssertions"><span class="hs-identifier">getAssertions</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#getAssignment"><span class="hs-identifier">getAssignment</span></a></span><span>
+</span><span id="line-93"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#mkSMTResult"><span class="hs-identifier">mkSMTResult</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#freshVar_"><span class="hs-identifier">freshVar_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#freshVar"><span class="hs-identifier">freshVar</span></a></span><span>
+</span><span id="line-94"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#freshArray"><span class="hs-identifier">freshArray</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#freshArray_"><span class="hs-identifier">freshArray_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#checkSat"><span class="hs-identifier">checkSat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Query.html#ensureSat"><span class="hs-identifier">ensureSat</span></a></span><span>
+</span><span id="line-95"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#checkSatUsing"><span class="hs-identifier">checkSatUsing</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#getValue"><span class="hs-identifier">getValue</span></a></span><span>
+</span><span id="line-96"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#getUninterpretedValue"><span class="hs-identifier">getUninterpretedValue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#timeout"><span class="hs-identifier">timeout</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#io"><span class="hs-identifier">io</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html"><span class="hs-identifier">Data.SBV.Control.Utils</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTValue"><span class="hs-identifier">SMTValue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#registerUISMTFunction"><span class="hs-identifier">registerUISMTFunction</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html"><span class="hs-identifier">Data.SBV.Utils.ExtractIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier">ExtractIO</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html"><span class="hs-identifier">Data.SBV.Control.Utils</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- | Run a custom query</span><span>
+</span><span id="line-104"></span><span id="local-6989586621681153797"><span class="annot"><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-type">query</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153797"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681153797"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-105"></span><span id="query"><span class="annot"><span class="annottext">query :: Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var hs-var">query</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QueryContext -&gt; Query a -&gt; Symbolic a
+forall (m :: * -&gt; *) a.
+ExtractIO m =&gt;
+QueryContext -&gt; QueryT m a -&gt; SymbolicT m a
+</span><a href="Data.SBV.Control.Utils.html#executeQuery"><span class="hs-identifier hs-var">Trans.executeQuery</span></a></span><span> </span><span class="annot"><span class="annottext">QueryContext
+</span><a href="Data.SBV.Core.Symbolic.html#QueryExternal"><span class="hs-identifier hs-var">QueryExternal</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">{- $queryIntro
+In certain cases, the user might want to take over the communication with the solver, programmatically
+querying the engine and issuing commands accordingly. Queries can be extremely powerful as
+they allow direct control of the solver. Here's a simple example:
+
+@
+    module Test where
+
+    import Data.SBV
+    import Data.SBV.Control  -- queries require this module to be imported!
+
+    test :: Symbolic (Maybe (Integer, Integer))
+    test = do x &lt;- sInteger &quot;x&quot;   -- a free variable named &quot;x&quot;
+              y &lt;- sInteger &quot;y&quot;   -- a free variable named &quot;y&quot;
+
+              -- require the sum to be 10
+              constrain $ x + y .== 10
+
+              -- Go into the Query mode
+              query $ do
+                    -- Query the solver: Are the constraints satisfiable?
+                    cs &lt;- checkSat
+                    case cs of
+                      Unk   -&gt; error &quot;Solver said unknown!&quot;
+                      Unsat -&gt; return Nothing -- no solution!
+                      Sat   -&gt; -- Query the values:
+                               do xv &lt;- getValue x
+                                  yv &lt;- getValue y
+
+                                  io $ putStrLn $ &quot;Solver returned: &quot; ++ show (xv, yv)
+
+                                  -- We can now add new constraints,
+                                  -- Or perform arbitrary computations and tell
+                                  -- the solver anything we want!
+                                  constrain $ x .&gt; literal xv + literal yv
+
+                                  -- call checkSat again
+                                  csNew &lt;- checkSat
+                                  case csNew of
+                                    Unk   -&gt; error &quot;Solver said unknown!&quot;
+                                    Unsat -&gt; return Nothing
+                                    Sat   -&gt; do xv2 &lt;- getValue x
+                                                yv2 &lt;- getValue y
+
+                                                return $ Just (xv2, yv2)
+@
+
+Note the type of @test@: it returns an optional pair of integers in the 'Symbolic' monad. We turn
+it into an IO value with the 'Data.SBV.Control.runSMT' function: (There's also 'Data.SBV.Control.runSMTWith' that uses a user specified
+solver instead of the default. Note that 'Data.SBV.Provers.z3' is best supported (and tested), if you use another solver your results may vary!)
+
+@
+    pair :: IO (Maybe (Integer, Integer))
+    pair = runSMT test
+@
+
+When run, this can return:
+
+@
+*Test&gt; pair
+Solver returned: (10,0)
+Just (11,-1)
+@
+
+demonstrating that the user has full contact with the solver and can guide it as the program executes. SBV
+provides access to many SMTLib features in the query mode, as exported from this very module.
+
+For other examples see:
+
+  - &quot;Documentation.SBV.Examples.Queries.AllSat&quot;: Simulating SBV's 'Data.SBV.allSat' using queries.
+  - &quot;Documentation.SBV.Examples.Queries.CaseSplit&quot;: Performing a case-split during a query.
+  - &quot;Documentation.SBV.Examples.Queries.Enums&quot;: Using enumerations in queries.
+  - &quot;Documentation.SBV.Examples.Queries.FourFours&quot;: Solution to a fun arithmetic puzzle, coded using queries.
+  - &quot;Documentation.SBV.Examples.Queries.GuessNumber&quot;: The famous number guessing game.
+  - &quot;Documentation.SBV.Examples.Queries.UnsatCore&quot;: Extracting unsat-cores using queries.
+  - &quot;Documentation.SBV.Examples.Queries.Interpolants&quot;: Extracting interpolants using queries.
+-}</span><span>
+</span><span id="line-184"></span></pre></body></html>

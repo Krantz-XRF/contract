@@ -1,0 +1,1165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24maxtag_5CEWuRbca7LLdlLwhy4o0E"><span id="%24tag2con_5CEWuRbca7LLdlLwhy4o0E"><span id="%24con2tag_5CEWuRbca7LLdlLwhy4o0E"><span id="%24maxtag_1MRgjklb7YoKLPLiJmEO7m"><span id="%24tag2con_1MRgjklb7YoKLPLiJmEO7m"><span id="%24con2tag_1MRgjklb7YoKLPLiJmEO7m"><span id="%24maxtag_57Dif9g1sN9GOzZ8BcUyfn"><span id="%24tag2con_57Dif9g1sN9GOzZ8BcUyfn"><span id="%24con2tag_57Dif9g1sN9GOzZ8BcUyfn"></span></span></span></span></span></span></span></span></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.BitPrecise.Legato</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- An encoding and correctness proof of Legato's multiplier in Haskell. Bill Legato came</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- up with an interesting way to multiply two 8-bit numbers on Mostek, as described here:</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   &lt;http://www.cs.utexas.edu/~moore/acl2/workshop-2004/contrib/legato/Weakest-Preconditions-Report.pdf&gt;</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Here's Legato's algorithm, as coded in Mostek assembly:</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--    step1 :       LDX #8         ; load X immediate with the integer 8 </span><span>
+</span><span id="line-17"></span><span class="hs-comment">--    step2 :       LDA #0         ; load A immediate with the integer 0 </span><span>
+</span><span id="line-18"></span><span class="hs-comment">--    step3 : LOOP  ROR F1         ; rotate F1 right circular through C </span><span>
+</span><span id="line-19"></span><span class="hs-comment">--    step4 :       BCC ZCOEF      ; branch to ZCOEF if C = 0 </span><span>
+</span><span id="line-20"></span><span class="hs-comment">--    step5 :       CLC            ; set C to 0 </span><span>
+</span><span id="line-21"></span><span class="hs-comment">--    step6 :       ADC F2         ; set A to A+F2+C and C to the carry </span><span>
+</span><span id="line-22"></span><span class="hs-comment">--    step7 : ZCOEF ROR A          ; rotate A right circular through C </span><span>
+</span><span id="line-23"></span><span class="hs-comment">--    step8 :       ROR LOW        ; rotate LOW right circular through C </span><span>
+</span><span id="line-24"></span><span class="hs-comment">--    step9 :       DEX            ; set X to X-1 </span><span>
+</span><span id="line-25"></span><span class="hs-comment">--    step10:       BNE LOOP       ; branch to LOOP if Z = 0 </span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- This program came to be known as the Legato's challenge in the community, where</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- the challenge was to prove that it indeed does perform multiplication. This file</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- formalizes the Mostek architecture in Haskell and proves that Legato's algorithm</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- is indeed correct.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-pragma">{-# LANGUAGE DataKinds      #-}</span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass #-}</span><span>
+</span><span id="line-36"></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric  #-}</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.BitPrecise.Legato</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Array</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Array</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Ix</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">!</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(//)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">array</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- * Mostek architecture</span><span>
+</span><span id="line-51"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | We model only two registers of Mostek that is used in the above algorithm, can add more.</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">data</span><span> </span><span id="Register"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Register"><span class="hs-identifier hs-var">Register</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RegX"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegX"><span class="hs-identifier hs-var">RegX</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="RegA"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159993"><span id="local-6989586621681159995"><span class="annot"><span class="annottext">Register -&gt; Register -&gt; Bool
+(Register -&gt; Register -&gt; Bool)
+-&gt; (Register -&gt; Register -&gt; Bool) -&gt; Eq Register
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Register -&gt; Register -&gt; Bool
+$c/= :: Register -&gt; Register -&gt; Bool
+== :: Register -&gt; Register -&gt; Bool
+$c== :: Register -&gt; Register -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159977"><span id="local-6989586621681159979"><span id="local-6989586621681159981"><span id="local-6989586621681159983"><span id="local-6989586621681159985"><span id="local-6989586621681159987"><span id="local-6989586621681159989"><span class="annot"><span class="annottext">Eq Register
+Eq Register =&gt;
+(Register -&gt; Register -&gt; Ordering)
+-&gt; (Register -&gt; Register -&gt; Bool)
+-&gt; (Register -&gt; Register -&gt; Bool)
+-&gt; (Register -&gt; Register -&gt; Bool)
+-&gt; (Register -&gt; Register -&gt; Bool)
+-&gt; (Register -&gt; Register -&gt; Register)
+-&gt; (Register -&gt; Register -&gt; Register)
+-&gt; Ord Register
+Register -&gt; Register -&gt; Bool
+Register -&gt; Register -&gt; Ordering
+Register -&gt; Register -&gt; Register
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Register -&gt; Register -&gt; Register
+$cmin :: Register -&gt; Register -&gt; Register
+max :: Register -&gt; Register -&gt; Register
+$cmax :: Register -&gt; Register -&gt; Register
+&gt;= :: Register -&gt; Register -&gt; Bool
+$c&gt;= :: Register -&gt; Register -&gt; Bool
+&gt; :: Register -&gt; Register -&gt; Bool
+$c&gt; :: Register -&gt; Register -&gt; Bool
+&lt;= :: Register -&gt; Register -&gt; Bool
+$c&lt;= :: Register -&gt; Register -&gt; Bool
+&lt; :: Register -&gt; Register -&gt; Bool
+$c&lt; :: Register -&gt; Register -&gt; Bool
+compare :: Register -&gt; Register -&gt; Ordering
+$ccompare :: Register -&gt; Register -&gt; Ordering
+$cp1Ord :: Eq Register
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159963"><span id="local-6989586621681159965"><span id="local-6989586621681159967"><span id="local-6989586621681159969"><span id="local-6989586621681159971"><span id="local-6989586621681159973"><span class="annot"><span class="annottext">Ord Register
+Ord Register =&gt;
+((Register, Register) -&gt; [Register])
+-&gt; ((Register, Register) -&gt; Register -&gt; Int)
+-&gt; ((Register, Register) -&gt; Register -&gt; Int)
+-&gt; ((Register, Register) -&gt; Register -&gt; Bool)
+-&gt; ((Register, Register) -&gt; Int)
+-&gt; ((Register, Register) -&gt; Int)
+-&gt; Ix Register
+(Register, Register) -&gt; Int
+(Register, Register) -&gt; [Register]
+(Register, Register) -&gt; Register -&gt; Bool
+(Register, Register) -&gt; Register -&gt; Int
+forall a.
+Ord a =&gt;
+((a, a) -&gt; [a])
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Bool)
+-&gt; ((a, a) -&gt; Int)
+-&gt; ((a, a) -&gt; Int)
+-&gt; Ix a
+unsafeRangeSize :: (Register, Register) -&gt; Int
+$cunsafeRangeSize :: (Register, Register) -&gt; Int
+rangeSize :: (Register, Register) -&gt; Int
+$crangeSize :: (Register, Register) -&gt; Int
+inRange :: (Register, Register) -&gt; Register -&gt; Bool
+$cinRange :: (Register, Register) -&gt; Register -&gt; Bool
+unsafeIndex :: (Register, Register) -&gt; Register -&gt; Int
+$cunsafeIndex :: (Register, Register) -&gt; Register -&gt; Int
+index :: (Register, Register) -&gt; Register -&gt; Int
+$cindex :: (Register, Register) -&gt; Register -&gt; Int
+range :: (Register, Register) -&gt; [Register]
+$crange :: (Register, Register) -&gt; [Register]
+$cp1Ix :: Ord Register
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ix</span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159958"><span id="local-6989586621681159960"><span class="annot"><span class="annottext">Register
+Register -&gt; Register -&gt; Bounded Register
+forall a. a -&gt; a -&gt; Bounded a
+maxBound :: Register
+$cmaxBound :: Register
+minBound :: Register
+$cminBound :: Register
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | The carry flag ('FlagC') and the zero flag ('FlagZ')</span><span>
+</span><span id="line-57"></span><span class="hs-keyword">data</span><span> </span><span id="Flag"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flag"><span class="hs-identifier hs-var">Flag</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FlagC"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="FlagZ"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagZ"><span class="hs-identifier hs-var">FlagZ</span></a></span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159951"><span id="local-6989586621681159953"><span class="annot"><span class="annottext">Flag -&gt; Flag -&gt; Bool
+(Flag -&gt; Flag -&gt; Bool) -&gt; (Flag -&gt; Flag -&gt; Bool) -&gt; Eq Flag
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Flag -&gt; Flag -&gt; Bool
+$c/= :: Flag -&gt; Flag -&gt; Bool
+== :: Flag -&gt; Flag -&gt; Bool
+$c== :: Flag -&gt; Flag -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159936"><span id="local-6989586621681159938"><span id="local-6989586621681159940"><span id="local-6989586621681159942"><span id="local-6989586621681159944"><span id="local-6989586621681159946"><span id="local-6989586621681159948"><span class="annot"><span class="annottext">Eq Flag
+Eq Flag =&gt;
+(Flag -&gt; Flag -&gt; Ordering)
+-&gt; (Flag -&gt; Flag -&gt; Bool)
+-&gt; (Flag -&gt; Flag -&gt; Bool)
+-&gt; (Flag -&gt; Flag -&gt; Bool)
+-&gt; (Flag -&gt; Flag -&gt; Bool)
+-&gt; (Flag -&gt; Flag -&gt; Flag)
+-&gt; (Flag -&gt; Flag -&gt; Flag)
+-&gt; Ord Flag
+Flag -&gt; Flag -&gt; Bool
+Flag -&gt; Flag -&gt; Ordering
+Flag -&gt; Flag -&gt; Flag
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Flag -&gt; Flag -&gt; Flag
+$cmin :: Flag -&gt; Flag -&gt; Flag
+max :: Flag -&gt; Flag -&gt; Flag
+$cmax :: Flag -&gt; Flag -&gt; Flag
+&gt;= :: Flag -&gt; Flag -&gt; Bool
+$c&gt;= :: Flag -&gt; Flag -&gt; Bool
+&gt; :: Flag -&gt; Flag -&gt; Bool
+$c&gt; :: Flag -&gt; Flag -&gt; Bool
+&lt;= :: Flag -&gt; Flag -&gt; Bool
+$c&lt;= :: Flag -&gt; Flag -&gt; Bool
+&lt; :: Flag -&gt; Flag -&gt; Bool
+$c&lt; :: Flag -&gt; Flag -&gt; Bool
+compare :: Flag -&gt; Flag -&gt; Ordering
+$ccompare :: Flag -&gt; Flag -&gt; Ordering
+$cp1Ord :: Eq Flag
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159923"><span id="local-6989586621681159925"><span id="local-6989586621681159927"><span id="local-6989586621681159929"><span id="local-6989586621681159931"><span id="local-6989586621681159933"><span class="annot"><span class="annottext">Ord Flag
+Ord Flag =&gt;
+((Flag, Flag) -&gt; [Flag])
+-&gt; ((Flag, Flag) -&gt; Flag -&gt; Int)
+-&gt; ((Flag, Flag) -&gt; Flag -&gt; Int)
+-&gt; ((Flag, Flag) -&gt; Flag -&gt; Bool)
+-&gt; ((Flag, Flag) -&gt; Int)
+-&gt; ((Flag, Flag) -&gt; Int)
+-&gt; Ix Flag
+(Flag, Flag) -&gt; Int
+(Flag, Flag) -&gt; [Flag]
+(Flag, Flag) -&gt; Flag -&gt; Bool
+(Flag, Flag) -&gt; Flag -&gt; Int
+forall a.
+Ord a =&gt;
+((a, a) -&gt; [a])
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Bool)
+-&gt; ((a, a) -&gt; Int)
+-&gt; ((a, a) -&gt; Int)
+-&gt; Ix a
+unsafeRangeSize :: (Flag, Flag) -&gt; Int
+$cunsafeRangeSize :: (Flag, Flag) -&gt; Int
+rangeSize :: (Flag, Flag) -&gt; Int
+$crangeSize :: (Flag, Flag) -&gt; Int
+inRange :: (Flag, Flag) -&gt; Flag -&gt; Bool
+$cinRange :: (Flag, Flag) -&gt; Flag -&gt; Bool
+unsafeIndex :: (Flag, Flag) -&gt; Flag -&gt; Int
+$cunsafeIndex :: (Flag, Flag) -&gt; Flag -&gt; Int
+index :: (Flag, Flag) -&gt; Flag -&gt; Int
+$cindex :: (Flag, Flag) -&gt; Flag -&gt; Int
+range :: (Flag, Flag) -&gt; [Flag]
+$crange :: (Flag, Flag) -&gt; [Flag]
+$cp1Ix :: Ord Flag
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ix</span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159919"><span id="local-6989586621681159921"><span class="annot"><span class="annottext">Flag
+Flag -&gt; Flag -&gt; Bounded Flag
+forall a. a -&gt; a -&gt; Bounded a
+maxBound :: Flag
+$cmaxBound :: Flag
+minBound :: Flag
+$cminBound :: Flag
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | Mostek was an 8-bit machine.</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">type</span><span> </span><span id="Value"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-var">Value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Convenient synonym for symbolic machine bits.</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">type</span><span> </span><span id="Bit"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-var">Bit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- | Register bank</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">type</span><span> </span><span id="Registers"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Registers"><span class="hs-identifier hs-var">Registers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Register"><span class="hs-identifier hs-type">Register</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | Flag bank</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">type</span><span> </span><span id="Flags"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-type">Bit</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- | We have three memory locations, sufficient to model our problem</span><span>
+</span><span id="line-72"></span><span class="hs-keyword">data</span><span> </span><span id="Location"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-var">Location</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="F1"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F1"><span class="hs-identifier hs-var">F1</span></a></span></span><span>   </span><span class="hs-comment">-- ^ multiplicand</span><span>
+</span><span id="line-73"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="F2"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F2"><span class="hs-identifier hs-var">F2</span></a></span></span><span>   </span><span class="hs-comment">-- ^ multiplier</span><span>
+</span><span id="line-74"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="LO"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#LO"><span class="hs-identifier hs-var">LO</span></a></span></span><span>   </span><span class="hs-comment">-- ^ low byte of the result gets stored here</span><span>
+</span><span id="line-75"></span><span>              </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159911"><span id="local-6989586621681159913"><span class="annot"><span class="annottext">Location -&gt; Location -&gt; Bool
+(Location -&gt; Location -&gt; Bool)
+-&gt; (Location -&gt; Location -&gt; Bool) -&gt; Eq Location
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Location -&gt; Location -&gt; Bool
+$c/= :: Location -&gt; Location -&gt; Bool
+== :: Location -&gt; Location -&gt; Bool
+$c== :: Location -&gt; Location -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159896"><span id="local-6989586621681159898"><span id="local-6989586621681159900"><span id="local-6989586621681159902"><span id="local-6989586621681159904"><span id="local-6989586621681159906"><span id="local-6989586621681159908"><span class="annot"><span class="annottext">Eq Location
+Eq Location =&gt;
+(Location -&gt; Location -&gt; Ordering)
+-&gt; (Location -&gt; Location -&gt; Bool)
+-&gt; (Location -&gt; Location -&gt; Bool)
+-&gt; (Location -&gt; Location -&gt; Bool)
+-&gt; (Location -&gt; Location -&gt; Bool)
+-&gt; (Location -&gt; Location -&gt; Location)
+-&gt; (Location -&gt; Location -&gt; Location)
+-&gt; Ord Location
+Location -&gt; Location -&gt; Bool
+Location -&gt; Location -&gt; Ordering
+Location -&gt; Location -&gt; Location
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Location -&gt; Location -&gt; Location
+$cmin :: Location -&gt; Location -&gt; Location
+max :: Location -&gt; Location -&gt; Location
+$cmax :: Location -&gt; Location -&gt; Location
+&gt;= :: Location -&gt; Location -&gt; Bool
+$c&gt;= :: Location -&gt; Location -&gt; Bool
+&gt; :: Location -&gt; Location -&gt; Bool
+$c&gt; :: Location -&gt; Location -&gt; Bool
+&lt;= :: Location -&gt; Location -&gt; Bool
+$c&lt;= :: Location -&gt; Location -&gt; Bool
+&lt; :: Location -&gt; Location -&gt; Bool
+$c&lt; :: Location -&gt; Location -&gt; Bool
+compare :: Location -&gt; Location -&gt; Ordering
+$ccompare :: Location -&gt; Location -&gt; Ordering
+$cp1Ord :: Eq Location
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159883"><span id="local-6989586621681159885"><span id="local-6989586621681159887"><span id="local-6989586621681159889"><span id="local-6989586621681159891"><span id="local-6989586621681159893"><span class="annot"><span class="annottext">Ord Location
+Ord Location =&gt;
+((Location, Location) -&gt; [Location])
+-&gt; ((Location, Location) -&gt; Location -&gt; Int)
+-&gt; ((Location, Location) -&gt; Location -&gt; Int)
+-&gt; ((Location, Location) -&gt; Location -&gt; Bool)
+-&gt; ((Location, Location) -&gt; Int)
+-&gt; ((Location, Location) -&gt; Int)
+-&gt; Ix Location
+(Location, Location) -&gt; Int
+(Location, Location) -&gt; [Location]
+(Location, Location) -&gt; Location -&gt; Bool
+(Location, Location) -&gt; Location -&gt; Int
+forall a.
+Ord a =&gt;
+((a, a) -&gt; [a])
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Bool)
+-&gt; ((a, a) -&gt; Int)
+-&gt; ((a, a) -&gt; Int)
+-&gt; Ix a
+unsafeRangeSize :: (Location, Location) -&gt; Int
+$cunsafeRangeSize :: (Location, Location) -&gt; Int
+rangeSize :: (Location, Location) -&gt; Int
+$crangeSize :: (Location, Location) -&gt; Int
+inRange :: (Location, Location) -&gt; Location -&gt; Bool
+$cinRange :: (Location, Location) -&gt; Location -&gt; Bool
+unsafeIndex :: (Location, Location) -&gt; Location -&gt; Int
+$cunsafeIndex :: (Location, Location) -&gt; Location -&gt; Int
+index :: (Location, Location) -&gt; Location -&gt; Int
+$cindex :: (Location, Location) -&gt; Location -&gt; Int
+range :: (Location, Location) -&gt; [Location]
+$crange :: (Location, Location) -&gt; [Location]
+$cp1Ix :: Ord Location
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ix</span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159879"><span id="local-6989586621681159881"><span class="annot"><span class="annottext">Location
+Location -&gt; Location -&gt; Bounded Location
+forall a. a -&gt; a -&gt; Bounded a
+maxBound :: Location
+$cmaxBound :: Location
+minBound :: Location
+$cminBound :: Location
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- | Memory is simply an array from locations to values</span><span>
+</span><span id="line-78"></span><span class="hs-keyword">type</span><span> </span><span id="Memory"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Memory"><span class="hs-identifier hs-var">Memory</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-type">Location</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- | Abstraction of the machine: The CPU consists of memory, registers, and flags.</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- Unlike traditional hardware, we assume the program is stored in some other memory area that</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- we need not model. (No self modifying programs!)</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- 'Mostek' is equipped with an automatically derived 'Mergeable' instance</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- because each field is 'Mergeable'.</span><span>
+</span><span id="line-86"></span><span id="local-6989586621681159877"><span id="local-6989586621681159878"></span></span><span class="hs-keyword">data</span><span> </span><span id="Mostek"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-var">Mostek</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Mostek"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-var">Mostek</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="memory"><span class="annot"><span class="annottext">Mostek -&gt; Memory
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#memory"><span class="hs-identifier hs-var hs-var">memory</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Memory"><span class="hs-identifier hs-type">Memory</span></a></span><span>
+</span><span id="line-87"></span><span>                     </span><span class="hs-special">,</span><span> </span><span id="registers"><span class="annot"><span class="annottext">Mostek -&gt; Registers
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#registers"><span class="hs-identifier hs-var hs-var">registers</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Registers"><span class="hs-identifier hs-type">Registers</span></a></span><span>
+</span><span id="line-88"></span><span>                     </span><span class="hs-special">,</span><span> </span><span id="flags"><span class="annot"><span class="annottext">Mostek -&gt; Flags
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#flags"><span class="hs-identifier hs-var hs-var">flags</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-89"></span><span>                     </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(forall x. Mostek -&gt; Rep Mostek x)
+-&gt; (forall x. Rep Mostek x -&gt; Mostek) -&gt; Generic Mostek
+forall x. Rep Mostek x -&gt; Mostek
+forall x. Mostek -&gt; Rep Mostek x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep Mostek x -&gt; Mostek
+$cfrom :: forall x. Mostek -&gt; Rep Mostek x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159866"><span id="local-6989586621681159868"><span class="annot"><span class="annottext">Bool -&gt; SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek
+(Bool -&gt; SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek)
+-&gt; (forall b.
+    (Ord b, SymVal b, Num b) =&gt;
+    [Mostek] -&gt; Mostek -&gt; SBV b -&gt; Mostek)
+-&gt; Mergeable Mostek
+forall b.
+(Ord b, SymVal b, Num b) =&gt;
+[Mostek] -&gt; Mostek -&gt; SBV b -&gt; Mostek
+forall a.
+(Bool -&gt; SBool -&gt; a -&gt; a -&gt; a)
+-&gt; (forall b. (Ord b, SymVal b, Num b) =&gt; [a] -&gt; a -&gt; SBV b -&gt; a)
+-&gt; Mergeable a
+select :: [Mostek] -&gt; Mostek -&gt; SBV b -&gt; Mostek
+$cselect :: forall b.
+(Ord b, SymVal b, Num b) =&gt;
+[Mostek] -&gt; Mostek -&gt; SBV b -&gt; Mostek
+symbolicMerge :: Bool -&gt; SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek
+$csymbolicMerge :: Bool -&gt; SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek
+</span><a href="Data.SBV.Core.Model.html#C%3AMergeable"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Mergeable</span></a></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- | Given a machine state, compute a value out of it</span><span>
+</span><span id="line-92"></span><span class="hs-keyword">type</span><span> </span><span id="Extract"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Extract"><span class="hs-identifier hs-var">Extract</span></a></span></span><span> </span><span id="local-6989586621681159864"><span class="annot"><a href="#local-6989586621681159864"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type">Mostek</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681159864"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- | Programs are essentially state transformers (on the machine state)</span><span>
+</span><span id="line-95"></span><span class="hs-keyword">type</span><span> </span><span id="Program"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-var">Program</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type">Mostek</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type">Mostek</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- * Low-level operations</span><span>
+</span><span id="line-99"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- | Get the value of a given register</span><span>
+</span><span id="line-102"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-type">getReg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Register"><span class="hs-identifier hs-type">Register</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Extract"><span class="hs-identifier hs-type">Extract</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-103"></span><span id="getReg"><span class="annot"><span class="annottext">getReg :: Register -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-var hs-var">getReg</span></a></span></span><span> </span><span id="local-6989586621681159861"><span class="annot"><span class="annottext">r :: Register
+</span><a href="#local-6989586621681159861"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681159860"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159860"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Registers
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#registers"><span class="hs-identifier hs-var hs-var">registers</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159860"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Registers -&gt; Register -&gt; Value
+forall i e. Ix i =&gt; Array i e -&gt; i -&gt; e
+</span><span class="hs-glyph hs-var">!</span></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="#local-6989586621681159861"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- | Set the value of a given register</span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-type">setReg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Register"><span class="hs-identifier hs-type">Register</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-107"></span><span id="setReg"><span class="annot"><span class="annottext">setReg :: Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var hs-var">setReg</span></a></span></span><span> </span><span id="local-6989586621681159858"><span class="annot"><span class="annottext">r :: Register
+</span><a href="#local-6989586621681159858"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681159857"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159857"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681159856"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159856"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159856"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">registers :: Registers
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#registers"><span class="hs-identifier hs-var">registers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Registers
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#registers"><span class="hs-identifier hs-var hs-var">registers</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159856"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Registers -&gt; [(Register, Value)] -&gt; Registers
+forall i e. Ix i =&gt; Array i e -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-operator hs-var">//</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Register
+</span><a href="#local-6989586621681159858"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159857"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Get the value of a flag</span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-type">getFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Extract"><span class="hs-identifier hs-type">Extract</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-type">Bit</span></a></span><span>
+</span><span id="line-111"></span><span id="getFlag"><span class="annot"><span class="annottext">getFlag :: Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var hs-var">getFlag</span></a></span></span><span> </span><span id="local-6989586621681159854"><span class="annot"><span class="annottext">f :: Flag
+</span><a href="#local-6989586621681159854"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681159853"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159853"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Flags
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#flags"><span class="hs-identifier hs-var hs-var">flags</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159853"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Flags -&gt; Flag -&gt; SBool
+forall i e. Ix i =&gt; Array i e -&gt; i -&gt; e
+</span><span class="hs-glyph hs-var">!</span></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="#local-6989586621681159854"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- | Set the value of a flag</span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-type">setFlag</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-type">Bit</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-115"></span><span id="setFlag"><span class="annot"><span class="annottext">setFlag :: Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var hs-var">setFlag</span></a></span></span><span> </span><span id="local-6989586621681159851"><span class="annot"><span class="annottext">f :: Flag
+</span><a href="#local-6989586621681159851"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681159850"><span class="annot"><span class="annottext">b :: SBool
+</span><a href="#local-6989586621681159850"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681159849"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159849"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159849"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">flags :: Flags
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#flags"><span class="hs-identifier hs-var">flags</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Flags
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#flags"><span class="hs-identifier hs-var hs-var">flags</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159849"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Flags -&gt; [(Flag, SBool)] -&gt; Flags
+forall i e. Ix i =&gt; Array i e -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-operator hs-var">//</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag
+</span><a href="#local-6989586621681159851"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159850"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- | Read memory</span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#peek"><span class="hs-identifier hs-type">peek</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-type">Location</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Extract"><span class="hs-identifier hs-type">Extract</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-119"></span><span id="peek"><span class="annot"><span class="annottext">peek :: Location -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#peek"><span class="hs-identifier hs-var hs-var">peek</span></a></span></span><span> </span><span id="local-6989586621681159847"><span class="annot"><span class="annottext">a :: Location
+</span><a href="#local-6989586621681159847"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681159846"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159846"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Memory
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#memory"><span class="hs-identifier hs-var hs-var">memory</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159846"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Memory -&gt; Location -&gt; Value
+forall i e. Ix i =&gt; Array i e -&gt; i -&gt; e
+</span><span class="hs-glyph hs-var">!</span></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="#local-6989586621681159847"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- | Write to memory</span><span>
+</span><span id="line-122"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#poke"><span class="hs-identifier hs-type">poke</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-type">Location</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-123"></span><span id="poke"><span class="annot"><span class="annottext">poke :: Location -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#poke"><span class="hs-identifier hs-var hs-var">poke</span></a></span></span><span> </span><span id="local-6989586621681159844"><span class="annot"><span class="annottext">a :: Location
+</span><a href="#local-6989586621681159844"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681159843"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159843"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681159842"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159842"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159842"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">memory :: Memory
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#memory"><span class="hs-identifier hs-var">memory</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Memory
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#memory"><span class="hs-identifier hs-var hs-var">memory</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159842"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Memory -&gt; [(Location, Value)] -&gt; Memory
+forall i e. Ix i =&gt; Array i e -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-operator hs-var">//</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Location
+</span><a href="#local-6989586621681159844"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159843"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- | Checking overflow. In Legato's multipler the @ADC@ instruction</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- needs to see if the expression x + y + c overflowed, as checked</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- by this function. Note that we verify the correctness of this check</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- separately below in `checkOverflowCorrect`.</span><span>
+</span><span id="line-129"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflow"><span class="hs-identifier hs-type">checkOverflow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-130"></span><span id="checkOverflow"><span class="annot"><span class="annottext">checkOverflow :: Value -&gt; Value -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflow"><span class="hs-identifier hs-var hs-var">checkOverflow</span></a></span></span><span> </span><span id="local-6989586621681159840"><span class="annot"><span class="annottext">x :: Value
+</span><a href="#local-6989586621681159840"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681159839"><span class="annot"><span class="annottext">y :: Value
+</span><a href="#local-6989586621681159839"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681159838"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159838"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159837"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159840"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159837"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159839"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159834"><span class="hs-identifier hs-var">s'</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159837"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159837"><span class="annot"><span class="annottext">s :: Value
+</span><a href="#local-6989586621681159837"><span class="hs-identifier hs-var hs-var">s</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159840"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159839"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-132"></span><span>        </span><span id="local-6989586621681159834"><span class="annot"><span class="annottext">s' :: Value
+</span><a href="#local-6989586621681159834"><span class="hs-identifier hs-var hs-var">s'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159837"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; Value -&gt; Value -&gt; Value
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159838"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- | Correctness theorem for our `checkOverflow` implementation.</span><span>
+</span><span id="line-135"></span><span class="hs-comment">--</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--   We have:</span><span>
+</span><span id="line-137"></span><span class="hs-comment">--</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--   &gt;&gt;&gt; checkOverflowCorrect</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--   Q.E.D.</span><span>
+</span><span id="line-140"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflowCorrect"><span class="hs-identifier hs-type">checkOverflowCorrect</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-141"></span><span id="checkOverflowCorrect"><span class="annot"><span class="annottext">checkOverflowCorrect :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflowCorrect"><span class="hs-identifier hs-var hs-var">checkOverflowCorrect</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflow"><span class="hs-identifier hs-var">checkOverflow</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Value -&gt; SBool -&gt; SBool)
+-&gt; (Value -&gt; Value -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Equality a =&gt; a -&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Core.Model.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681159829"><span class="hs-identifier hs-var">overflow</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="hs-comment">-- Reference spec for overflow. We do the addition</span><span>
+</span><span id="line-143"></span><span>        </span><span class="hs-comment">-- using 16 bits and check that it's larger than 255</span><span>
+</span><span id="line-144"></span><span>        </span><span class="annot"><a href="#local-6989586621681159829"><span class="hs-identifier hs-type">overflow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-145"></span><span>        </span><span id="local-6989586621681159829"><span class="annot"><span class="annottext">overflow :: Value -&gt; Value -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681159829"><span class="hs-identifier hs-var hs-var">overflow</span></a></span></span><span> </span><span id="local-6989586621681159828"><span class="annot"><span class="annottext">x :: Value
+</span><a href="#local-6989586621681159828"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681159827"><span class="annot"><span class="annottext">y :: Value
+</span><a href="#local-6989586621681159827"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681159826"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159826"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159828"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159827"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159826"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">255</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">16</span></span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- * Instruction set</span><span>
+</span><span id="line-148"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- | An instruction is modeled as a 'Program' transformer. We model</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- mostek programs in direct continuation passing style.</span><span>
+</span><span id="line-152"></span><span class="hs-keyword">type</span><span> </span><span id="Instruction"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-var">Instruction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | LDX: Set register @X@ to value @v@</span><span>
+</span><span id="line-155"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#ldx"><span class="hs-identifier hs-type">ldx</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-156"></span><span id="ldx"><span class="annot"><span class="annottext">ldx :: Value -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#ldx"><span class="hs-identifier hs-var hs-var">ldx</span></a></span></span><span> </span><span id="local-6989586621681159822"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159822"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681159821"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159821"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159821"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var">setReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegX"><span class="hs-identifier hs-var">RegX</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159822"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- | LDA: Set register @A@ to value @v@</span><span>
+</span><span id="line-159"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#lda"><span class="hs-identifier hs-type">lda</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-160"></span><span id="lda"><span class="annot"><span class="annottext">lda :: Value -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#lda"><span class="hs-identifier hs-var hs-var">lda</span></a></span></span><span> </span><span id="local-6989586621681159818"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159818"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681159817"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159817"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159817"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var">setReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159818"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- | CLC: Clear the carry flag</span><span>
+</span><span id="line-163"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#clc"><span class="hs-identifier hs-type">clc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-164"></span><span id="clc"><span class="annot"><span class="annottext">clc :: Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#clc"><span class="hs-identifier hs-var hs-var">clc</span></a></span></span><span> </span><span id="local-6989586621681159815"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159815"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159815"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- | ROR, memory version: Rotate the value at memory location @a@</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- to the right by 1 bit, using the carry flag as a transfer position.</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- That is, the final bit of the memory location becomes the new carry</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- and the carry moves over to the first bit. This very instruction</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- is one of the reasons why Legato's multiplier is quite hard to understand</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- and is typically presented as a verification challenge.</span><span>
+</span><span id="line-172"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorM"><span class="hs-identifier hs-type">rorM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-type">Location</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-173"></span><span id="rorM"><span class="annot"><span class="annottext">rorM :: Location -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorM"><span class="hs-identifier hs-var hs-var">rorM</span></a></span></span><span> </span><span id="local-6989586621681159812"><span class="annot"><span class="annottext">a :: Location
+</span><a href="#local-6989586621681159812"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681159811"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159811"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159810"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159810"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159811"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159809"><span class="hs-identifier hs-var">c'</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Location -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#poke"><span class="hs-identifier hs-var">poke</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="#local-6989586621681159812"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159808"><span class="hs-identifier hs-var">v'</span></a></span><span> </span><span class="annot"><span class="annottext">Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159810"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-174"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159807"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159807"><span class="hs-identifier hs-var hs-var">v</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Location -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#peek"><span class="hs-identifier hs-var">peek</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="#local-6989586621681159812"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159810"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-175"></span><span>        </span><span id="local-6989586621681159806"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159806"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var">getFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159810"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-176"></span><span>        </span><span id="local-6989586621681159808"><span class="annot"><span class="annottext">v' :: Value
+</span><a href="#local-6989586621681159808"><span class="hs-identifier hs-var hs-var">v'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; SBool -&gt; Value
+forall a. SFiniteBits a =&gt; SBV a -&gt; Int -&gt; SBool -&gt; SBV a
+</span><a href="Data.SBV.Core.Model.html#setBitTo"><span class="hs-identifier hs-var">setBitTo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159807"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; Value
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`rotateR`</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">7</span></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159806"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-177"></span><span>        </span><span id="local-6989586621681159809"><span class="annot"><span class="annottext">c' :: SBool
+</span><a href="#local-6989586621681159809"><span class="hs-identifier hs-var hs-var">c'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; SBool
+forall a. SFiniteBits a =&gt; SBV a -&gt; Int -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#sTestBit"><span class="hs-identifier hs-var">sTestBit</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159807"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- | ROR, register version: Same as 'rorM', except through register @r@.</span><span>
+</span><span id="line-180"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorR"><span class="hs-identifier hs-type">rorR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Register"><span class="hs-identifier hs-type">Register</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-181"></span><span id="rorR"><span class="annot"><span class="annottext">rorR :: Register -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorR"><span class="hs-identifier hs-var hs-var">rorR</span></a></span></span><span> </span><span id="local-6989586621681159801"><span class="annot"><span class="annottext">r :: Register
+</span><a href="#local-6989586621681159801"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681159800"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159800"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159799"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159799"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159800"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159798"><span class="hs-identifier hs-var">c'</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var">setReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="#local-6989586621681159801"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159797"><span class="hs-identifier hs-var">v'</span></a></span><span> </span><span class="annot"><span class="annottext">Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159799"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-182"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159796"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159796"><span class="hs-identifier hs-var hs-var">v</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Register -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-var">getReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="#local-6989586621681159801"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159799"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-183"></span><span>        </span><span id="local-6989586621681159795"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159795"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var">getFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159799"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-184"></span><span>        </span><span id="local-6989586621681159797"><span class="annot"><span class="annottext">v' :: Value
+</span><a href="#local-6989586621681159797"><span class="hs-identifier hs-var hs-var">v'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; SBool -&gt; Value
+forall a. SFiniteBits a =&gt; SBV a -&gt; Int -&gt; SBool -&gt; SBV a
+</span><a href="Data.SBV.Core.Model.html#setBitTo"><span class="hs-identifier hs-var">setBitTo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159796"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; Value
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`rotateR`</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">7</span></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159795"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-185"></span><span>        </span><span id="local-6989586621681159798"><span class="annot"><span class="annottext">c' :: SBool
+</span><a href="#local-6989586621681159798"><span class="hs-identifier hs-var hs-var">c'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Int -&gt; SBool
+forall a. SFiniteBits a =&gt; SBV a -&gt; Int -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#sTestBit"><span class="hs-identifier hs-var">sTestBit</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159796"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- | BCC: branch to label @l@ if the carry flag is sFalse</span><span>
+</span><span id="line-188"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bcc"><span class="hs-identifier hs-type">bcc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-189"></span><span id="bcc"><span class="annot"><span class="annottext">bcc :: (Mostek -&gt; Mostek) -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bcc"><span class="hs-identifier hs-var hs-var">bcc</span></a></span></span><span> </span><span id="local-6989586621681159793"><span class="annot"><span class="annottext">l :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159793"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681159792"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159792"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159791"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159791"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159790"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159793"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159791"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159792"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159791"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159790"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159790"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var">getFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159791"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- | ADC: Increment the value of register @A@ by the value of memory contents</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- at location @a@, using the carry-bit as the carry-in for the addition.</span><span>
+</span><span id="line-194"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#adc"><span class="hs-identifier hs-type">adc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Location"><span class="hs-identifier hs-type">Location</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-195"></span><span id="adc"><span class="annot"><span class="annottext">adc :: Location -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#adc"><span class="hs-identifier hs-var hs-var">adc</span></a></span></span><span> </span><span id="local-6989586621681159787"><span class="annot"><span class="annottext">a :: Location
+</span><a href="#local-6989586621681159787"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681159786"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159786"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159785"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159785"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159786"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagZ"><span class="hs-identifier hs-var">FlagZ</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159784"><span class="hs-identifier hs-var">v'</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159783"><span class="hs-identifier hs-var">c'</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var">setReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159784"><span class="hs-identifier hs-var">v'</span></a></span><span> </span><span class="annot"><span class="annottext">Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159785"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-196"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159782"><span class="annot"><span class="annottext">v :: Value
+</span><a href="#local-6989586621681159782"><span class="hs-identifier hs-var hs-var">v</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Location -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#peek"><span class="hs-identifier hs-var">peek</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="#local-6989586621681159787"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159785"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-197"></span><span>        </span><span id="local-6989586621681159781"><span class="annot"><span class="annottext">ra :: Value
+</span><a href="#local-6989586621681159781"><span class="hs-identifier hs-var hs-var">ra</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Register -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-var">getReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159785"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-198"></span><span>        </span><span id="local-6989586621681159780"><span class="annot"><span class="annottext">c :: SBool
+</span><a href="#local-6989586621681159780"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var">getFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159785"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-199"></span><span>        </span><span id="local-6989586621681159784"><span class="annot"><span class="annottext">v' :: Value
+</span><a href="#local-6989586621681159784"><span class="hs-identifier hs-var hs-var">v'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159782"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159781"><span class="hs-identifier hs-var">ra</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; Value -&gt; Value -&gt; Value
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159780"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-200"></span><span>        </span><span id="local-6989586621681159783"><span class="annot"><span class="annottext">c' :: SBool
+</span><a href="#local-6989586621681159783"><span class="hs-identifier hs-var hs-var">c'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#checkOverflow"><span class="hs-identifier hs-var">checkOverflow</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159782"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159781"><span class="hs-identifier hs-var">ra</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159780"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- | DEX: Decrement the value of register @X@</span><span>
+</span><span id="line-203"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#dex"><span class="hs-identifier hs-type">dex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-204"></span><span id="dex"><span class="annot"><span class="annottext">dex :: Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#dex"><span class="hs-identifier hs-var hs-var">dex</span></a></span></span><span> </span><span id="local-6989586621681159778"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159778"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159777"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159777"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159778"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Flag -&gt; SBool -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setFlag"><span class="hs-identifier hs-var">setFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagZ"><span class="hs-identifier hs-var">FlagZ</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159776"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Register -&gt; Value -&gt; Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#setReg"><span class="hs-identifier hs-var">setReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegX"><span class="hs-identifier hs-var">RegX</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159776"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159777"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159776"><span class="annot"><span class="annottext">x :: Value
+</span><a href="#local-6989586621681159776"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Register -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-var">getReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegX"><span class="hs-identifier hs-var">RegX</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159777"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- | BNE: Branch if the zero-flag is sFalse</span><span>
+</span><span id="line-208"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bne"><span class="hs-identifier hs-type">bne</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Instruction"><span class="hs-identifier hs-type">Instruction</span></a></span><span>
+</span><span id="line-209"></span><span id="bne"><span class="annot"><span class="annottext">bne :: (Mostek -&gt; Mostek) -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bne"><span class="hs-identifier hs-var hs-var">bne</span></a></span></span><span> </span><span id="local-6989586621681159774"><span class="annot"><span class="annottext">l :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159774"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681159773"><span class="annot"><span class="annottext">k :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159773"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681159772"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159772"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; Mostek -&gt; Mostek -&gt; Mostek
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159771"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159774"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159772"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159773"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159772"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159771"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681159771"><span class="hs-identifier hs-var hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Flag -&gt; Extract SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getFlag"><span class="hs-identifier hs-var">getFlag</span></a></span><span> </span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagZ"><span class="hs-identifier hs-var">FlagZ</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159772"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- | The 'end' combinator &quot;stops&quot; our program, providing the final continuation</span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- that does nothing.</span><span>
+</span><span id="line-214"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#end"><span class="hs-identifier hs-type">end</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-215"></span><span id="end"><span class="annot"><span class="annottext">end :: Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#end"><span class="hs-identifier hs-var hs-var">end</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- * Legato's algorithm in Haskell/SBV</span><span>
+</span><span id="line-219"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- | Multiplies the contents of @F1@ and @F2@, storing the low byte of the result</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- in @LO@ and the high byte of it in register @A@. The implementation is a direct</span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- transliteration of Legato's algorithm given at the top, using our notation.</span><span>
+</span><span id="line-224"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legato"><span class="hs-identifier hs-type">legato</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
+</span><span id="line-225"></span><span id="legato"><span class="annot"><span class="annottext">legato :: Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legato"><span class="hs-identifier hs-var hs-var">legato</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159767"><span class="hs-identifier hs-var">start</span></a></span><span>
+</span><span id="line-226"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159767"><span class="annot"><span class="annottext">start :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159767"><span class="hs-identifier hs-var hs-var">start</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span>    </span><span class="annot"><span class="annottext">Value -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#ldx"><span class="hs-identifier hs-var">ldx</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span>
+</span><span id="line-227"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#lda"><span class="hs-identifier hs-var">lda</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-228"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159766"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-229"></span><span>        </span><span id="local-6989586621681159766"><span class="annot"><span class="annottext">loop :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159766"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span>    </span><span class="annot"><span class="annottext">Location -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorM"><span class="hs-identifier hs-var">rorM</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F1"><span class="hs-identifier hs-var">F1</span></a></span><span>
+</span><span id="line-230"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bcc"><span class="hs-identifier hs-var">bcc</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159765"><span class="hs-identifier hs-var">zeroCoef</span></a></span><span>
+</span><span id="line-231"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#clc"><span class="hs-identifier hs-var">clc</span></a></span><span>
+</span><span id="line-232"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Location -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#adc"><span class="hs-identifier hs-var">adc</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F2"><span class="hs-identifier hs-var">F2</span></a></span><span>
+</span><span id="line-233"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159765"><span class="hs-identifier hs-var">zeroCoef</span></a></span><span>
+</span><span id="line-234"></span><span>        </span><span id="local-6989586621681159765"><span class="annot"><span class="annottext">zeroCoef :: Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159765"><span class="hs-identifier hs-var hs-var">zeroCoef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>   </span><span class="annot"><span class="annottext">Register -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorR"><span class="hs-identifier hs-var">rorR</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span>
+</span><span id="line-235"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Location -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#rorM"><span class="hs-identifier hs-var">rorM</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#LO"><span class="hs-identifier hs-var">LO</span></a></span><span>
+</span><span id="line-236"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#dex"><span class="hs-identifier hs-var">dex</span></a></span><span>
+</span><span id="line-237"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Mostek -&gt; Mostek) -&gt; Instruction
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#bne"><span class="hs-identifier hs-var">bne</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="#local-6989586621681159766"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-238"></span><span>                   </span><span class="annot"><span class="annottext">Instruction -&gt; Instruction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#end"><span class="hs-identifier hs-var">end</span></a></span><span>
+</span><span id="line-239"></span><span>
+</span><span id="line-240"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-241"></span><span class="hs-comment">-- * Verification interface</span><span>
+</span><span id="line-242"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-243"></span><span class="hs-comment">-- | Given values for  F1 and F2, @runLegato@ takes an arbitrary machine state @m@ and</span><span>
+</span><span id="line-244"></span><span class="hs-comment">-- returns the high and low bytes of the multiplication.</span><span>
+</span><span id="line-245"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#runLegato"><span class="hs-identifier hs-type">runLegato</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type">Mostek</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-246"></span><span id="runLegato"><span class="annot"><span class="annottext">runLegato :: Mostek -&gt; (Value, Value)
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#runLegato"><span class="hs-identifier hs-var hs-var">runLegato</span></a></span></span><span> </span><span id="local-6989586621681159763"><span class="annot"><span class="annottext">m :: Mostek
+</span><a href="#local-6989586621681159763"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Register -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#getReg"><span class="hs-identifier hs-var">getReg</span></a></span><span> </span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159762"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Location -&gt; Extract Value
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#peek"><span class="hs-identifier hs-var">peek</span></a></span><span> </span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#LO"><span class="hs-identifier hs-var">LO</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159762"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-247"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681159762"><span class="annot"><span class="annottext">m' :: Mostek
+</span><a href="#local-6989586621681159762"><span class="hs-identifier hs-var hs-var">m'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legato"><span class="hs-identifier hs-var">legato</span></a></span><span> </span><span class="annot"><span class="annottext">Mostek
+</span><a href="#local-6989586621681159763"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-248"></span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- | Helper synonym for capturing relevant bits of Mostek</span><span>
+</span><span id="line-250"></span><span class="hs-keyword">type</span><span> </span><span id="InitVals"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#InitVals"><span class="hs-identifier hs-var">InitVals</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>      </span><span class="hs-comment">-- Contents of mem location F1</span><span>
+</span><span id="line-251"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>      </span><span class="hs-comment">-- Contents of mem location F2</span><span>
+</span><span id="line-252"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>      </span><span class="hs-comment">-- Contents of mem location LO</span><span>
+</span><span id="line-253"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>      </span><span class="hs-comment">-- Content of Register X</span><span>
+</span><span id="line-254"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>      </span><span class="hs-comment">-- Content of Register A</span><span>
+</span><span id="line-255"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-type">Bit</span></a></span><span>        </span><span class="hs-comment">-- Value of FlagC</span><span>
+</span><span id="line-256"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Bit"><span class="hs-identifier hs-type">Bit</span></a></span><span>        </span><span class="hs-comment">-- Value of FlagZ</span><span>
+</span><span id="line-257"></span><span>                </span><span class="hs-special">)</span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- | Create an instance of the Mostek machine, initialized by the memory and the relevant</span><span>
+</span><span id="line-260"></span><span class="hs-comment">-- values of the registers and the flags</span><span>
+</span><span id="line-261"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#initMachine"><span class="hs-identifier hs-type">initMachine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#InitVals"><span class="hs-identifier hs-type">InitVals</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type">Mostek</span></a></span><span>
+</span><span id="line-262"></span><span id="initMachine"><span class="annot"><span class="annottext">initMachine :: InitVals -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#initMachine"><span class="hs-identifier hs-var hs-var">initMachine</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159760"><span class="annot"><span class="annottext">f1 :: Value
+</span><a href="#local-6989586621681159760"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159759"><span class="annot"><span class="annottext">f2 :: Value
+</span><a href="#local-6989586621681159759"><span class="hs-identifier hs-var">f2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159758"><span class="annot"><span class="annottext">lo :: Value
+</span><a href="#local-6989586621681159758"><span class="hs-identifier hs-var">lo</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159757"><span class="annot"><span class="annottext">rx :: Value
+</span><a href="#local-6989586621681159757"><span class="hs-identifier hs-var">rx</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159756"><span class="annot"><span class="annottext">ra :: Value
+</span><a href="#local-6989586621681159756"><span class="hs-identifier hs-var">ra</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159755"><span class="annot"><span class="annottext">fc :: SBool
+</span><a href="#local-6989586621681159755"><span class="hs-identifier hs-var">fc</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159754"><span class="annot"><span class="annottext">fz :: SBool
+</span><a href="#local-6989586621681159754"><span class="hs-identifier hs-var">fz</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek :: Memory -&gt; Registers -&gt; Flags -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#Mostek"><span class="hs-identifier hs-type hs-type">Mostek</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">memory :: Memory
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#memory"><span class="hs-identifier hs-var">memory</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Location, Location) -&gt; [(Location, Value)] -&gt; Memory
+forall i e. Ix i =&gt; (i, i) -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-identifier hs-var">array</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Location
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Location
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F1"><span class="hs-identifier hs-var">F1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159760"><span class="hs-identifier hs-var">f1</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#F2"><span class="hs-identifier hs-var">F2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159759"><span class="hs-identifier hs-var">f2</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Location
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#LO"><span class="hs-identifier hs-var">LO</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159758"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-263"></span><span>                                                  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">registers :: Registers
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#registers"><span class="hs-identifier hs-var">registers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Register, Register) -&gt; [(Register, Value)] -&gt; Registers
+forall i e. Ix i =&gt; (i, i) -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-identifier hs-var">array</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Register
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Register
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegX"><span class="hs-identifier hs-var">RegX</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159757"><span class="hs-identifier hs-var">rx</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Register
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#RegA"><span class="hs-identifier hs-var">RegA</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159756"><span class="hs-identifier hs-var">ra</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-264"></span><span>                                                  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">flags :: Flags
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#flags"><span class="hs-identifier hs-var">flags</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Flag, Flag) -&gt; [(Flag, SBool)] -&gt; Flags
+forall i e. Ix i =&gt; (i, i) -&gt; [(i, e)] -&gt; Array i e
+</span><span class="hs-identifier hs-var">array</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Flag
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagC"><span class="hs-identifier hs-var">FlagC</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159755"><span class="hs-identifier hs-var">fc</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Flag
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#FlagZ"><span class="hs-identifier hs-var">FlagZ</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159754"><span class="hs-identifier hs-var">fz</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-265"></span><span>                                                  </span><span class="hs-special">}</span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- | The correctness theorem. For all possible memory configurations, the factors (@x@ and @y@ below), the location</span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- of the low-byte result and the initial-values of registers and the flags, this function will return True only if</span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- running Legato's algorithm does indeed compute the product of @x@ and @y@ correctly.</span><span>
+</span><span id="line-270"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legatoIsCorrect"><span class="hs-identifier hs-type">legatoIsCorrect</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#InitVals"><span class="hs-identifier hs-type">InitVals</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-271"></span><span id="legatoIsCorrect"><span class="annot"><span class="annottext">legatoIsCorrect :: InitVals -&gt; SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legatoIsCorrect"><span class="hs-identifier hs-var hs-var">legatoIsCorrect</span></a></span></span><span> </span><span id="local-6989586621681159749"><span class="annot"><span class="annottext">initVals :: InitVals
+</span><a href="#local-6989586621681159749"><span class="hs-identifier hs-var">initVals</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681159748"><span class="annot"><span class="annottext">x :: Value
+</span><a href="#local-6989586621681159748"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159747"><span class="annot"><span class="annottext">y :: Value
+</span><a href="#local-6989586621681159747"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16)
+</span><a href="#local-6989586621681159746"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16)
+</span><a href="#local-6989586621681159745"><span class="hs-identifier hs-var">expected</span></a></span><span>
+</span><span id="line-272"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159744"><span class="annot"><span class="annottext">hi :: Value
+</span><a href="#local-6989586621681159744"><span class="hs-identifier hs-var">hi</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159743"><span class="annot"><span class="annottext">lo :: Value
+</span><a href="#local-6989586621681159743"><span class="hs-identifier hs-var">lo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; (Value, Value)
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#runLegato"><span class="hs-identifier hs-var">runLegato</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">InitVals -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#initMachine"><span class="hs-identifier hs-var">initMachine</span></a></span><span> </span><span class="annot"><span class="annottext">InitVals
+</span><a href="#local-6989586621681159749"><span class="hs-identifier hs-var">initVals</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-273"></span><span>          </span><span class="hs-comment">-- NB. perform the comparison over 16 bit values to avoid overflow!</span><span>
+</span><span id="line-274"></span><span>          </span><span class="hs-comment">-- If Value changes to be something else, modify this accordingly.</span><span>
+</span><span id="line-275"></span><span>          </span><span class="annot"><a href="#local-6989586621681159746"><span class="hs-identifier hs-type">result</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681159745"><span class="hs-identifier hs-type">expected</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Sized.html#SWord"><span class="hs-identifier hs-type">SWord</span></a></span><span> </span><span class="annot"><span class="hs-number">16</span></span><span>
+</span><span id="line-276"></span><span>          </span><span id="local-6989586621681159746"><span class="annot"><span class="annottext">result :: SBV (WordN 16)
+</span><a href="#local-6989586621681159746"><span class="hs-identifier hs-var hs-var">result</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">256</span></span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159744"><span class="hs-identifier hs-var">hi</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159743"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-277"></span><span>          </span><span id="local-6989586621681159745"><span class="annot"><span class="annottext">expected :: SBV (WordN 16)
+</span><a href="#local-6989586621681159745"><span class="hs-identifier hs-var hs-var">expected</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159748"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV (WordN 16) -&gt; SBV (WordN 16) -&gt; SBV (WordN 16)
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; SBV (WordN (8 + 8))
+forall (n :: Nat) (bv :: Nat -&gt; *) (m :: Nat).
+(KnownNat n, IsNonZero n, SymVal (bv n), KnownNat m, IsNonZero m,
+ SymVal (bv m)) =&gt;
+SBV (bv n) -&gt; SBV (bv m) -&gt; SBV (bv (n + m))
+</span><a href="Data.SBV.Core.Sized.html#%23"><span class="hs-operator hs-var">#</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159747"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-278"></span><span>
+</span><span id="line-279"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- * Verification</span><span>
+</span><span id="line-281"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-282"></span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- | The correctness theorem.</span><span>
+</span><span id="line-284"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#correctnessTheorem"><span class="hs-identifier hs-type">correctnessTheorem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-285"></span><span id="correctnessTheorem"><span class="annot"><span class="annottext">correctnessTheorem :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#correctnessTheorem"><span class="hs-identifier hs-var hs-var">correctnessTheorem</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; SymbolicT IO SBool -&gt; IO ThmResult
+forall a. Provable a =&gt; SMTConfig -&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#proveWith"><span class="hs-identifier hs-var">proveWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#defaultSMTCfg"><span class="hs-identifier hs-var">defaultSMTCfg</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">timing :: Timing
+</span><a href="Data.SBV.Core.Symbolic.html#timing"><span class="hs-identifier hs-var">timing</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Timing
+</span><a href="Data.SBV.Utils.TDiff.html#PrintTiming"><span class="hs-identifier hs-var">PrintTiming</span></a></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO ThmResult)
+-&gt; SymbolicT IO SBool -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-286"></span><span>        </span><span id="local-6989586621681159736"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159736"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Value
+forall (n :: Nat).
+(KnownNat n, IsNonZero n) =&gt;
+String -&gt; Symbolic (SWord n)
+</span><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier hs-var">sWord</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lo&quot;</span></span><span>
+</span><span id="line-287"></span><span>
+</span><span id="line-288"></span><span>        </span><span id="local-6989586621681159734"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159734"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Value
+forall (n :: Nat).
+(KnownNat n, IsNonZero n) =&gt;
+String -&gt; Symbolic (SWord n)
+</span><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier hs-var">sWord</span></a></span><span>  </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-289"></span><span>        </span><span id="local-6989586621681159733"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159733"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Value
+forall (n :: Nat).
+(KnownNat n, IsNonZero n) =&gt;
+String -&gt; Symbolic (SWord n)
+</span><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier hs-var">sWord</span></a></span><span>  </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-290"></span><span>
+</span><span id="line-291"></span><span>        </span><span id="local-6989586621681159732"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159732"><span class="hs-identifier hs-var">regX</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Value
+forall (n :: Nat).
+(KnownNat n, IsNonZero n) =&gt;
+String -&gt; Symbolic (SWord n)
+</span><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier hs-var">sWord</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;regX&quot;</span></span><span>
+</span><span id="line-292"></span><span>        </span><span id="local-6989586621681159731"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159731"><span class="hs-identifier hs-var">regA</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic Value
+forall (n :: Nat).
+(KnownNat n, IsNonZero n) =&gt;
+String -&gt; Symbolic (SWord n)
+</span><a href="Data.SBV.Client.BaseIO.html#sWord"><span class="hs-identifier hs-var">sWord</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;regA&quot;</span></span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span>        </span><span id="local-6989586621681159730"><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159730"><span class="hs-identifier hs-var">flagC</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SBool
+</span><a href="Data.SBV.Client.BaseIO.html#sBool"><span class="hs-identifier hs-var">sBool</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;flagC&quot;</span></span><span>
+</span><span id="line-295"></span><span>        </span><span id="local-6989586621681159728"><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159728"><span class="hs-identifier hs-var">flagZ</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SBool
+</span><a href="Data.SBV.Client.BaseIO.html#sBool"><span class="hs-identifier hs-var">sBool</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;flagZ&quot;</span></span><span>
+</span><span id="line-296"></span><span>
+</span><span id="line-297"></span><span>        </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">InitVals -&gt; SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legatoIsCorrect"><span class="hs-identifier hs-var">legatoIsCorrect</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159734"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159733"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159736"><span class="hs-identifier hs-var">lo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159732"><span class="hs-identifier hs-var">regX</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159731"><span class="hs-identifier hs-var">regA</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159730"><span class="hs-identifier hs-var">flagC</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681159728"><span class="hs-identifier hs-var">flagZ</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-298"></span><span>
+</span><span id="line-299"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-300"></span><span class="hs-comment">-- * C Code generation</span><span>
+</span><span id="line-301"></span><span class="hs-comment">------------------------------------------------------------------</span><span>
+</span><span id="line-302"></span><span>
+</span><span id="line-303"></span><span class="hs-comment">-- | Generate a C program that implements Legato's algorithm automatically.</span><span>
+</span><span id="line-304"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legatoInC"><span class="hs-identifier hs-type">legatoInC</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-305"></span><span id="legatoInC"><span class="annot"><span class="annottext">legatoInC :: IO ()
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legatoInC"><span class="hs-identifier hs-var hs-var">legatoInC</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe String -&gt; String -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe String -&gt; String -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="hs-string">&quot;runLegato&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-306"></span><span>                </span><span id="local-6989586621681159725"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159725"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBVCodeGen Value
+forall a. SymVal a =&gt; String -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-307"></span><span>                </span><span id="local-6989586621681159723"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159723"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBVCodeGen Value
+forall a. SymVal a =&gt; String -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-308"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681159722"><span class="annot"><span class="annottext">hi :: Value
+</span><a href="#local-6989586621681159722"><span class="hs-identifier hs-var">hi</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681159721"><span class="annot"><span class="annottext">lo :: Value
+</span><a href="#local-6989586621681159721"><span class="hs-identifier hs-var">lo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mostek -&gt; (Value, Value)
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#runLegato"><span class="hs-identifier hs-var">runLegato</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">InitVals -&gt; Mostek
+</span><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#initMachine"><span class="hs-identifier hs-var">initMachine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159725"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159723"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-309"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Value -&gt; SBVCodeGen ()
+forall a. String -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;hi&quot;</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159722"><span class="hs-identifier hs-var">hi</span></a></span><span>
+</span><span id="line-310"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Value -&gt; SBVCodeGen ()
+forall a. String -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;lo&quot;</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621681159721"><span class="hs-identifier hs-var">lo</span></a></span><span>
+</span><span id="line-311"></span><span>
+</span><span id="line-312"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.Legato.html#legato"><span class="hs-pragma hs-type">legato</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Redundant $&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span>        </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-313"></span><span class="hs-pragma">{-# ANN</span><span> </span><span class="hs-pragma">module</span><span> </span><span class="hs-pragma">(</span><span class="annot"><span class="hs-pragma">&quot;HLint: ignore Reduce duplication&quot;</span></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">String</span></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-314"></span></pre></body></html>

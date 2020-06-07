@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.CodeGeneration.AddSub</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Simple code generation example.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.CodeGeneration.AddSub</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.CodeGen.html"><span class="hs-identifier">Data.SBV.Tools.CodeGen</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | Simple function that returns add/sum of args</span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.AddSub.html#addSub"><span class="hs-identifier hs-type">addSub</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span id="addSub"><span class="annot"><span class="annottext">addSub :: SWord8 -&gt; SWord8 -&gt; (SWord8, SWord8)
+</span><a href="Documentation.SBV.Examples.CodeGeneration.AddSub.html#addSub"><span class="hs-identifier hs-var hs-var">addSub</span></a></span></span><span> </span><span id="local-6989586621681160329"><span class="annot"><span class="annottext">x :: SWord8
+</span><a href="#local-6989586621681160329"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681160328"><span class="annot"><span class="annottext">y :: SWord8
+</span><a href="#local-6989586621681160328"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160329"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160328"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160329"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; SWord8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160328"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- | Generate C code for addSub. Here's the output showing the generated C code:</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- &gt;&gt;&gt; genAddSub</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- == BEGIN: &quot;Makefile&quot; ================</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- # Makefile for addSub. Automatically generated by SBV. Do not edit!</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- # include any user-defined .mk file in the current directory.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- -include *.mk</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- CC?=gcc</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- CCFLAGS?=-Wall -O3 -DNDEBUG -fomit-frame-pointer</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- all: addSub_driver</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- addSub.o: addSub.c addSub.h</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} -c $&lt; -o $@</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- addSub_driver.o: addSub_driver.c</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} -c $&lt; -o $@</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- addSub_driver: addSub.o addSub_driver.o</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- 	${CC} ${CCFLAGS} $^ -o $@</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- clean:</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- 	rm -f *.o</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- veryclean: clean</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- 	rm -f addSub_driver</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- == END: &quot;Makefile&quot; ==================</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- == BEGIN: &quot;addSub.h&quot; ================</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- /* Header file for addSub. Automatically generated by SBV. Do not edit! */</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- #ifndef __addSub__HEADER_INCLUDED__</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- #define __addSub__HEADER_INCLUDED__</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- #include &lt;stdio.h&gt;</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- #include &lt;stdlib.h&gt;</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- #include &lt;inttypes.h&gt;</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- #include &lt;stdint.h&gt;</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- #include &lt;stdbool.h&gt;</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- #include &lt;string.h&gt;</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- #include &lt;math.h&gt;</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- /* The boolean type */</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- typedef bool SBool;</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- /* The float type */</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- typedef float SFloat;</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- /* The double type */</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- typedef double SDouble;</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- /* Unsigned bit-vectors */</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- typedef uint8_t  SWord8;</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- typedef uint16_t SWord16;</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- typedef uint32_t SWord32;</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- typedef uint64_t SWord64;</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- /* Signed bit-vectors */</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- typedef int8_t  SInt8;</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- typedef int16_t SInt16;</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- typedef int32_t SInt32;</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- typedef int64_t SInt64;</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- /* Entry point prototype: */</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- void addSub(const SWord8 x, const SWord8 y, SWord8 *sum,</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--             SWord8 *dif);</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- #endif /* __addSub__HEADER_INCLUDED__ */</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- == END: &quot;addSub.h&quot; ==================</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- == BEGIN: &quot;addSub_driver.c&quot; ================</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- /* Example driver program for addSub. */</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- /* Automatically generated by SBV. Edit as you see fit! */</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- #include &lt;stdio.h&gt;</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- #include &quot;addSub.h&quot;</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- int main(void)</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- {</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--   SWord8 sum;</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--   SWord8 dif;</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--   addSub(132, 241, &amp;sum, &amp;dif);</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--   printf(&quot;addSub(132, 241, &amp;sum, &amp;dif) -&gt;\n&quot;);</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--   printf(&quot;  sum = %&quot;PRIu8&quot;\n&quot;, sum);</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--   printf(&quot;  dif = %&quot;PRIu8&quot;\n&quot;, dif);</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--   return 0;</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- }</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- == END: &quot;addSub_driver.c&quot; ==================</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- == BEGIN: &quot;addSub.c&quot; ================</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- /* File: &quot;addSub.c&quot;. Automatically generated by SBV. Do not edit! */</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- #include &quot;addSub.h&quot;</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- void addSub(const SWord8 x, const SWord8 y, SWord8 *sum,</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--             SWord8 *dif)</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- {</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--   const SWord8 s0 = x;</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   const SWord8 s1 = y;</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--   const SWord8 s2 = s0 + s1;</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--   const SWord8 s3 = s0 - s1;</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--   *sum = s2;</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--   *dif = s3;</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- }</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- == END: &quot;addSub.c&quot; ==================</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--</span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Documentation.SBV.Examples.CodeGeneration.AddSub.html#genAddSub"><span class="hs-identifier hs-type">genAddSub</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span id="genAddSub"><span class="annot"><span class="annottext">genAddSub :: IO ()
+</span><a href="Documentation.SBV.Examples.CodeGeneration.AddSub.html#genAddSub"><span class="hs-identifier hs-var hs-var">genAddSub</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen () -&gt; IO ()
+forall a. Maybe FilePath -&gt; FilePath -&gt; SBVCodeGen a -&gt; IO a
+</span><a href="Data.SBV.Compilers.C.html#compileToC"><span class="hs-identifier hs-var">compileToC</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><a href="#local-6989586621681160324"><span class="hs-identifier hs-var">outDir</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;addSub&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SBVCodeGen () -&gt; IO ()) -&gt; SBVCodeGen () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-134"></span><span>        </span><span id="local-6989586621681160323"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160323"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord8
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span>
+</span><span id="line-135"></span><span>        </span><span id="local-6989586621681160321"><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160321"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; SBVCodeGen SWord8
+forall a. SymVal a =&gt; FilePath -&gt; SBVCodeGen (SBV a)
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgInput"><span class="hs-identifier hs-var">cgInput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;y&quot;</span></span><span>
+</span><span id="line-136"></span><span>        </span><span class="hs-comment">-- leave the cgDriverVals call out for generating a driver with random values</span><span>
+</span><span id="line-137"></span><span>        </span><span class="annot"><span class="annottext">[Integer] -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgSetDriverValues"><span class="hs-identifier hs-var">cgSetDriverValues</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">132</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">241</span></span><span class="hs-special">]</span><span>
+</span><span id="line-138"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160319"><span class="annot"><span class="annottext">s :: SWord8
+</span><a href="#local-6989586621681160319"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160318"><span class="annot"><span class="annottext">d :: SWord8
+</span><a href="#local-6989586621681160318"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SWord8 -&gt; SWord8 -&gt; (SWord8, SWord8)
+</span><a href="Documentation.SBV.Examples.CodeGeneration.AddSub.html#addSub"><span class="hs-identifier hs-var">addSub</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160323"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160321"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-139"></span><span>        </span><span class="annot"><span class="annottext">FilePath -&gt; SWord8 -&gt; SBVCodeGen ()
+forall a. FilePath -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;sum&quot;</span></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160319"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-140"></span><span>        </span><span class="annot"><span class="annottext">FilePath -&gt; SWord8 -&gt; SBVCodeGen ()
+forall a. FilePath -&gt; SBV a -&gt; SBVCodeGen ()
+</span><a href="Data.SBV.Compilers.CodeGen.html#cgOutput"><span class="hs-identifier hs-var">cgOutput</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;dif&quot;</span></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681160318"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-141"></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="hs-comment">-- use Just &quot;dirName&quot; for putting the output to the named directory</span><span>
+</span><span id="line-142"></span><span>       </span><span class="hs-comment">-- otherwise, it'll go to standard output</span><span>
+</span><span id="line-143"></span><span>       </span><span id="local-6989586621681160324"><span class="annot"><span class="annottext">outDir :: Maybe a
+</span><a href="#local-6989586621681160324"><span class="hs-identifier hs-var hs-var">outDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-144"></span></pre></body></html>

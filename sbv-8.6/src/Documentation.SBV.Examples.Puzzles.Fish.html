@@ -1,0 +1,533 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_AKww35MCZqh2bbX5HtzW2m"><span id="%24con2tag_52cXuMeAuHKFTDN0dbjqXO"><span id="%24con2tag_D6gUvzNxW4tB6V94kEoYX6"><span id="%24con2tag_Caq3yo9gffh89VJuFK45wg"><span id="%24con2tag_6opN3K7DYXKEpnLMr4DegV"></span></span></span></span></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Puzzles.Fish</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Solves the following logic puzzle, attributed to Albert Einstein:</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--   - The Briton lives in the red house.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--   - The Swede keeps dogs as pets.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--   - The Dane drinks tea.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--   - The green house is left to the white house.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--   - The owner of the green house drinks coffee.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--   - The person who plays football rears birds.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   - The owner of the yellow house plays baseball.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--   - The man living in the center house drinks milk.</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--   - The Norwegian lives in the first house.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   - The man who plays volleyball lives next to the one who keeps cats.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   - The man who keeps the horse lives next to the one who plays baseball.</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--   - The owner who plays tennis drinks beer.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--   - The German plays hockey.</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--   - The Norwegian lives next to the blue house.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--   - The man who plays volleyball has a neighbor who drinks water.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- Who owns the fish?</span><span>
+</span><span id="line-28"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass      #-}</span><span>
+</span><span id="line-33"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable  #-}</span><span>
+</span><span id="line-34"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving  #-}</span><span>
+</span><span id="line-36"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell     #-}</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Puzzles.Fish</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Colors of houses</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">data</span><span> </span><span id="Color"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Color"><span class="hs-identifier hs-var">Color</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Red"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Red"><span class="hs-identifier hs-var">Red</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Green"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Green"><span class="hs-identifier hs-var">Green</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="White"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#White"><span class="hs-identifier hs-var">White</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Yellow"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Blue"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Make 'Color' a symbolic value.</span><span>
+</span><span id="line-46"></span><span id="%24cBlue"><span id="%24cYellow"><span id="%24cWhite"><span id="%24cGreen"><span id="%24cRed"><span id="%24tColor"><span id="local-6989586621681165272"><span id="local-6989586621681165274"><span id="local-6989586621681165276"><span id="local-6989586621681165278"><span id="local-6989586621681165280"><span id="local-6989586621681165282"><span id="local-6989586621681165284"><span id="local-6989586621681165286"><span id="local-6989586621681165288"><span id="local-6989586621681165290"><span id="local-6989586621681165292"><span id="local-6989586621681165294"><span id="local-6989586621681165297"><span id="local-6989586621681165299"><span id="local-6989586621681165301"><span id="local-6989586621681165303"><span id="local-6989586621681165305"><span id="local-6989586621681165307"><span id="local-6989586621681165309"><span id="local-6989586621681165311"><span id="local-6989586621681165313"><span id="local-6989586621681165315"><span id="local-6989586621681165317"><span id="local-6989586621681165319"><span id="local-6989586621681165321"><span id="local-6989586621681165323"><span id="local-6989586621681165325"><span id="local-6989586621681165327"><span id="local-6989586621681165329"><span id="local-6989586621681165331"><span id="local-6989586621681165334"><span id="local-6989586621681165336"><span id="local-6989586621681165338"><span id="local-6989586621681165340"><span id="local-6989586621681165342"><span id="local-6989586621681165344"><span id="local-6989586621681165346"><span id="local-6989586621681165348"><span id="local-6989586621681165350"><span id="local-6989586621681165352"><span id="local-6989586621681165354"><span id="local-6989586621681165356"><span id="local-6989586621681165358"><span id="local-6989586621681165360"><span id="local-6989586621681165362"><span id="local-6989586621681165364"><span id="local-6989586621681165366"><span id="local-6989586621681165368"><span id="local-6989586621681165372"><span id="local-6989586621681165374"><span id="local-6989586621681165376"><span id="local-6989586621681165378"><span id="local-6989586621681165380"><span id="local-6989586621681165382"><span id="local-6989586621681165384"><span id="local-6989586621681165386"><span id="local-6989586621681165388"><span id="local-6989586621681165390"><span id="local-6989586621681165392"><span id="local-6989586621681165394"><span id="local-6989586621681165396"><span id="local-6989586621681165398"><span id="local-6989586621681165400"><span id="local-6989586621681165402"><span id="local-6989586621681165404"><span id="local-6989586621681165406"><span id="local-6989586621681165408"><span id="local-6989586621681165410"><span id="local-6989586621681165412"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Color</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Nationalities of the occupants</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">data</span><span> </span><span id="Nationality"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Nationality"><span class="hs-identifier hs-var">Nationality</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Briton"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Briton"><span class="hs-identifier hs-var">Briton</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Dane"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Dane"><span class="hs-identifier hs-var">Dane</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Swede"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Swede"><span class="hs-identifier hs-var">Swede</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Norwegian"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Norwegian"><span class="hs-identifier hs-var">Norwegian</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="German"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#German"><span class="hs-identifier hs-var">German</span></a></span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Make 'Nationality' a symbolic value.</span><span>
+</span><span id="line-52"></span><span id="%24cGerman"><span id="%24cNorwegian"><span id="%24cSwede"><span id="%24cDane"><span id="%24cBriton"><span id="%24tNationality"><span id="local-6989586621681165110"><span id="local-6989586621681165112"><span id="local-6989586621681165114"><span id="local-6989586621681165116"><span id="local-6989586621681165118"><span id="local-6989586621681165120"><span id="local-6989586621681165122"><span id="local-6989586621681165124"><span id="local-6989586621681165126"><span id="local-6989586621681165128"><span id="local-6989586621681165130"><span id="local-6989586621681165132"><span id="local-6989586621681165135"><span id="local-6989586621681165137"><span id="local-6989586621681165139"><span id="local-6989586621681165141"><span id="local-6989586621681165143"><span id="local-6989586621681165145"><span id="local-6989586621681165147"><span id="local-6989586621681165149"><span id="local-6989586621681165151"><span id="local-6989586621681165153"><span id="local-6989586621681165155"><span id="local-6989586621681165157"><span id="local-6989586621681165159"><span id="local-6989586621681165161"><span id="local-6989586621681165163"><span id="local-6989586621681165165"><span id="local-6989586621681165167"><span id="local-6989586621681165169"><span id="local-6989586621681165172"><span id="local-6989586621681165174"><span id="local-6989586621681165176"><span id="local-6989586621681165178"><span id="local-6989586621681165180"><span id="local-6989586621681165182"><span id="local-6989586621681165184"><span id="local-6989586621681165186"><span id="local-6989586621681165188"><span id="local-6989586621681165190"><span id="local-6989586621681165192"><span id="local-6989586621681165194"><span id="local-6989586621681165196"><span id="local-6989586621681165198"><span id="local-6989586621681165200"><span id="local-6989586621681165202"><span id="local-6989586621681165204"><span id="local-6989586621681165206"><span id="local-6989586621681165210"><span id="local-6989586621681165212"><span id="local-6989586621681165214"><span id="local-6989586621681165216"><span id="local-6989586621681165218"><span id="local-6989586621681165220"><span id="local-6989586621681165222"><span id="local-6989586621681165224"><span id="local-6989586621681165226"><span id="local-6989586621681165228"><span id="local-6989586621681165230"><span id="local-6989586621681165232"><span id="local-6989586621681165234"><span id="local-6989586621681165236"><span id="local-6989586621681165238"><span id="local-6989586621681165240"><span id="local-6989586621681165242"><span id="local-6989586621681165244"><span id="local-6989586621681165246"><span id="local-6989586621681165248"><span id="local-6989586621681165250"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Nationality</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | Beverage choices</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">data</span><span> </span><span id="Beverage"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Beverage"><span class="hs-identifier hs-var">Beverage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Tea"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Tea"><span class="hs-identifier hs-var">Tea</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Coffee"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Coffee"><span class="hs-identifier hs-var">Coffee</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Milk"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Milk"><span class="hs-identifier hs-var">Milk</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Beer"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Beer"><span class="hs-identifier hs-var">Beer</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Water"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Water"><span class="hs-identifier hs-var">Water</span></a></span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Make 'Beverage' a symbolic value.</span><span>
+</span><span id="line-58"></span><span id="%24cWater"><span id="%24cBeer"><span id="%24cMilk"><span id="%24cCoffee"><span id="%24cTea"><span id="%24tBeverage"><span id="local-6989586621681164957"><span id="local-6989586621681164959"><span id="local-6989586621681164961"><span id="local-6989586621681164963"><span id="local-6989586621681164965"><span id="local-6989586621681164967"><span id="local-6989586621681164969"><span id="local-6989586621681164971"><span id="local-6989586621681164973"><span id="local-6989586621681164975"><span id="local-6989586621681164977"><span id="local-6989586621681164979"><span id="local-6989586621681164982"><span id="local-6989586621681164984"><span id="local-6989586621681164986"><span id="local-6989586621681164988"><span id="local-6989586621681164990"><span id="local-6989586621681164992"><span id="local-6989586621681164994"><span id="local-6989586621681164996"><span id="local-6989586621681164998"><span id="local-6989586621681165000"><span id="local-6989586621681165002"><span id="local-6989586621681165004"><span id="local-6989586621681165006"><span id="local-6989586621681165008"><span id="local-6989586621681165010"><span id="local-6989586621681165012"><span id="local-6989586621681165014"><span id="local-6989586621681165016"><span id="local-6989586621681165019"><span id="local-6989586621681165021"><span id="local-6989586621681165023"><span id="local-6989586621681165025"><span id="local-6989586621681165027"><span id="local-6989586621681165029"><span id="local-6989586621681165031"><span id="local-6989586621681165033"><span id="local-6989586621681165035"><span id="local-6989586621681165037"><span id="local-6989586621681165039"><span id="local-6989586621681165041"><span id="local-6989586621681165043"><span id="local-6989586621681165045"><span id="local-6989586621681165047"><span id="local-6989586621681165049"><span id="local-6989586621681165051"><span id="local-6989586621681165053"><span id="local-6989586621681165057"><span id="local-6989586621681165059"><span id="local-6989586621681165061"><span id="local-6989586621681165063"><span id="local-6989586621681165065"><span id="local-6989586621681165067"><span id="local-6989586621681165069"><span id="local-6989586621681165071"><span id="local-6989586621681165073"><span id="local-6989586621681165075"><span id="local-6989586621681165077"><span id="local-6989586621681165079"><span id="local-6989586621681165081"><span id="local-6989586621681165083"><span id="local-6989586621681165085"><span id="local-6989586621681165087"><span id="local-6989586621681165089"><span id="local-6989586621681165091"><span id="local-6989586621681165093"><span id="local-6989586621681165095"><span id="local-6989586621681165097"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Beverage</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Pets they keep</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">data</span><span> </span><span id="Pet"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Pet"><span class="hs-identifier hs-var">Pet</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Dog"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Dog"><span class="hs-identifier hs-var">Dog</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Horse"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Horse"><span class="hs-identifier hs-var">Horse</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Cat"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Cat"><span class="hs-identifier hs-var">Cat</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Bird"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Bird"><span class="hs-identifier hs-var">Bird</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Fish"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Fish"><span class="hs-identifier hs-var">Fish</span></a></span></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Make 'Pet' a symbolic value.</span><span>
+</span><span id="line-64"></span><span id="%24cFish"><span id="%24cBird"><span id="%24cCat"><span id="%24cHorse"><span id="%24cDog"><span id="%24tPet"><span id="local-6989586621681164804"><span id="local-6989586621681164806"><span id="local-6989586621681164808"><span id="local-6989586621681164810"><span id="local-6989586621681164812"><span id="local-6989586621681164814"><span id="local-6989586621681164816"><span id="local-6989586621681164818"><span id="local-6989586621681164820"><span id="local-6989586621681164822"><span id="local-6989586621681164824"><span id="local-6989586621681164826"><span id="local-6989586621681164829"><span id="local-6989586621681164831"><span id="local-6989586621681164833"><span id="local-6989586621681164835"><span id="local-6989586621681164837"><span id="local-6989586621681164839"><span id="local-6989586621681164841"><span id="local-6989586621681164843"><span id="local-6989586621681164845"><span id="local-6989586621681164847"><span id="local-6989586621681164849"><span id="local-6989586621681164851"><span id="local-6989586621681164853"><span id="local-6989586621681164855"><span id="local-6989586621681164857"><span id="local-6989586621681164859"><span id="local-6989586621681164861"><span id="local-6989586621681164863"><span id="local-6989586621681164866"><span id="local-6989586621681164868"><span id="local-6989586621681164870"><span id="local-6989586621681164872"><span id="local-6989586621681164874"><span id="local-6989586621681164876"><span id="local-6989586621681164878"><span id="local-6989586621681164880"><span id="local-6989586621681164882"><span id="local-6989586621681164884"><span id="local-6989586621681164886"><span id="local-6989586621681164888"><span id="local-6989586621681164890"><span id="local-6989586621681164892"><span id="local-6989586621681164894"><span id="local-6989586621681164896"><span id="local-6989586621681164898"><span id="local-6989586621681164900"><span id="local-6989586621681164904"><span id="local-6989586621681164906"><span id="local-6989586621681164908"><span id="local-6989586621681164910"><span id="local-6989586621681164912"><span id="local-6989586621681164914"><span id="local-6989586621681164916"><span id="local-6989586621681164918"><span id="local-6989586621681164920"><span id="local-6989586621681164922"><span id="local-6989586621681164924"><span id="local-6989586621681164926"><span id="local-6989586621681164928"><span id="local-6989586621681164930"><span id="local-6989586621681164932"><span id="local-6989586621681164934"><span id="local-6989586621681164936"><span id="local-6989586621681164938"><span id="local-6989586621681164940"><span id="local-6989586621681164942"><span id="local-6989586621681164944"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Pet</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | Sports they engage in</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="Sport"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Sport"><span class="hs-identifier hs-var">Sport</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Football"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Football"><span class="hs-identifier hs-var">Football</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Baseball"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Baseball"><span class="hs-identifier hs-var">Baseball</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Volleyball"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Volleyball"><span class="hs-identifier hs-var">Volleyball</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Hockey"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Hockey"><span class="hs-identifier hs-var">Hockey</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Tennis"><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Tennis"><span class="hs-identifier hs-var">Tennis</span></a></span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- | Make 'Sport' a symbolic value.</span><span>
+</span><span id="line-70"></span><span id="%24cTennis"><span id="%24cHockey"><span id="%24cVolleyball"><span id="%24cBaseball"><span id="%24cFootball"><span id="%24tSport"><span id="local-6989586621681164651"><span id="local-6989586621681164653"><span id="local-6989586621681164655"><span id="local-6989586621681164657"><span id="local-6989586621681164659"><span id="local-6989586621681164661"><span id="local-6989586621681164663"><span id="local-6989586621681164665"><span id="local-6989586621681164667"><span id="local-6989586621681164669"><span id="local-6989586621681164671"><span id="local-6989586621681164673"><span id="local-6989586621681164676"><span id="local-6989586621681164678"><span id="local-6989586621681164680"><span id="local-6989586621681164682"><span id="local-6989586621681164684"><span id="local-6989586621681164686"><span id="local-6989586621681164688"><span id="local-6989586621681164690"><span id="local-6989586621681164692"><span id="local-6989586621681164694"><span id="local-6989586621681164696"><span id="local-6989586621681164698"><span id="local-6989586621681164700"><span id="local-6989586621681164702"><span id="local-6989586621681164704"><span id="local-6989586621681164706"><span id="local-6989586621681164708"><span id="local-6989586621681164710"><span id="local-6989586621681164713"><span id="local-6989586621681164715"><span id="local-6989586621681164717"><span id="local-6989586621681164719"><span id="local-6989586621681164721"><span id="local-6989586621681164723"><span id="local-6989586621681164725"><span id="local-6989586621681164727"><span id="local-6989586621681164729"><span id="local-6989586621681164731"><span id="local-6989586621681164733"><span id="local-6989586621681164735"><span id="local-6989586621681164737"><span id="local-6989586621681164739"><span id="local-6989586621681164741"><span id="local-6989586621681164743"><span id="local-6989586621681164745"><span id="local-6989586621681164747"><span id="local-6989586621681164751"><span id="local-6989586621681164753"><span id="local-6989586621681164755"><span id="local-6989586621681164757"><span id="local-6989586621681164759"><span id="local-6989586621681164761"><span id="local-6989586621681164763"><span id="local-6989586621681164765"><span id="local-6989586621681164767"><span id="local-6989586621681164769"><span id="local-6989586621681164771"><span id="local-6989586621681164773"><span id="local-6989586621681164775"><span id="local-6989586621681164777"><span id="local-6989586621681164779"><span id="local-6989586621681164781"><span id="local-6989586621681164783"><span id="local-6989586621681164785"><span id="local-6989586621681164787"><span id="local-6989586621681164789"><span id="local-6989586621681164791"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Sport</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- | We have:</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- &gt;&gt;&gt; fishOwner</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- German</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- It's not hard to modify this program to grab the values of all the assignments, i.e., the full</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- solution to the puzzle. We leave that as an exercise to the interested reader!</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- NB. We use the 'satTrackUFs' configuration to indicate that the uninterpreted function</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- changes do not matter for generating different values. All we care is that the fishOwner changes!</span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#fishOwner"><span class="hs-identifier hs-type">fishOwner</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span id="fishOwner"><span class="annot"><span class="annottext">fishOwner :: IO ()
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#fishOwner"><span class="hs-identifier hs-var hs-var">fishOwner</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681164643"><span class="annot"><span class="annottext">[Maybe Nationality]
+</span><a href="#local-6989586621681164643"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; AllSatResult -&gt; [Maybe Nationality]
+forall b. SymVal b =&gt; String -&gt; AllSatResult -&gt; [Maybe b]
+</span><a href="Data.SBV.SMT.SMT.html#getModelValues"><span class="hs-identifier hs-var">getModelValues</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;fishOwner&quot;</span></span><span> </span><span class="annot"><span class="annottext">(AllSatResult -&gt; [Maybe Nationality])
+-&gt; IO AllSatResult -&gt; IO [Maybe Nationality]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">`fmap`</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; SymbolicT IO () -&gt; IO AllSatResult
+forall a. Provable a =&gt; SMTConfig -&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSatWith"><span class="hs-identifier hs-var">allSatWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">satTrackUFs :: Bool
+</span><a href="Data.SBV.Core.Symbolic.html#satTrackUFs"><span class="hs-identifier hs-var">satTrackUFs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO ()
+</span><a href="#local-6989586621681164638"><span class="hs-identifier hs-var">puzzle</span></a></span><span>
+</span><span id="line-83"></span><span>               </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Maybe Nationality]
+</span><a href="#local-6989586621681164643"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-84"></span><span>                 </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681164637"><span class="annot"><span class="annottext">Nationality
+</span><a href="#local-6989586621681164637"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-glyph">::</span><span class="annot"><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Nationality"><span class="hs-identifier hs-type">Nationality</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Nationality -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="#local-6989586621681164637"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-85"></span><span>                 </span><span class="hs-special">[</span><span class="hs-special">]</span><span>                      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;no solution&quot;</span></span><span>
+</span><span id="line-86"></span><span>                 </span><span class="hs-identifier">_</span><span>                       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;no unique solution&quot;</span></span><span>
+</span><span id="line-87"></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681164638"><span class="annot"><span class="annottext">puzzle :: SymbolicT IO ()
+</span><a href="#local-6989586621681164638"><span class="hs-identifier hs-var hs-var">puzzle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164635"><span class="annot"><span class="annottext">c :: SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV Integer -&gt; SBV Color
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;color&quot;</span></span><span>
+</span><span id="line-90"></span><span>              </span><span id="local-6989586621681164633"><span class="annot"><span class="annottext">n :: SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV Integer -&gt; SBV Nationality
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;nationality&quot;</span></span><span>
+</span><span id="line-91"></span><span>              </span><span id="local-6989586621681164632"><span class="annot"><span class="annottext">b :: SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV Integer -&gt; SBV Beverage
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;beverage&quot;</span></span><span>
+</span><span id="line-92"></span><span>              </span><span id="local-6989586621681164631"><span class="annot"><span class="annottext">p :: SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV Integer -&gt; SBV Pet
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;pet&quot;</span></span><span>
+</span><span id="line-93"></span><span>              </span><span id="local-6989586621681164630"><span class="annot"><span class="annottext">s :: SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV Integer -&gt; SBV Sport
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;sport&quot;</span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164629"><span class="annot"><span class="annottext">i :: a
+</span><a href="#local-6989586621681164629"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164628"><span class="annot"><span class="annottext">neighbor :: a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164628"><span class="hs-operator hs-var hs-var">`neighbor`</span></a></span></span><span> </span><span id="local-6989586621681164627"><span class="annot"><span class="annottext">j :: a
+</span><a href="#local-6989586621681164627"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164629"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164627"><span class="hs-identifier hs-var">j</span></a></span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164627"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164629"><span class="hs-identifier hs-var">i</span></a></span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-96"></span><span>              </span><span id="local-6989586621681164623"><span class="annot"><span class="annottext">a :: SBV a
+</span><a href="#local-6989586621681164623"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681164622"><span class="annot"><span class="annottext">is :: SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var hs-var">`is`</span></a></span></span><span>       </span><span id="local-6989586621681164621"><span class="annot"><span class="annottext">v :: a
+</span><a href="#local-6989586621681164621"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681164623"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV a -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; SBV a
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681164621"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681164619"><span class="annot"><span class="annottext">fact0 :: SBool -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164619"><span class="hs-identifier hs-var hs-var">fact0</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span>
+</span><span id="line-99"></span><span>              </span><span id="local-6989586621681164617"><span class="annot"><span class="annottext">fact1 :: (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var hs-var">fact1</span></a></span></span><span> </span><span id="local-6989586621681164616"><span class="annot"><span class="annottext">f :: SBV Integer -&gt; SBool
+</span><a href="#local-6989586621681164616"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681164615"><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164615"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Symbolic (SBV Integer)
+forall a. SymVal a =&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free_"><span class="hs-identifier hs-var">free_</span></a></span><span>
+</span><span id="line-100"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164615"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164615"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBool
+</span><a href="#local-6989586621681164616"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164615"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-102"></span><span>              </span><span id="local-6989586621681164610"><span class="annot"><span class="annottext">fact2 :: (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var hs-var">fact2</span></a></span></span><span> </span><span id="local-6989586621681164609"><span class="annot"><span class="annottext">f :: SBV Integer -&gt; SBV Integer -&gt; SBool
+</span><a href="#local-6989586621681164609"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681164608"><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164608"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Symbolic (SBV Integer)
+forall a. SymVal a =&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free_"><span class="hs-identifier hs-var">free_</span></a></span><span>
+</span><span id="line-103"></span><span>                           </span><span id="local-6989586621681164607"><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164607"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Symbolic (SBV Integer)
+forall a. SymVal a =&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free_"><span class="hs-identifier hs-var">free_</span></a></span><span>
+</span><span id="line-104"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164608"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164608"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164607"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164607"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span>
+</span><span id="line-106"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164608"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164607"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-107"></span><span>                           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+</span><a href="#local-6989586621681164609"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164608"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164607"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164605"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164605"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164605"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Briton"><span class="hs-identifier hs-var">Briton</span></a></span><span>     </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164605"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span>
+</span><span id="line-110"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164604"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164604"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164604"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Swede"><span class="hs-identifier hs-var">Swede</span></a></span><span>      </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164604"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Pet -&gt; Pet -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Pet
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Dog"><span class="hs-identifier hs-var">Dog</span></a></span><span>
+</span><span id="line-111"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164603"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164603"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164603"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Dane"><span class="hs-identifier hs-var">Dane</span></a></span><span>       </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164603"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Beverage -&gt; Beverage -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Beverage
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Tea"><span class="hs-identifier hs-var">Tea</span></a></span><span>
+</span><span id="line-112"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var">fact2</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164602"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164602"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164601"><span class="annot"><span class="annottext">j :: SBV Integer
+</span><a href="#local-6989586621681164601"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164602"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Green"><span class="hs-identifier hs-var">Green</span></a></span><span>      </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164601"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#White"><span class="hs-identifier hs-var">White</span></a></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164602"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164601"><span class="hs-identifier hs-var">j</span></a></span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBV Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-113"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164600"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164600"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164600"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Green"><span class="hs-identifier hs-var">Green</span></a></span><span>      </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164600"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Beverage -&gt; Beverage -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Beverage
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Coffee"><span class="hs-identifier hs-var">Coffee</span></a></span><span>
+</span><span id="line-114"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164599"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164599"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164599"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Football"><span class="hs-identifier hs-var">Football</span></a></span><span>   </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164599"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Pet -&gt; Pet -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Pet
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Bird"><span class="hs-identifier hs-var">Bird</span></a></span><span>
+</span><span id="line-115"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164598"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164598"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164598"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span><span>     </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164598"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Baseball"><span class="hs-identifier hs-var">Baseball</span></a></span><span>
+</span><span id="line-116"></span><span>          </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164619"><span class="hs-identifier hs-var">fact0</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>         </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span> </span><span class="annot"><span class="annottext">SBV Beverage -&gt; Beverage -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Beverage
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Milk"><span class="hs-identifier hs-var">Milk</span></a></span><span>
+</span><span id="line-117"></span><span>          </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164619"><span class="hs-identifier hs-var">fact0</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>         </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Norwegian"><span class="hs-identifier hs-var">Norwegian</span></a></span><span>
+</span><span id="line-118"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var">fact2</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164597"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164597"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164596"><span class="annot"><span class="annottext">j :: SBV Integer
+</span><a href="#local-6989586621681164596"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164597"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Volleyball"><span class="hs-identifier hs-var">Volleyball</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164596"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Pet -&gt; Pet -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Pet
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Cat"><span class="hs-identifier hs-var">Cat</span></a></span><span>      </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164597"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. (EqSymbolic a, Num a) =&gt; a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164628"><span class="hs-operator hs-var">`neighbor`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164596"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-119"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var">fact2</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164595"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164595"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164594"><span class="annot"><span class="annottext">j :: SBV Integer
+</span><a href="#local-6989586621681164594"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164595"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Pet -&gt; Pet -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Pet
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Horse"><span class="hs-identifier hs-var">Horse</span></a></span><span>      </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164594"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Baseball"><span class="hs-identifier hs-var">Baseball</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164595"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. (EqSymbolic a, Num a) =&gt; a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164628"><span class="hs-operator hs-var">`neighbor`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164594"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-120"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164593"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164593"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164593"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Tennis"><span class="hs-identifier hs-var">Tennis</span></a></span><span>     </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164593"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Beverage -&gt; Beverage -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Beverage
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Beer"><span class="hs-identifier hs-var">Beer</span></a></span><span>
+</span><span id="line-121"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164592"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164592"><span class="hs-identifier hs-var">i</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164592"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#German"><span class="hs-identifier hs-var">German</span></a></span><span>     </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164592"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Hockey"><span class="hs-identifier hs-var">Hockey</span></a></span><span>
+</span><span id="line-122"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var">fact2</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164591"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164591"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164590"><span class="annot"><span class="annottext">j :: SBV Integer
+</span><a href="#local-6989586621681164590"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164591"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; Nationality -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Nationality
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Norwegian"><span class="hs-identifier hs-var">Norwegian</span></a></span><span>  </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Color
+</span><a href="#local-6989586621681164635"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164590"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Color -&gt; Color -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span>     </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164591"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. (EqSymbolic a, Num a) =&gt; a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164628"><span class="hs-operator hs-var">`neighbor`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164590"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-123"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164610"><span class="hs-identifier hs-var">fact2</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164589"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164589"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681164588"><span class="annot"><span class="annottext">j :: SBV Integer
+</span><a href="#local-6989586621681164588"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Sport
+</span><a href="#local-6989586621681164630"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164589"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Sport -&gt; Sport -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Sport
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Volleyball"><span class="hs-identifier hs-var">Volleyball</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Beverage
+</span><a href="#local-6989586621681164632"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164588"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Beverage -&gt; Beverage -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Beverage
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Water"><span class="hs-identifier hs-var">Water</span></a></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164589"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Integer -&gt; SBool
+forall a. (EqSymbolic a, Num a) =&gt; a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164628"><span class="hs-operator hs-var">`neighbor`</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164588"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>          </span><span id="local-6989586621681164587"><span class="annot"><span class="annottext">SBV Nationality
+</span><a href="#local-6989586621681164587"><span class="hs-identifier hs-var">ownsFish</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Nationality)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;fishOwner&quot;</span></span><span>
+</span><span id="line-126"></span><span>          </span><span class="annot"><span class="annottext">(SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+</span><a href="#local-6989586621681164617"><span class="hs-identifier hs-var">fact1</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV Integer -&gt; SBool) -&gt; SymbolicT IO ())
+-&gt; (SBV Integer -&gt; SBool) -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681164585"><span class="annot"><span class="annottext">i :: SBV Integer
+</span><a href="#local-6989586621681164585"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Nationality
+</span><a href="#local-6989586621681164633"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164585"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality -&gt; SBV Nationality -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Nationality
+</span><a href="#local-6989586621681164587"><span class="hs-identifier hs-var">ownsFish</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer -&gt; SBV Pet
+</span><a href="#local-6989586621681164631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Integer
+</span><a href="#local-6989586621681164585"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Pet -&gt; Pet -&gt; SBool
+forall a. SymVal a =&gt; SBV a -&gt; a -&gt; SBool
+</span><a href="#local-6989586621681164622"><span class="hs-operator hs-var">`is`</span></a></span><span> </span><span class="annot"><span class="annottext">Pet
+</span><a href="Documentation.SBV.Examples.Puzzles.Fish.html#Fish"><span class="hs-identifier hs-var">Fish</span></a></span><span>
+</span><span id="line-127"></span></pre></body></html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Misc.NoDiv0</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates SBV's assertion checking facilities</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE ImplicitParams #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Misc.NoDiv0</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Stack</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | A simple variant of division, where we explicitly require the</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- caller to make sure the divisor is not 0.</span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#checkedDiv"><span class="hs-identifier hs-type">checkedDiv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="">?loc</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CallStack</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInt32"><span class="hs-identifier hs-type">SInt32</span></a></span><span>
+</span><span id="line-24"></span><span id="checkedDiv"><span class="annot"><span class="annottext">checkedDiv :: SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#checkedDiv"><span class="hs-identifier hs-var hs-var">checkedDiv</span></a></span></span><span> </span><span id="local-6989586621681162642"><span class="annot"><span class="annottext">x :: SInt32
+</span><a href="#local-6989586621681162642"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681162641"><span class="annot"><span class="annottext">y :: SInt32
+</span><a href="#local-6989586621681162641"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe CallStack -&gt; String -&gt; SBool -&gt; SInt32 -&gt; SInt32
+forall a.
+HasKind a =&gt;
+Maybe CallStack -&gt; String -&gt; SBool -&gt; SBV a -&gt; SBV a
+</span><a href="Data.SBV.Core.Model.html#sAssert"><span class="hs-identifier hs-var">sAssert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CallStack -&gt; Maybe CallStack
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">?loc::CallStack
+CallStack
+</span><a href="#local-6989586621681162639"><span class="hs-var">?loc</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>                         </span><span class="annot"><span class="hs-string">&quot;Divisor should not be 0&quot;</span></span><span>
+</span><span id="line-26"></span><span>                         </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162641"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>                         </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162642"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SInt32
+forall a. SDivisible a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#sDiv"><span class="hs-operator hs-var">`sDiv`</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162641"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Check whether an arbitrary call to 'checkedDiv' is safe. Clearly, we do not expect</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- this to be safe:</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- &gt;&gt;&gt; test1</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- [Documentation/SBV/Examples/Misc/NoDiv0.hs:38:14:checkedDiv: Divisor should not be 0: Violated. Model:</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   s0 = 0 :: Int32</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--   s1 = 0 :: Int32]</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#test1"><span class="hs-identifier hs-type">test1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SafeResult"><span class="hs-identifier hs-type">SafeResult</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-38"></span><span id="test1"><span class="annot"><span class="annottext">test1 :: IO [SafeResult]
+</span><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#test1"><span class="hs-identifier hs-var hs-var">test1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO [SafeResult]
+forall a. SExecutable IO a =&gt; a -&gt; IO [SafeResult]
+</span><a href="Data.SBV.Client.BaseIO.html#safe"><span class="hs-keyword hs-var">safe</span></a></span><span> </span><span class="annot"><span class="annottext">(?loc::CallStack) =&gt; SInt32 -&gt; SInt32 -&gt; SInt32
+SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#checkedDiv"><span class="hs-identifier hs-var">checkedDiv</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Repeat the test, except this time we explicitly protect against the bad case. We have:</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- &gt;&gt;&gt; test2</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- [Documentation/SBV/Examples/Misc/NoDiv0.hs:46:41:checkedDiv: Divisor should not be 0: No violations detected]</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#test2"><span class="hs-identifier hs-type">test2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SafeResult"><span class="hs-identifier hs-type">SafeResult</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-46"></span><span id="test2"><span class="annot"><span class="annottext">test2 :: IO [SafeResult]
+</span><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#test2"><span class="hs-identifier hs-var hs-var">test2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO [SafeResult]
+forall a. SExecutable IO a =&gt; a -&gt; IO [SafeResult]
+</span><a href="Data.SBV.Client.BaseIO.html#safe"><span class="hs-keyword hs-var">safe</span></a></span><span> </span><span class="annot"><span class="annottext">((SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO [SafeResult])
+-&gt; (SInt32 -&gt; SInt32 -&gt; SInt32) -&gt; IO [SafeResult]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681162633"><span class="annot"><span class="annottext">x :: SInt32
+</span><a href="#local-6989586621681162633"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681162632"><span class="annot"><span class="annottext">y :: SInt32
+</span><a href="#local-6989586621681162632"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInt32 -&gt; SInt32 -&gt; SInt32
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162632"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32 -&gt; SInt32 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">3</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(?loc::CallStack) =&gt; SInt32 -&gt; SInt32 -&gt; SInt32
+SInt32 -&gt; SInt32 -&gt; SInt32
+</span><a href="Documentation.SBV.Examples.Misc.NoDiv0.html#checkedDiv"><span class="hs-identifier hs-var">checkedDiv</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162633"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInt32
+</span><a href="#local-6989586621681162632"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span></pre></body></html>

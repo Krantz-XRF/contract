@@ -1,0 +1,575 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE BangPatterns #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeSynonymInstances #-}</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE DefaultSignatures #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 705
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 708
+</span><span class="hs-pragma">{-# LANGUAGE EmptyCase #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 710
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#elif __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.Traversable</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Generic Traversable class</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier">GTraversable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Default method</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier">gtraversedefault</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Internal Traversable class</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier">GTraversable'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Const</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WrappedMonad</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ZipList</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#if !(MIN_VERSION_base(4,8,0))
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Applicative</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">First</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Last</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Product</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Dual</span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Generics.Deriving.Base.html"><span class="hs-identifier">Generics.Deriving.Base</span></a></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Generics.Deriving.Foldable.html"><span class="hs-identifier">Generics.Deriving.Foldable</span></a></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Generics.Deriving.Functor.html"><span class="hs-identifier">Generics.Deriving.Functor</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Complex</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Complex</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,6,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Down</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Down</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Proxy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Product</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Product</span></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Sum</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">First</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Last</span></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Arg</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Max</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Min</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Option</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WrappedMonoid</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- Generic traverse</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">class</span><span> </span><span id="GTraversable%27"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-var">GTraversable'</span></a></span></span><span> </span><span id="local-6989586621679128155"><span class="annot"><a href="#local-6989586621679128155"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621679128157"><span id="local-6989586621679128158"><span id="local-6989586621679128159"><span id="gtraverse%27"><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-type">gtraverse'</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679128159"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128158"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128159"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128157"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128155"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128158"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128159"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128155"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128157"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="local-6989586621679127718"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; V1 a -&gt; f (V1 b)
+</span><a href="#local-6989586621679127718"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679127717"><span class="annot"><span class="annottext">x :: V1 a
+</span><a href="#local-6989586621679127717"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">V1 b -&gt; f (V1 b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(V1 b -&gt; f (V1 b)) -&gt; V1 b -&gt; f (V1 b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">V1 a
+</span><a href="#local-6989586621679127717"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">of</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 708
+</span><span>                            </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-cpp">
+#else
+</span><span>                            </span><span class="hs-glyph">!</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">error</span><span> </span><span class="hs-string">&quot;Void gtraverse&quot;</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-91"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621679127715"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; U1 a -&gt; f (U1 b)
+</span><a href="#local-6989586621679127715"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">U1 b -&gt; f (U1 b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">U1 b
+forall k (p :: k). U1 p
+</span><span class="hs-identifier hs-var">U1</span></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621679127712"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; Par1 a -&gt; f (Par1 b)
+</span><a href="#local-6989586621679127712"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127711"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127711"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span id="local-6989586621679127709"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621679127709"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Par1 b
+forall p. p -&gt; Par1 p
+</span><span class="hs-identifier hs-var">Par1</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Par1 b) -&gt; f b -&gt; f (Par1 b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127711"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679127709"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span id="local-6989586621679127706"><span id="local-6989586621679127707"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679127707"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127706"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621679127704"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; K1 i c a -&gt; f (K1 i c b)
+</span><a href="#local-6989586621679127704"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679127702"><span class="annot"><span class="annottext">a :: c
+</span><a href="#local-6989586621679127702"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">K1 i c b -&gt; f (K1 i c b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">c -&gt; K1 i c b
+forall k i c (p :: k). c -&gt; K1 i c p
+</span><span class="hs-identifier hs-var">K1</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679127702"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span id="local-6989586621679127701"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127701"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span class="annot"><a href="#local-6989586621679127701"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621679127699"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; Rec1 f a -&gt; f (Rec1 f b)
+</span><a href="#local-6989586621679127699"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127698"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127698"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span id="local-6989586621679127696"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679127696"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; Rec1 f b
+forall k (f :: k -&gt; *) (p :: k). f p -&gt; Rec1 f p
+</span><span class="hs-identifier hs-var">Rec1</span></span><span> </span><span class="annot"><span class="annottext">(f b -&gt; Rec1 f b) -&gt; f (f b) -&gt; f (Rec1 f b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; f a -&gt; f (f b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var">gtraverse</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127698"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679127696"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span id="local-6989586621679127692"><span id="local-6989586621679127693"><span id="local-6989586621679127694"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127694"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679127693"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127692"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127694"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621679127690"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; M1 i c f a -&gt; f (M1 i c f b)
+</span><a href="#local-6989586621679127690"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127689"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127689"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679127687"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679127687"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; M1 i c f b
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). f p -&gt; M1 i c f p
+</span><span class="hs-identifier hs-var">M1</span></span><span> </span><span class="annot"><span class="annottext">(f b -&gt; M1 i c f b) -&gt; f (f b) -&gt; f (M1 i c f b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; f a -&gt; f (f b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127689"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679127687"><span class="hs-identifier hs-var">a</span></a></span></span></span></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span id="local-6989586621679127685"><span id="local-6989586621679127686"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127686"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127685"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127686"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679127685"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621679127683"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; (:+:) f g a -&gt; f ((:+:) f g b)
+</span><a href="#local-6989586621679127683"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127682"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127682"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679127680"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679127680"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; (:+:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). f p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">L1</span></span><span> </span><span class="annot"><span class="annottext">(f b -&gt; (:+:) f g b) -&gt; f (f b) -&gt; f ((:+:) f g b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; f a -&gt; f (f b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127682"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679127680"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span id="local-6989586621679127679"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127679"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679127677"><span class="annot"><span class="annottext">a :: g a
+</span><a href="#local-6989586621679127677"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g b -&gt; (:+:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). g p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">R1</span></span><span> </span><span class="annot"><span class="annottext">(g b -&gt; (:+:) f g b) -&gt; f (g b) -&gt; f ((:+:) f g b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; g a -&gt; f (g b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127679"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679127677"><span class="hs-identifier hs-var">a</span></a></span></span></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span id="local-6989586621679127675"><span id="local-6989586621679127676"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127676"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127675"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127676"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679127675"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621679127673"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; (:*:) f g a -&gt; f ((:*:) f g b)
+</span><a href="#local-6989586621679127673"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127672"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127672"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679127671"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679127671"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679127669"><span class="annot"><span class="annottext">b :: g a
+</span><a href="#local-6989586621679127669"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; g b -&gt; (:*:) f g b
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k).
+f p -&gt; g p -&gt; (:*:) f g p
+</span><span class="hs-operator hs-var">(:*:)</span></span><span> </span><span class="annot"><span class="annottext">(f b -&gt; g b -&gt; (:*:) f g b) -&gt; f (f b) -&gt; f (g b -&gt; (:*:) f g b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; f a -&gt; f (f b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127672"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679127671"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f (g b -&gt; (:*:) f g b) -&gt; f (g b) -&gt; f ((:*:) f g b)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; g a -&gt; f (g b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127672"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679127669"><span class="hs-identifier hs-var">b</span></a></span></span></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span id="local-6989586621679127667"><span id="local-6989586621679127668"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127668"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127667"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127668"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:.:</span></span><span> </span><span class="annot"><a href="#local-6989586621679127667"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-114"></span><span>  </span><span id="local-6989586621679127665"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; (:.:) f g a -&gt; f ((:.:) f g b)
+</span><a href="#local-6989586621679127665"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span id="local-6989586621679127664"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127664"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Comp1</span></span><span> </span><span id="local-6989586621679127662"><span class="annot"><span class="annottext">x :: f (g a)
+</span><a href="#local-6989586621679127662"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f (g b) -&gt; (:.:) f g b
+forall k2 k1 (f :: k2 -&gt; *) (g :: k1 -&gt; k2) (p :: k1).
+f (g p) -&gt; (:.:) f g p
+</span><span class="hs-identifier hs-var">Comp1</span></span><span> </span><span class="annot"><span class="annottext">(f (g b) -&gt; (:.:) f g b) -&gt; f (f (g b)) -&gt; f ((:.:) f g b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(g a -&gt; f (g b)) -&gt; f (g a) -&gt; f (f (g b))
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var">gtraverse</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; g a -&gt; f (g b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127664"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f (g a)
+</span><a href="#local-6989586621679127662"><span class="hs-identifier hs-var">x</span></a></span></span></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UAddr</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621679127660"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UAddr a -&gt; f (UAddr b)
+</span><a href="#local-6989586621679127660"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UAddr</span></span><span> </span><span id="local-6989586621679127658"><span class="annot"><a href="#local-6989586621679127658"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UAddr b -&gt; f (UAddr b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Addr# -&gt; UAddr b
+forall k (p :: k). Addr# -&gt; URec (Ptr ()) p
+</span><span class="hs-identifier hs-var">UAddr</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679127658"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UChar</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621679127656"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UChar a -&gt; f (UChar b)
+</span><a href="#local-6989586621679127656"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UChar</span></span><span> </span><span id="local-6989586621679127654"><span class="annot"><a href="#local-6989586621679127654"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UChar b -&gt; f (UChar b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char# -&gt; UChar b
+forall k (p :: k). Char# -&gt; URec Char p
+</span><span class="hs-identifier hs-var">UChar</span></span><span> </span><span class="annot"><span class="annottext">Char#
+</span><a href="#local-6989586621679127654"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UDouble</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-123"></span><span>  </span><span id="local-6989586621679127652"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UDouble a -&gt; f (UDouble b)
+</span><a href="#local-6989586621679127652"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UDouble</span></span><span> </span><span id="local-6989586621679127650"><span class="annot"><a href="#local-6989586621679127650"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UDouble b -&gt; f (UDouble b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double# -&gt; UDouble b
+forall k (p :: k). Double# -&gt; URec Double p
+</span><span class="hs-identifier hs-var">UDouble</span></span><span> </span><span class="annot"><span class="annottext">Double#
+</span><a href="#local-6989586621679127650"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UFloat</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621679127648"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UFloat a -&gt; f (UFloat b)
+</span><a href="#local-6989586621679127648"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UFloat</span></span><span> </span><span id="local-6989586621679127646"><span class="annot"><a href="#local-6989586621679127646"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UFloat b -&gt; f (UFloat b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float# -&gt; UFloat b
+forall k (p :: k). Float# -&gt; URec Float p
+</span><span class="hs-identifier hs-var">UFloat</span></span><span> </span><span class="annot"><span class="annottext">Float#
+</span><a href="#local-6989586621679127646"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UInt</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-129"></span><span>  </span><span id="local-6989586621679127644"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UInt a -&gt; f (UInt b)
+</span><a href="#local-6989586621679127644"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UInt</span></span><span> </span><span id="local-6989586621679127642"><span class="annot"><a href="#local-6989586621679127642"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UInt b -&gt; f (UInt b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int# -&gt; UInt b
+forall k (p :: k). Int# -&gt; URec Int p
+</span><span class="hs-identifier hs-var">UInt</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679127642"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UWord</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621679127640"><span class="annot"><span class="annottext">gtraverse' :: (a -&gt; f b) -&gt; UWord a -&gt; f (UWord b)
+</span><a href="#local-6989586621679127640"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">UWord</span></span><span> </span><span id="local-6989586621679127638"><span class="annot"><a href="#local-6989586621679127638"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UWord b -&gt; f (UWord b)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; UWord b
+forall k (p :: k). Word# -&gt; URec Word p
+</span><span class="hs-identifier hs-var">UWord</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679127638"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Foldable.html#GFoldable"><span class="hs-identifier hs-type">GFoldable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="GTraversable"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-var">GTraversable</span></a></span></span><span> </span><span id="local-6989586621679128117"><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621679128114"><span id="local-6989586621679128115"><span id="local-6989586621679128116"><span id="gtraverse"><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-type">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679128116"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128115"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128116"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128114"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128115"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128116"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128114"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span>  </span><span id="local-6989586621679127635"><span id="local-6989586621679127636"><span id="local-6989586621679127637"><span class="hs-keyword">default</span><span> </span><span id="gtraverse"><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-type">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span><span>                    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127636"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127635"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127636"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127635"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621679127634"><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var hs-var">gtraverse</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-142"></span><span>  </span><span id="local-6989586621679128003"><span id="local-6989586621679128004"><span id="gsequenceA"><span class="annot"><a href="Generics.Deriving.Traversable.html#gsequenceA"><span class="hs-identifier hs-type">gsequenceA</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679128004"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128004"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128003"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128004"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128003"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621679127632"><span class="annot"><a href="Generics.Deriving.Traversable.html#gsequenceA"><span class="hs-identifier hs-var hs-var">gsequenceA</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(f a -&gt; f a) -&gt; t (f a) -&gt; f (t a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var">gtraverse</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>  </span><span id="local-6989586621679128016"><span id="local-6989586621679128017"><span id="local-6989586621679128018"><span id="gmapM"><span class="annot"><a href="Generics.Deriving.Traversable.html#gmapM"><span class="hs-identifier hs-type">gmapM</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679128018"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128017"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128018"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128016"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128017"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128018"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128016"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-146"></span><span>  </span><span id="local-6989586621679127629"><span class="annot"><a href="Generics.Deriving.Traversable.html#gmapM"><span class="hs-identifier hs-var hs-var">gmapM</span></a></span><span> </span><span id="local-6989586621679127628"><span class="annot"><span class="annottext">f :: a -&gt; m b
+</span><a href="#local-6989586621679127628"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WrappedMonad m (t b) -&gt; m (t b)
+forall (m :: * -&gt; *) a. WrappedMonad m a -&gt; m a
+</span><span class="hs-identifier hs-var hs-var">unwrapMonad</span></span><span> </span><span class="annot"><span class="annottext">(WrappedMonad m (t b) -&gt; m (t b))
+-&gt; (t a -&gt; WrappedMonad m (t b)) -&gt; t a -&gt; m (t b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; WrappedMonad m b) -&gt; t a -&gt; WrappedMonad m (t b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var">gtraverse</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m b -&gt; WrappedMonad m b
+forall (m :: * -&gt; *) a. m a -&gt; WrappedMonad m a
+</span><span class="hs-identifier hs-var">WrapMonad</span></span><span> </span><span class="annot"><span class="annottext">(m b -&gt; WrappedMonad m b) -&gt; (a -&gt; m b) -&gt; a -&gt; WrappedMonad m b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621679127628"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span>  </span><span id="local-6989586621679128001"><span id="local-6989586621679128002"><span id="gsequence"><span class="annot"><a href="Generics.Deriving.Traversable.html#gsequence"><span class="hs-identifier hs-type">gsequence</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679128002"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128002"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128001"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128002"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128117"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128001"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-149"></span><span>  </span><span id="local-6989586621679127623"><span class="annot"><a href="Generics.Deriving.Traversable.html#gsequence"><span class="hs-identifier hs-var hs-var">gsequence</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m a -&gt; m a) -&gt; t (m a) -&gt; m (t a)
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(GTraversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><a href="Generics.Deriving.Traversable.html#gmapM"><span class="hs-identifier hs-var">gmapM</span></a></span><span> </span><span class="annot"><span class="annottext">m a -&gt; m a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span id="local-6989586621679128035"><span id="local-6989586621679128036"><span id="local-6989586621679128037"><span id="local-6989586621679128038"><span class="annot"><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-type">gtraversedefault</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128038"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128038"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679128037"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>                 </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128036"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128037"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128035"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128038"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128036"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128037"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128038"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128035"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-153"></span><span id="gtraversedefault"><span class="annot"><span class="annottext">gtraversedefault :: (a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var hs-var">gtraversedefault</span></a></span></span><span> </span><span id="local-6989586621679127622"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679127622"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679127621"><span class="annot"><span class="annottext">x :: t a
+</span><a href="#local-6989586621679127621"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep1 t b -&gt; t b
+forall k (f :: k -&gt; *) (a :: k). Generic1 f =&gt; Rep1 f a -&gt; f a
+</span><span class="hs-identifier hs-var">to1</span></span><span> </span><span class="annot"><span class="annottext">(Rep1 t b -&gt; t b) -&gt; f (Rep1 t b) -&gt; f (t b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Rep1 t a -&gt; f (Rep1 t b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(GTraversable' t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse%27"><span class="hs-identifier hs-var">gtraverse'</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679127622"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t a -&gt; Rep1 t a
+forall k (f :: k -&gt; *) (a :: k). Generic1 f =&gt; f a -&gt; Rep1 f a
+</span><span class="hs-identifier hs-var">from1</span></span><span> </span><span class="annot"><span class="annottext">t a
+</span><a href="#local-6989586621679127621"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- Base types instances</span><span>
+</span><span id="line-156"></span><span id="local-6989586621679127618"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127609"><span id="local-6989586621679127611"><span id="local-6989586621679127613"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127618"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-157"></span><span>  </span><span id="local-6989586621679127607"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; (a, a) -&gt; f (a, b)
+</span><a href="#local-6989586621679127607"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; (a, a) -&gt; f (a, b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127598"><span id="local-6989586621679127600"><span id="local-6989586621679127602"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-160"></span><span>  </span><span id="local-6989586621679127597"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><a href="#local-6989586621679127597"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; [a] -&gt; f [b]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679127596"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127587"><span id="local-6989586621679127589"><span id="local-6989586621679127591"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Arg</span></span><span> </span><span class="annot"><a href="#local-6989586621679127596"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621679127586"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Arg a a -&gt; f (Arg a b)
+</span><a href="#local-6989586621679127586"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Arg a a -&gt; f (Arg a b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127577"><span id="local-6989586621679127579"><span id="local-6989586621679127581"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Complex</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-169"></span><span>  </span><span id="local-6989586621679127576"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Complex a -&gt; f (Complex b)
+</span><a href="#local-6989586621679127576"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Complex a -&gt; f (Complex b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-172"></span><span id="local-6989586621679127575"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127566"><span id="local-6989586621679127568"><span id="local-6989586621679127570"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Const</span></span><span> </span><span class="annot"><a href="#local-6989586621679127575"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-173"></span><span>  </span><span id="local-6989586621679127565"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Const m a -&gt; f (Const m b)
+</span><a href="#local-6989586621679127565"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Const m a -&gt; f (Const m b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127556"><span id="local-6989586621679127558"><span id="local-6989586621679127560"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Down</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-176"></span><span>  </span><span id="local-6989586621679127555"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Down a -&gt; f (Down b)
+</span><a href="#local-6989586621679127555"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Down a -&gt; f (Down b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127546"><span id="local-6989586621679127548"><span id="local-6989586621679127550"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-179"></span><span>  </span><span id="local-6989586621679127545"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Dual a -&gt; f (Dual b)
+</span><a href="#local-6989586621679127545"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Dual a -&gt; f (Dual b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span id="local-6989586621679127544"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127535"><span id="local-6989586621679127537"><span id="local-6989586621679127539"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621679127544"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621679127534"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Either a a -&gt; f (Either a b)
+</span><a href="#local-6989586621679127534"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Either a a -&gt; f (Either a b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127525"><span id="local-6989586621679127527"><span id="local-6989586621679127529"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.First</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-185"></span><span>  </span><span id="local-6989586621679127524"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; First a -&gt; f (First b)
+</span><a href="#local-6989586621679127524"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; First a -&gt; f (First b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127515"><span id="local-6989586621679127517"><span id="local-6989586621679127519"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Semigroup.First</span></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-189"></span><span>  </span><span id="local-6989586621679127514"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; First a -&gt; f (First b)
+</span><a href="#local-6989586621679127514"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; First a -&gt; f (First b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127505"><span id="local-6989586621679127507"><span id="local-6989586621679127509"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-194"></span><span>  </span><span id="local-6989586621679127504"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Identity a -&gt; f (Identity b)
+</span><a href="#local-6989586621679127504"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Identity a -&gt; f (Identity b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-197"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127495"><span id="local-6989586621679127497"><span id="local-6989586621679127499"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Last</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-198"></span><span>  </span><span id="local-6989586621679127494"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Last a -&gt; f (Last b)
+</span><a href="#local-6989586621679127494"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Last a -&gt; f (Last b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127485"><span id="local-6989586621679127487"><span id="local-6989586621679127489"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup.Last</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-202"></span><span>  </span><span id="local-6989586621679127484"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Last a -&gt; f (Last b)
+</span><a href="#local-6989586621679127484"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Last a -&gt; f (Last b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-203"></span><span>
+</span><span id="line-204"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127475"><span id="local-6989586621679127477"><span id="local-6989586621679127479"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Max</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-205"></span><span>  </span><span id="local-6989586621679127474"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Max a -&gt; f (Max b)
+</span><a href="#local-6989586621679127474"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Max a -&gt; f (Max b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-208"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127465"><span id="local-6989586621679127467"><span id="local-6989586621679127469"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-209"></span><span>  </span><span id="local-6989586621679127464"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Maybe a -&gt; f (Maybe b)
+</span><a href="#local-6989586621679127464"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Maybe a -&gt; f (Maybe b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127455"><span id="local-6989586621679127457"><span id="local-6989586621679127459"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Min</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-213"></span><span>  </span><span id="local-6989586621679127454"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Min a -&gt; f (Min b)
+</span><a href="#local-6989586621679127454"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Min a -&gt; f (Min b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127445"><span id="local-6989586621679127447"><span id="local-6989586621679127449"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-216"></span><span>  </span><span id="local-6989586621679127444"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; NonEmpty a -&gt; f (NonEmpty b)
+</span><a href="#local-6989586621679127444"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; NonEmpty a -&gt; f (NonEmpty b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127435"><span id="local-6989586621679127437"><span id="local-6989586621679127439"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Option</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-219"></span><span>  </span><span id="local-6989586621679127434"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Option a -&gt; f (Option b)
+</span><a href="#local-6989586621679127434"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Option a -&gt; f (Option b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-222"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127425"><span id="local-6989586621679127427"><span id="local-6989586621679127429"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Product</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-223"></span><span>  </span><span id="local-6989586621679127424"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Product a -&gt; f (Product b)
+</span><a href="#local-6989586621679127424"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Product a -&gt; f (Product b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679127422"><span id="local-6989586621679127423"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127413"><span id="local-6989586621679127415"><span id="local-6989586621679127417"><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127423"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127422"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor.Product</span></span><span> </span><span class="annot"><a href="#local-6989586621679127423"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127422"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-227"></span><span>  </span><span id="local-6989586621679127412"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Product f g a -&gt; f (Product f g b)
+</span><a href="#local-6989586621679127412"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Product f g a -&gt; f (Product f g b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127403"><span id="local-6989586621679127405"><span id="local-6989586621679127407"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-232"></span><span>  </span><span id="local-6989586621679127402"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Proxy a -&gt; f (Proxy b)
+</span><a href="#local-6989586621679127402"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Proxy a -&gt; f (Proxy b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-235"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127393"><span id="local-6989586621679127395"><span id="local-6989586621679127397"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Sum</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>  </span><span id="local-6989586621679127392"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Sum a -&gt; f (Sum b)
+</span><a href="#local-6989586621679127392"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Sum a -&gt; f (Sum b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679127390"><span id="local-6989586621679127391"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127381"><span id="local-6989586621679127383"><span id="local-6989586621679127385"><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127391"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127390"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor.Sum</span></span><span> </span><span class="annot"><a href="#local-6989586621679127391"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127390"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-240"></span><span>  </span><span id="local-6989586621679127380"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Sum f g a -&gt; f (Sum f g b)
+</span><a href="#local-6989586621679127380"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; Sum f g a -&gt; f (Sum f g b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span></span></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127371"><span id="local-6989586621679127373"><span id="local-6989586621679127375"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">WrappedMonoid</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-243"></span><span>  </span><span id="local-6989586621679127370"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; WrappedMonoid a -&gt; f (WrappedMonoid b)
+</span><a href="#local-6989586621679127370"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; WrappedMonoid a -&gt; f (WrappedMonoid b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-246"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679127361"><span id="local-6989586621679127363"><span id="local-6989586621679127365"><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ZipList</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-247"></span><span>  </span><span id="local-6989586621679127360"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; ZipList a -&gt; f (ZipList b)
+</span><a href="#local-6989586621679127360"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; ZipList a -&gt; f (ZipList b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span>
+</span><span id="line-248"></span></pre></body></html>

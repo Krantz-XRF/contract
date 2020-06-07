@@ -1,0 +1,352 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Strings.SQLInjection</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Joel Burget</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Implement the symbolic evaluation of a language which operates on</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- strings in a way similar to bash. It's possible to do different analyses,</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- but this example finds program inputs which result in a query containing a</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- SQL injection.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings   #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Strings.SQLInjection</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.String</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.String.html"><span class="hs-identifier">Data.SBV.String</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.String.html#.%2B%2B"><span class="hs-operator">(.++)</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.SBV.RegExp.html"><span class="hs-identifier">Data.SBV.RegExp</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">R</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | Simple expression language</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">data</span><span> </span><span id="SQLExpr"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-var">SQLExpr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Query"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Query"><span class="hs-identifier hs-var">Query</span></a></span></span><span>   </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span>
+</span><span id="line-34"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="Const"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Const"><span class="hs-identifier hs-var">Const</span></a></span></span><span>   </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-35"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="Concat"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Concat"><span class="hs-identifier hs-var">Concat</span></a></span></span><span>  </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span>
+</span><span id="line-36"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="ReadVar"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#ReadVar"><span class="hs-identifier hs-var">ReadVar</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Literals strings can be lifted to be constant programs</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-40"></span><span>  </span><span id="local-6989586621681169339"><span class="annot"><span class="annottext">fromString :: String -&gt; SQLExpr
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromString</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SQLExpr
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Const"><span class="hs-identifier hs-var">Const</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Evaluation monad. The state argument is the environment to store</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- variables as we evaluate.</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">type</span><span> </span><span id="M"><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#M"><span class="hs-identifier hs-var">M</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SFunArray"><span class="hs-identifier hs-type">SFunArray</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Data.SBV.Core.Data.html#SString"><span class="hs-identifier hs-type">SString</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | Given an expression, symbolically evaluate it</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-type">eval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#M"><span class="hs-identifier hs-type">M</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SString"><span class="hs-identifier hs-type">SString</span></a></span><span>
+</span><span id="line-48"></span><span id="eval"><span class="annot"><span class="annottext">eval :: SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var hs-var">eval</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Query"><span class="hs-identifier hs-type">Query</span></a></span><span> </span><span id="local-6989586621681169337"><span class="annot"><span class="annottext">q :: SQLExpr
+</span><a href="#local-6989586621681169337"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169336"><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169336"><span class="hs-identifier hs-var">q'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SQLExpr
+</span><a href="#local-6989586621681169337"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-49"></span><span>                            </span><span class="annot"><span class="annottext">[SString]
+-&gt; StateT (SFunArray String String) (WriterT [SString] Symbolic) ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169336"><span class="hs-identifier hs-var">q'</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-50"></span><span>                            </span><span class="annot"><span class="annottext">WriterT [SString] Symbolic SString -&gt; M SString
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(WriterT [SString] Symbolic SString -&gt; M SString)
+-&gt; WriterT [SString] Symbolic SString -&gt; M SString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SString -&gt; WriterT [SString] Symbolic SString
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SString
+forall a. SymVal a =&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists_"><span class="hs-identifier hs-var">exists_</span></a></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Const"><span class="hs-identifier hs-type">Const</span></a></span><span> </span><span id="local-6989586621681169332"><span class="annot"><span class="annottext">str :: String
+</span><a href="#local-6989586621681169332"><span class="hs-identifier hs-var">str</span></a></span></span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SString -&gt; M SString
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SString -&gt; M SString) -&gt; SString -&gt; M SString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; SString
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681169332"><span class="hs-identifier hs-var">str</span></a></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Concat"><span class="hs-identifier hs-type">Concat</span></a></span><span> </span><span id="local-6989586621681169330"><span class="annot"><span class="annottext">e1 :: SQLExpr
+</span><a href="#local-6989586621681169330"><span class="hs-identifier hs-var">e1</span></a></span></span><span> </span><span id="local-6989586621681169329"><span class="annot"><span class="annottext">e2 :: SQLExpr
+</span><a href="#local-6989586621681169329"><span class="hs-identifier hs-var">e2</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SString -&gt; SString -&gt; SString
+</span><a href="Data.SBV.String.html#.%2B%2B"><span class="hs-operator hs-var">(.++)</span></a></span><span> </span><span class="annot"><span class="annottext">(SString -&gt; SString -&gt; SString)
+-&gt; M SString
+-&gt; StateT
+     (SFunArray String String)
+     (WriterT [SString] Symbolic)
+     (SString -&gt; SString)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SQLExpr
+</span><a href="#local-6989586621681169330"><span class="hs-identifier hs-var">e1</span></a></span><span> </span><span class="annot"><span class="annottext">StateT
+  (SFunArray String String)
+  (WriterT [SString] Symbolic)
+  (SString -&gt; SString)
+-&gt; M SString -&gt; M SString
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SQLExpr
+</span><a href="#local-6989586621681169329"><span class="hs-identifier hs-var">e2</span></a></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#ReadVar"><span class="hs-identifier hs-type">ReadVar</span></a></span><span> </span><span id="local-6989586621681169327"><span class="annot"><span class="annottext">nm :: SQLExpr
+</span><a href="#local-6989586621681169327"><span class="hs-identifier hs-var">nm</span></a></span></span><span class="hs-special">)</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169326"><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169326"><span class="hs-identifier hs-var">n</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SQLExpr
+</span><a href="#local-6989586621681169327"><span class="hs-identifier hs-var">nm</span></a></span><span>
+</span><span id="line-54"></span><span>                            </span><span id="local-6989586621681169325"><span class="annot"><span class="annottext">SFunArray String String
+</span><a href="#local-6989586621681169325"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">StateT
+  (SFunArray String String)
+  (WriterT [SString] Symbolic)
+  (SFunArray String String)
+forall s (m :: * -&gt; *). MonadState s m =&gt; m s
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-55"></span><span>                            </span><span class="annot"><span class="annottext">SString -&gt; M SString
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SString -&gt; M SString) -&gt; SString -&gt; M SString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SFunArray String String -&gt; SString -&gt; SString
+forall (array :: * -&gt; * -&gt; *) a b.
+SymArray array =&gt;
+array a b -&gt; SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Data.html#readArray"><span class="hs-identifier hs-var">readArray</span></a></span><span> </span><span class="annot"><span class="annottext">SFunArray String String
+</span><a href="#local-6989586621681169325"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169326"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | A simple program to query all messages with a given topic id. In SQL like notation:</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   query (&quot;SELECT msg FROM msgs where topicid='&quot; ++ my_topicid ++ &quot;'&quot;)</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#exampleProgram"><span class="hs-identifier hs-type">exampleProgram</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span>
+</span><span id="line-63"></span><span id="exampleProgram"><span class="annot"><span class="annottext">exampleProgram :: SQLExpr
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#exampleProgram"><span class="hs-identifier hs-var hs-var">exampleProgram</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; SQLExpr
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Query"><span class="hs-identifier hs-var">Query</span></a></span><span> </span><span class="annot"><span class="annottext">(SQLExpr -&gt; SQLExpr) -&gt; SQLExpr -&gt; SQLExpr
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SQLExpr -&gt; SQLExpr -&gt; SQLExpr) -&gt; [SQLExpr] -&gt; SQLExpr
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; a -&gt; a) -&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">foldr1</span></span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; SQLExpr -&gt; SQLExpr
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#Concat"><span class="hs-identifier hs-var">Concat</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;SELECT msg FROM msgs WHERE topicid='&quot;</span></span><span>
+</span><span id="line-64"></span><span>                                       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SQLExpr -&gt; SQLExpr
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#ReadVar"><span class="hs-identifier hs-var">ReadVar</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;my_topicid&quot;</span></span><span>
+</span><span id="line-65"></span><span>                                       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;'&quot;</span></span><span>
+</span><span id="line-66"></span><span>                                       </span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | Limit names to be at most 7 chars long, with simple letters.</span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-type">nameRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-70"></span><span id="nameRe"><span class="annot"><span class="annottext">nameRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var hs-var">nameRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; RegExp -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#Loop"><span class="hs-identifier hs-var">R.Loop</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">7</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#Range"><span class="hs-identifier hs-var">R.Range</span></a></span><span> </span><span class="annot"><span class="hs-char">'a'</span></span><span> </span><span class="annot"><span class="hs-char">'z'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- | Strings: Again, at most of lenght 5, surrounded by quotes.</span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#strRe"><span class="hs-identifier hs-type">strRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-74"></span><span id="strRe"><span class="annot"><span class="annottext">strRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#strRe"><span class="hs-identifier hs-var hs-var">strRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;'&quot;</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; RegExp -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#Loop"><span class="hs-identifier hs-var">R.Loop</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#Range"><span class="hs-identifier hs-var">R.Range</span></a></span><span> </span><span class="annot"><span class="hs-char">'a'</span></span><span> </span><span class="annot"><span class="hs-char">'z'</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-string">&quot; &quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-string">&quot;'&quot;</span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | A &quot;select&quot; command:</span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#selectRe"><span class="hs-identifier hs-type">selectRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-78"></span><span id="selectRe"><span class="annot"><span class="annottext">selectRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#selectRe"><span class="hs-identifier hs-var hs-var">selectRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;SELECT &quot;</span></span><span>
+</span><span id="line-79"></span><span>         </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var">nameRe</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-string">&quot;*&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>         </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-string">&quot; FROM &quot;</span></span><span>
+</span><span id="line-81"></span><span>         </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var">nameRe</span></a></span><span>
+</span><span id="line-82"></span><span>         </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#Opt"><span class="hs-identifier hs-var">R.Opt</span></a></span><span> </span><span class="hs-special">(</span><span>  </span><span class="annot"><span class="hs-string">&quot; WHERE &quot;</span></span><span>
+</span><span id="line-83"></span><span>                  </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var">nameRe</span></a></span><span>
+</span><span id="line-84"></span><span>                  </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-string">&quot;=&quot;</span></span><span>
+</span><span id="line-85"></span><span>                  </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var">nameRe</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#strRe"><span class="hs-identifier hs-var">strRe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>                  </span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- | A &quot;drop&quot; instruction, which can be exploited!</span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#dropRe"><span class="hs-identifier hs-type">dropRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-90"></span><span id="dropRe"><span class="annot"><span class="annottext">dropRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#dropRe"><span class="hs-identifier hs-var hs-var">dropRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;DROP TABLE &quot;</span></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#nameRe"><span class="hs-identifier hs-var">nameRe</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#strRe"><span class="hs-identifier hs-var">strRe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | We'll greatly simplify here and say a statement is either a select or a drop:</span><span>
+</span><span id="line-93"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#statementRe"><span class="hs-identifier hs-type">statementRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-94"></span><span id="statementRe"><span class="annot"><span class="annottext">statementRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#statementRe"><span class="hs-identifier hs-var hs-var">statementRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#selectRe"><span class="hs-identifier hs-var">selectRe</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#dropRe"><span class="hs-identifier hs-var">dropRe</span></a></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- | The exploit: We're looking for a DROP TABLE after at least one legitimate command.</span><span>
+</span><span id="line-97"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#exploitRe"><span class="hs-identifier hs-type">exploitRe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#RegExp"><span class="hs-identifier hs-type">R.RegExp</span></a></span><span>
+</span><span id="line-98"></span><span id="exploitRe"><span class="annot"><span class="annottext">exploitRe :: RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#exploitRe"><span class="hs-identifier hs-var hs-var">exploitRe</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp
+</span><a href="Data.SBV.Core.Symbolic.html#KPlus"><span class="hs-identifier hs-var">R.KPlus</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#statementRe"><span class="hs-identifier hs-var">statementRe</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-string">&quot;; &quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>          </span><span class="annot"><span class="annottext">RegExp -&gt; RegExp -&gt; RegExp
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="hs-string">&quot;DROP TABLE 'users'&quot;</span></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- | Analyze the program for inputs which result in a SQL injection. There are</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- other possible injections, but in this example we're only looking for a</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- @DROP TABLE@ command.</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- Remember that our example program (in pseudo-code) is:</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--   query (&quot;SELECT msg FROM msgs WHERE topicid='&quot; ++ my_topicid ++ &quot;'&quot;)</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- Depending on your z3 version, you might see an output of the form:</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--   ghci&gt; findInjection exampleProgram</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--   &quot;kg'; DROP TABLE 'users&quot;</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- though the topic might change obviously. Indeed, if we substitute the suggested string, we get the program:</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- &gt; query (&quot;SELECT msg FROM msgs WHERE topicid='kg'; DROP TABLE 'users'&quot;)</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- which would query for topic @kg@ and then delete the users table!</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- Here, we make sure that the injection ends with the malicious string:</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- &gt;&gt;&gt; (&quot;'; DROP TABLE 'users&quot; `Data.List.isSuffixOf`) &lt;$&gt; findInjection exampleProgram</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-128"></span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#findInjection"><span class="hs-identifier hs-type">findInjection</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#SQLExpr"><span class="hs-identifier hs-type">SQLExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-129"></span><span id="findInjection"><span class="annot"><span class="annottext">findInjection :: SQLExpr -&gt; IO String
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#findInjection"><span class="hs-identifier hs-var hs-var">findInjection</span></a></span></span><span> </span><span id="local-6989586621681169307"><span class="annot"><span class="annottext">expr :: SQLExpr
+</span><a href="#local-6989586621681169307"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbolic String -&gt; IO String
+forall a. Symbolic a -&gt; IO a
+</span><a href="Data.SBV.Client.BaseIO.html#runSMT"><span class="hs-identifier hs-var">runSMT</span></a></span><span> </span><span class="annot"><span class="annottext">(Symbolic String -&gt; IO String) -&gt; Symbolic String -&gt; IO String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span>    </span><span class="hs-comment">-- This example generates different outputs on different platforms (Mac vs Linux).</span><span>
+</span><span id="line-132"></span><span>    </span><span class="hs-comment">-- So, we explicitly set the random-seed to get a consistent doctest output</span><span>
+</span><span id="line-133"></span><span>    </span><span class="hs-comment">-- Otherwise the following line isn't needed.</span><span>
+</span><span id="line-134"></span><span>    </span><span class="annot"><span class="annottext">SMTOption -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SMTOption -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#setOption"><span class="hs-identifier hs-var">setOption</span></a></span><span> </span><span class="annot"><span class="annottext">(SMTOption -&gt; SymbolicT IO ()) -&gt; SMTOption -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; SMTOption
+</span><a href="Data.SBV.Control.Types.html#OptionKeyword"><span class="hs-identifier hs-var">OptionKeyword</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;:smt.random_seed&quot;</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;1&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>    </span><span id="local-6989586621681169303"><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169303"><span class="hs-identifier hs-var">badTopic</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SString
+</span><a href="Data.SBV.Client.BaseIO.html#sString"><span class="hs-identifier hs-var">sString</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;badTopic&quot;</span></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span>    </span><span class="hs-comment">-- Create an initial environment that returns the symbolic</span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-comment">-- value my_topicid only, and unspecified for all other variables</span><span>
+</span><span id="line-140"></span><span>    </span><span id="local-6989586621681169301"><span class="annot"><span class="annottext">SFunArray String String
+</span><a href="#local-6989586621681169301"><span class="hs-identifier hs-var">emptyEnv</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SFunArray"><span class="hs-identifier hs-type">SFunArray</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe SString -&gt; Symbolic (SFunArray String String)
+forall (array :: * -&gt; * -&gt; *) a b.
+(SymArray array, HasKind a, HasKind b) =&gt;
+String -&gt; Maybe (SBV b) -&gt; Symbolic (array a b)
+</span><a href="Data.SBV.Client.BaseIO.html#newArray"><span class="hs-identifier hs-var">newArray</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;emptyEnv&quot;</span></span><span> </span><span class="annot"><span class="annottext">Maybe SString
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681169299"><span class="annot"><span class="annottext">env :: SFunArray String String
+</span><a href="#local-6989586621681169299"><span class="hs-identifier hs-var hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SFunArray String String
+-&gt; SString -&gt; SString -&gt; SFunArray String String
+forall (array :: * -&gt; * -&gt; *) b a.
+(SymArray array, SymVal b) =&gt;
+array a b -&gt; SBV a -&gt; SBV b -&gt; array a b
+</span><a href="Data.SBV.Core.Data.html#writeArray"><span class="hs-identifier hs-var">writeArray</span></a></span><span> </span><span class="annot"><span class="annottext">SFunArray String String
+</span><a href="#local-6989586621681169301"><span class="hs-identifier hs-var">emptyEnv</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;my_topicid&quot;</span></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169303"><span class="hs-identifier hs-var">badTopic</span></a></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span>    </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681169297"><span class="annot"><span class="annottext">queries :: [SString]
+</span><a href="#local-6989586621681169297"><span class="hs-identifier hs-var">queries</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">WriterT [SString] Symbolic SString -&gt; Symbolic (SString, [SString])
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var hs-var">runWriterT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">M SString
+-&gt; SFunArray String String -&gt; WriterT [SString] Symbolic SString
+forall (m :: * -&gt; *) s a. Monad m =&gt; StateT s m a -&gt; s -&gt; m a
+</span><span class="hs-identifier hs-var">evalStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SQLExpr -&gt; M SString
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SQLExpr
+</span><a href="#local-6989586621681169307"><span class="hs-identifier hs-var">expr</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SFunArray String String
+</span><a href="#local-6989586621681169299"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span>    </span><span class="hs-comment">-- For all the queries thus generated, ask that one of them be &quot;explotiable&quot;</span><span>
+</span><span id="line-147"></span><span>    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SString -&gt; SBool) -&gt; [SString] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier hs-var">sAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SString -&gt; RegExp -&gt; SBool
+forall a. RegExpMatchable a =&gt; a -&gt; RegExp -&gt; SBool
+</span><a href="Data.SBV.RegExp.html#match"><span class="hs-operator hs-var">`R.match`</span></a></span><span> </span><span class="annot"><span class="annottext">RegExp
+</span><a href="Documentation.SBV.Examples.Strings.SQLInjection.html#exploitRe"><span class="hs-identifier hs-var">exploitRe</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SString]
+</span><a href="#local-6989586621681169297"><span class="hs-identifier hs-var">queries</span></a></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span>    </span><span class="annot"><span class="annottext">Query String -&gt; Symbolic String
+forall a. Query a -&gt; Symbolic a
+</span><a href="Data.SBV.Control.html#query"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="annot"><span class="annottext">(Query String -&gt; Symbolic String)
+-&gt; Query String -&gt; Symbolic String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681169290"><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169290"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Query CheckSatResult
+</span><a href="Data.SBV.Control.BaseIO.html#checkSat"><span class="hs-identifier hs-var">checkSat</span></a></span><span>
+</span><span id="line-150"></span><span>               </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CheckSatResult
+</span><a href="#local-6989586621681169290"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-151"></span><span>                 </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unk"><span class="hs-identifier hs-type">Unk</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query String
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Solver returned unknown!&quot;</span></span><span>
+</span><span id="line-152"></span><span>                 </span><span class="annot"><a href="Data.SBV.Control.Types.html#Unsat"><span class="hs-identifier hs-type">Unsat</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Query String
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;No exploits are found&quot;</span></span><span>
+</span><span id="line-153"></span><span>                 </span><span class="annot"><a href="Data.SBV.Control.Types.html#Sat"><span class="hs-identifier hs-type">Sat</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SString -&gt; Query String
+forall a. SMTValue a =&gt; SBV a -&gt; Query a
+</span><a href="Data.SBV.Control.BaseIO.html#getValue"><span class="hs-identifier hs-var">getValue</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681169303"><span class="hs-identifier hs-var">badTopic</span></a></span><span>
+</span><span id="line-154"></span></pre></body></html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Char</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- A collection of character utilities, follows the namings</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- in &quot;Data.Char&quot; and is intended to be imported qualified.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Also, it is recommended you use the @OverloadedStrings@</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- extension to allow literal strings to be used as</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- symbolic-strings when working with symbolic characters</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- and strings.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- Note that currently 'SChar' type only covers Latin1 (i.e., the first 256</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- characters), as opposed to Haskell's Unicode character support. However,</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- there is a pending SMTLib proposal to extend this set to Unicode, at</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- which point we will update these functions to match the implementations.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- For details, see: &lt;http://smtlib.cs.uiowa.edu/theories-UnicodeStrings.shtml&gt;</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings   #-}</span><span>
+</span><span id="line-24"></span><span class="hs-pragma">{-# LANGUAGE Rank2Types          #-}</span><span>
+</span><span id="line-25"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Char</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-30"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Occurrence in a string</span></span><span>
+</span><span id="line-31"></span><span>        </span><span class="annot"><a href="Data.SBV.Char.html#elem"><span class="hs-identifier">elem</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#notElem"><span class="hs-identifier">notElem</span></a></span><span>
+</span><span id="line-32"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Conversion to\/from 'SInteger'</span></span><span>
+</span><span id="line-33"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#ord"><span class="hs-identifier">ord</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#chr"><span class="hs-identifier">chr</span></a></span><span>
+</span><span id="line-34"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Conversion to upper\/lower case</span></span><span>
+</span><span id="line-35"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#toLower"><span class="hs-identifier">toLower</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#toUpper"><span class="hs-identifier">toUpper</span></a></span><span>
+</span><span id="line-36"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Converting digits to ints and back</span></span><span>
+</span><span id="line-37"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#digitToInt"><span class="hs-identifier">digitToInt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#intToDigit"><span class="hs-identifier">intToDigit</span></a></span><span>
+</span><span id="line-38"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Character classification</span></span><span>
+</span><span id="line-39"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isControl"><span class="hs-identifier">isControl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isSpace"><span class="hs-identifier">isSpace</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isLower"><span class="hs-identifier">isLower</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isUpper"><span class="hs-identifier">isUpper</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAlpha"><span class="hs-identifier">isAlpha</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAlphaNum"><span class="hs-identifier">isAlphaNum</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isPrint"><span class="hs-identifier">isPrint</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isDigit"><span class="hs-identifier">isDigit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isOctDigit"><span class="hs-identifier">isOctDigit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isHexDigit"><span class="hs-identifier">isHexDigit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isLetter"><span class="hs-identifier">isLetter</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isMark"><span class="hs-identifier">isMark</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isNumber"><span class="hs-identifier">isNumber</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isPunctuation"><span class="hs-identifier">isPunctuation</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isSymbol"><span class="hs-identifier">isSymbol</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isSeparator"><span class="hs-identifier">isSeparator</span></a></span><span>
+</span><span id="line-40"></span><span>        </span><span class="annot"><span class="hs-comment">-- * Subranges</span></span><span>
+</span><span id="line-41"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAscii"><span class="hs-identifier">isAscii</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isLatin1"><span class="hs-identifier">isLatin1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAsciiLetter"><span class="hs-identifier">isAsciiLetter</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAsciiUpper"><span class="hs-identifier">isAsciiUpper</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Char.html#isAsciiLower"><span class="hs-identifier">isAsciiLower</span></a></span><span>
+</span><span id="line-42"></span><span>        </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">elem</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">notElem</span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html"><span class="hs-identifier">Data.SBV.Core.Data</span></a></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Core.Model.html"><span class="hs-identifier">Data.SBV.Core.Model</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.String.html"><span class="hs-identifier">Data.SBV.String</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.String.html#isInfixOf"><span class="hs-identifier">isInfixOf</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.String.html#singleton"><span class="hs-identifier">singleton</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- For doctest use only</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.SBV.Provers.Prover (prove, sat)</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XOverloadedStrings</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Is the character in the string?</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XOverloadedStrings</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; c `elem` singleton c</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; sNot (c `elem` &quot;&quot;)</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Data.SBV.Char.html#elem"><span class="hs-identifier hs-type">elem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SString"><span class="hs-identifier hs-type">SString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-68"></span><span id="local-6989586621681153166"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153166"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="elem"><span class="annot"><span class="annottext">elem :: SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var hs-var">`elem`</span></a></span></span><span> </span><span id="local-6989586621681153165"><span class="annot"><span class="annottext">s :: SString
+</span><a href="#local-6989586621681153165"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-69"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681153164"><span class="annot"><span class="annottext">cs :: String
+</span><a href="#local-6989586621681153164"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SString -&gt; Maybe String
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153165"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681153162"><span class="annot"><span class="annottext">cc :: Char
+</span><a href="#local-6989586621681153162"><span class="hs-identifier hs-var">cc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; Maybe Char
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153166"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-70"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; SBool
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681153162"><span class="hs-identifier hs-var">cc</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; String -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`P.elem`</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681153164"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681153160"><span class="annot"><span class="annottext">cs :: String
+</span><a href="#local-6989586621681153160"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SString -&gt; Maybe String
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153165"><span class="hs-identifier hs-var">s</span></a></span><span>                            </span><span class="hs-comment">-- If only the second string is concrete, element-wise checking is still much better!</span><span>
+</span><span id="line-72"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SChar -&gt; SBool) -&gt; [SChar] -&gt; SBool
+forall a. (a -&gt; SBool) -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sAny"><span class="hs-identifier hs-var">sAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153166"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SChar -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([SChar] -&gt; SBool) -&gt; [SChar] -&gt; SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; SChar) -&gt; String -&gt; [SChar]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681153160"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-73"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-74"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SString
+</span><a href="Data.SBV.String.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153166"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SString -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.String.html#isInfixOf"><span class="hs-operator hs-var">`isInfixOf`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153165"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Is the character not in the string?</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c s -&gt; c `elem` s .&lt;=&gt; sNot (c `notElem` s)</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Data.SBV.Char.html#notElem"><span class="hs-identifier hs-type">notElem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SString"><span class="hs-identifier hs-type">SString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-81"></span><span id="local-6989586621681153157"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153157"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="notElem"><span class="annot"><span class="annottext">notElem :: SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#notElem"><span class="hs-operator hs-var hs-var">`notElem`</span></a></span></span><span> </span><span id="local-6989586621681153156"><span class="annot"><span class="annottext">s :: SString
+</span><a href="#local-6989586621681153156"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153157"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153156"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- | The 'ord' of a character.</span><span>
+</span><span id="line-84"></span><span class="annot"><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-type">ord</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-85"></span><span id="ord"><span class="annot"><span class="annottext">ord :: SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var hs-var">ord</span></a></span></span><span> </span><span id="local-6989586621681153154"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153154"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-86"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681153153"><span class="annot"><span class="annottext">cc :: Char
+</span><a href="#local-6989586621681153153"><span class="hs-identifier hs-var">cc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; Maybe Char
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153154"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-87"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; SInteger
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Integer
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">C.ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681153153"><span class="hs-identifier hs-var">cc</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-89"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SInteger
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SInteger) -&gt; SVal -&gt; SInteger
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681153149"><span class="hs-identifier hs-var">kTo</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681153147"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-90"></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153146"><span class="annot"><span class="annottext">kFrom :: Kind
+</span><a href="#local-6989586621681153146"><span class="hs-identifier hs-var hs-var">kFrom</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Int -&gt; Kind
+</span><a href="Data.SBV.Core.Kind.html#KBounded"><span class="hs-identifier hs-var">KBounded</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span>
+</span><span id="line-91"></span><span>       </span><span id="local-6989586621681153149"><span class="annot"><span class="annottext">kTo :: Kind
+</span><a href="#local-6989586621681153149"><span class="hs-identifier hs-var hs-var">kTo</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KUnbounded"><span class="hs-identifier hs-var">KUnbounded</span></a></span><span>
+</span><span id="line-92"></span><span>       </span><span id="local-6989586621681153147"><span class="annot"><span class="annottext">r :: State -&gt; IO SV
+</span><a href="#local-6989586621681153147"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681153143"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681153143"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681153142"><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681153142"><span class="hs-identifier hs-var">csv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SChar -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681153143"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153154"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-93"></span><span>                 </span><span class="annot"><span class="annottext">State -&gt; Kind -&gt; SBVExpr -&gt; IO SV
+</span><a href="Data.SBV.Core.Symbolic.html#newExpr"><span class="hs-identifier hs-var">newExpr</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681153143"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681153149"><span class="hs-identifier hs-var">kTo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Op -&gt; [SV] -&gt; SBVExpr
+</span><a href="Data.SBV.Core.Symbolic.html#SBVApp"><span class="hs-identifier hs-var">SBVApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Op
+</span><a href="Data.SBV.Core.Symbolic.html#KindCast"><span class="hs-identifier hs-var">KindCast</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681153146"><span class="hs-identifier hs-var">kFrom</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621681153149"><span class="hs-identifier hs-var">kTo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SV
+</span><a href="#local-6989586621681153142"><span class="hs-identifier hs-var">csv</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | Conversion from an integer to a character.</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; 0 .&lt;= x .&amp;&amp; x .&lt; 256 .=&gt; ord (chr x) .== x</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \x -&gt; chr (ord x) .== x</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-type">chr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span>
+</span><span id="line-102"></span><span id="chr"><span class="annot"><span class="annottext">chr :: SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-var hs-var">chr</span></a></span></span><span> </span><span id="local-6989586621681153137"><span class="annot"><span class="annottext">w :: SInteger
+</span><a href="#local-6989586621681153137"><span class="hs-identifier hs-var">w</span></a></span></span><span>
+</span><span id="line-103"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681153136"><span class="annot"><span class="annottext">cw :: Integer
+</span><a href="#local-6989586621681153136"><span class="hs-identifier hs-var">cw</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; Maybe Integer
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153137"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-104"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Char
+</span><span class="hs-identifier hs-var">C.chr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681153136"><span class="hs-identifier hs-var">cw</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-106"></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SVal -&gt; SChar
+forall a. SVal -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-var">SBV</span></a></span><span> </span><span class="annot"><span class="annottext">(SVal -&gt; SChar) -&gt; SVal -&gt; SChar
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Either CV (Cached SV) -&gt; SVal
+</span><a href="Data.SBV.Core.Symbolic.html#SVal"><span class="hs-identifier hs-var">SVal</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KChar"><span class="hs-identifier hs-var">KChar</span></a></span><span> </span><span class="annot"><span class="annottext">(Either CV (Cached SV) -&gt; SVal) -&gt; Either CV (Cached SV) -&gt; SVal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Cached SV -&gt; Either CV (Cached SV)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Cached SV -&gt; Either CV (Cached SV))
+-&gt; Cached SV -&gt; Either CV (Cached SV)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(State -&gt; IO SV) -&gt; Cached SV
+forall a. (State -&gt; IO a) -&gt; Cached a
+</span><a href="Data.SBV.Core.Symbolic.html#cache"><span class="hs-identifier hs-var">cache</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; IO SV
+</span><a href="#local-6989586621681153133"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-107"></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681153132"><span class="hs-identifier hs-type">w8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord8"><span class="hs-identifier hs-type">SWord8</span></a></span><span>
+</span><span id="line-108"></span><span>       </span><span id="local-6989586621681153132"><span class="annot"><span class="annottext">w8 :: SWord8
+</span><a href="#local-6989586621681153132"><span class="hs-identifier hs-var hs-var">w8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SWord8
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153137"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-109"></span><span>       </span><span id="local-6989586621681153133"><span class="annot"><span class="annottext">r :: State -&gt; IO SV
+</span><a href="#local-6989586621681153133"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681153130"><span class="annot"><span class="annottext">st :: State
+</span><a href="#local-6989586621681153130"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#SV"><span class="hs-identifier hs-type">SV</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621681153128"><span class="annot"><span class="annottext">n :: NodeId
+</span><a href="#local-6989586621681153128"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State -&gt; SWord8 -&gt; IO SV
+forall a. State -&gt; SBV a -&gt; IO SV
+</span><a href="Data.SBV.Core.Data.html#sbvToSV"><span class="hs-identifier hs-var">sbvToSV</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621681153130"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">SWord8
+</span><a href="#local-6989586621681153132"><span class="hs-identifier hs-var">w8</span></a></span><span>
+</span><span id="line-110"></span><span>                 </span><span class="annot"><span class="annottext">SV -&gt; IO SV
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SV -&gt; IO SV) -&gt; SV -&gt; IO SV
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; NodeId -&gt; SV
+</span><a href="Data.SBV.Core.Symbolic.html#SV"><span class="hs-identifier hs-var">SV</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="Data.SBV.Core.Kind.html#KChar"><span class="hs-identifier hs-var">KChar</span></a></span><span> </span><span class="annot"><span class="annottext">NodeId
+</span><a href="#local-6989586621681153128"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- | Convert to lower-case.</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; toLower (toLower c) .== toLower c</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isLower c .=&gt; toLower (toUpper c) .== c</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Data.SBV.Char.html#toLower"><span class="hs-identifier hs-type">toLower</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span>
+</span><span id="line-119"></span><span id="toLower"><span class="annot"><span class="annottext">toLower :: SChar -&gt; SChar
+</span><a href="Data.SBV.Char.html#toLower"><span class="hs-identifier hs-var hs-var">toLower</span></a></span></span><span> </span><span id="local-6989586621681153127"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153127"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SChar -&gt; SChar
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isUpper"><span class="hs-identifier hs-var">isUpper</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153127"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-var">chr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153127"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">32</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153127"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- | Convert to upper-case. N.B. There are three special cases!</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--   * The character \223 is special. It corresponds to the German Eszett, it is considered lower-case,</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--     and furthermore it's upper-case maps back to itself within our character-set. So, we leave it</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--     untouched.</span><span>
+</span><span id="line-126"></span><span class="hs-comment">--</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--   * The character \181 maps to upper-case \924, which is beyond our character set. We leave it</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--     untouched. (This is the A with an acute accent.)</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--   * The character \255 maps to upper-case \376, which is beyond our character set. We leave it</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--     untouched. (This is the non-breaking space character.)</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; toUpper (toUpper c) .== toUpper c</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isUpper c .=&gt; toUpper (toLower c) .== c</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-137"></span><span class="annot"><a href="Data.SBV.Char.html#toUpper"><span class="hs-identifier hs-type">toUpper</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span>
+</span><span id="line-138"></span><span id="toUpper"><span class="annot"><span class="annottext">toUpper :: SChar -&gt; SChar
+</span><a href="Data.SBV.Char.html#toUpper"><span class="hs-identifier hs-var hs-var">toUpper</span></a></span></span><span> </span><span id="local-6989586621681153124"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153124"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SChar -&gt; SChar
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isLower"><span class="hs-identifier hs-var">isLower</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153124"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153124"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#notElem"><span class="hs-operator hs-var">`notElem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;\181\223\255&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-var">chr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153124"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">32</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153124"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- | Convert a digit to an integer. Works for hexadecimal digits too. If the input isn't a digit,</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- then return -1.</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isDigit c .|| isHexDigit c .=&gt; digitToInt c .&gt;= 0 .&amp;&amp; digitToInt c .&lt;= 15</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; sNot (isDigit c .|| isHexDigit c) .=&gt; digitToInt c .== -1</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-147"></span><span class="annot"><a href="Data.SBV.Char.html#digitToInt"><span class="hs-identifier hs-type">digitToInt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-148"></span><span id="digitToInt"><span class="annot"><span class="annottext">digitToInt :: SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#digitToInt"><span class="hs-identifier hs-var hs-var">digitToInt</span></a></span></span><span> </span><span id="local-6989586621681153122"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153122"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153121"><span class="hs-identifier hs-var">uc</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;0123456789&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153120"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">'0'</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>             </span><span class="annot"><span class="annottext">(SInteger -&gt; SInteger) -&gt; SInteger -&gt; SInteger
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SInteger -&gt; SInteger -&gt; SInteger
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153121"><span class="hs-identifier hs-var">uc</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ABCDEF&quot;</span></span><span class="hs-special">)</span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153120"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">'A'</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>             </span><span class="annot"><span class="annottext">(SInteger -&gt; SInteger) -&gt; SInteger -&gt; SInteger
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153121"><span class="annot"><span class="annottext">uc :: SChar
+</span><a href="#local-6989586621681153121"><span class="hs-identifier hs-var hs-var">uc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SChar
+</span><a href="Data.SBV.Char.html#toUpper"><span class="hs-identifier hs-var">toUpper</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153122"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-152"></span><span>        </span><span id="local-6989586621681153120"><span class="annot"><span class="annottext">o :: SInteger
+</span><a href="#local-6989586621681153120"><span class="hs-identifier hs-var hs-var">o</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153121"><span class="hs-identifier hs-var">uc</span></a></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | Convert an an integer to a digit, inverse of 'digitToInt'. If the integer is out of</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- bounds, we return the arbitrarily chosen space character. Note that for hexadecimal</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- letters, we return the corresponding lowercase letter.</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \i -&gt; i .&gt;= 0 .&amp;&amp; i .&lt;= 15 .=&gt; digitToInt (intToDigit i) .== i</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \i -&gt; i .&lt;  0 .|| i .&gt;  15 .=&gt; digitToInt (intToDigit i) .== -1</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; digitToInt c .== -1 .&lt;=&gt; intToDigit (digitToInt c) .== literal ' '</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-164"></span><span class="annot"><a href="Data.SBV.Char.html#intToDigit"><span class="hs-identifier hs-type">intToDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span>
+</span><span id="line-165"></span><span id="intToDigit"><span class="annot"><span class="annottext">intToDigit :: SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#intToDigit"><span class="hs-identifier hs-var hs-var">intToDigit</span></a></span></span><span> </span><span id="local-6989586621681153119"><span class="annot"><span class="annottext">i :: SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SChar -&gt; SChar
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span>  </span><span class="annot"><span class="hs-number">9</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-var">chr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">'0'</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span>             </span><span class="annot"><span class="annottext">(SChar -&gt; SChar) -&gt; SChar -&gt; SChar
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SChar -&gt; SChar
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">15</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SChar
+</span><a href="Data.SBV.Char.html#chr"><span class="hs-identifier hs-var">chr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a b.
+(Integral a, HasKind a, Num a, SymVal a, HasKind b, Num b,
+ SymVal b) =&gt;
+SBV a -&gt; SBV b
+</span><a href="Data.SBV.Core.Model.html#sFromIntegral"><span class="hs-identifier hs-var">sFromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681153119"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">'a'</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-167"></span><span>             </span><span class="annot"><span class="annottext">(SChar -&gt; SChar) -&gt; SChar -&gt; SChar
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">' '</span></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- | Is this a control character? Control characters are essentially the non-printing characters.</span><span>
+</span><span id="line-170"></span><span class="annot"><a href="Data.SBV.Char.html#isControl"><span class="hs-identifier hs-type">isControl</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-171"></span><span id="isControl"><span class="annot"><span class="annottext">isControl :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isControl"><span class="hs-identifier hs-var hs-var">isControl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153116"><span class="hs-identifier hs-var">controls</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153116"><span class="annot"><span class="annottext">controls :: SString
+</span><a href="#local-6989586621681153116"><span class="hs-identifier hs-var hs-var">controls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;\NUL\SOH\STX\ETX\EOT\ENQ\ACK\a\b\t\n\v\f\r\SO\SI\DLE\DC1\DC2\DC3\DC4\NAK\SYN\ETB\CAN\EM\SUB\ESC\FS\GS\RS\US\DEL\128\129\130\131\132\133\134\135\136\137\138\139\140\141\142\143\144\145\146\147\148\149\150\151\152\153\154\155\156\157\158\159&quot;</span></span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- | Is this white-space? That is, one of &quot;\t\n\v\f\r \160&quot;.</span><span>
+</span><span id="line-175"></span><span class="annot"><a href="Data.SBV.Char.html#isSpace"><span class="hs-identifier hs-type">isSpace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-176"></span><span id="isSpace"><span class="annot"><span class="annottext">isSpace :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isSpace"><span class="hs-identifier hs-var hs-var">isSpace</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153115"><span class="hs-identifier hs-var">spaces</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153115"><span class="annot"><span class="annottext">spaces :: SString
+</span><a href="#local-6989586621681153115"><span class="hs-identifier hs-var hs-var">spaces</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;\t\n\v\f\r \160&quot;</span></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- | Is this a lower-case character?</span><span>
+</span><span id="line-180"></span><span class="hs-comment">--</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isUpper c .=&gt; isLower (toLower c)</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-183"></span><span class="annot"><a href="Data.SBV.Char.html#isLower"><span class="hs-identifier hs-type">isLower</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-184"></span><span id="isLower"><span class="annot"><span class="annottext">isLower :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isLower"><span class="hs-identifier hs-var hs-var">isLower</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153114"><span class="hs-identifier hs-var">lower</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153114"><span class="annot"><span class="annottext">lower :: SString
+</span><a href="#local-6989586621681153114"><span class="hs-identifier hs-var hs-var">lower</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;abcdefghijklmnopqrstuvwxyz\181\223\224\225\226\227\228\229\230\231\232\233\234\235\236\237\238\239\240\241\242\243\244\245\246\248\249\250\251\252\253\254\255&quot;</span></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- | Is this an upper-case character?</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; sNot (isLower c .&amp;&amp; isUpper c)</span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-191"></span><span class="annot"><a href="Data.SBV.Char.html#isUpper"><span class="hs-identifier hs-type">isUpper</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-192"></span><span id="isUpper"><span class="annot"><span class="annottext">isUpper :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isUpper"><span class="hs-identifier hs-var hs-var">isUpper</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153113"><span class="hs-identifier hs-var">upper</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153113"><span class="annot"><span class="annottext">upper :: SString
+</span><a href="#local-6989586621681153113"><span class="hs-identifier hs-var hs-var">upper</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ\192\193\194\195\196\197\198\199\200\201\202\203\204\205\206\207\208\209\210\211\212\213\214\216\217\218\219\220\221\222&quot;</span></span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- | Is this an alphabet character? That is lower-case, upper-case and title-case letters, plus letters of caseless scripts and modifiers letters.</span><span>
+</span><span id="line-196"></span><span class="annot"><a href="Data.SBV.Char.html#isAlpha"><span class="hs-identifier hs-type">isAlpha</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-197"></span><span id="isAlpha"><span class="annot"><span class="annottext">isAlpha :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAlpha"><span class="hs-identifier hs-var hs-var">isAlpha</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">SString
+</span><a href="#local-6989586621681153112"><span class="hs-identifier hs-var">alpha</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681153112"><span class="annot"><span class="annottext">alpha :: SString
+</span><a href="#local-6989586621681153112"><span class="hs-identifier hs-var hs-var">alpha</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\170\181\186\192\193\194\195\196\197\198\199\200\201\202\203\204\205\206\207\208\209\210\211\212\213\214\216\217\218\219\220\221\222\223\224\225\226\227\228\229\230\231\232\233\234\235\236\237\238\239\240\241\242\243\244\245\246\248\249\250\251\252\253\254\255&quot;</span></span><span>
+</span><span id="line-199"></span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- | Is this an 'isAlpha' or 'isNumber'.</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAlphaNum c .&lt;=&gt; isAlpha c .|| isNumber c</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-204"></span><span class="annot"><a href="Data.SBV.Char.html#isAlphaNum"><span class="hs-identifier hs-type">isAlphaNum</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-205"></span><span id="isAlphaNum"><span class="annot"><span class="annottext">isAlphaNum :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAlphaNum"><span class="hs-identifier hs-var hs-var">isAlphaNum</span></a></span></span><span> </span><span id="local-6989586621681153111"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153111"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAlpha"><span class="hs-identifier hs-var">isAlpha</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153111"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isNumber"><span class="hs-identifier hs-var">isNumber</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153111"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- | Is this a printable character? Essentially the complement of 'isControl', with one</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- exception. The Latin-1 character \173 is neither control nor printable. Go figure.</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; c .== literal '\173' .|| isControl c .&lt;=&gt; sNot (isPrint c)</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-212"></span><span class="annot"><a href="Data.SBV.Char.html#isPrint"><span class="hs-identifier hs-type">isPrint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-213"></span><span id="isPrint"><span class="annot"><span class="annottext">isPrint :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isPrint"><span class="hs-identifier hs-var hs-var">isPrint</span></a></span></span><span> </span><span id="local-6989586621681153109"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153109"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153109"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SChar -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%2F%3D"><span class="hs-operator hs-var">./=</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; SChar
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="hs-char">'\173'</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isControl"><span class="hs-identifier hs-var">isControl</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153109"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-comment">-- | Is this an ASCII digit, i.e., one of @0@..@9@. Note that this is a subset of 'isNumber'</span><span>
+</span><span id="line-216"></span><span class="hs-comment">--</span><span>
+</span><span id="line-217"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isDigit c .=&gt; isNumber c</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-219"></span><span class="annot"><a href="Data.SBV.Char.html#isDigit"><span class="hs-identifier hs-type">isDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-220"></span><span id="isDigit"><span class="annot"><span class="annottext">isDigit :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isDigit"><span class="hs-identifier hs-var hs-var">isDigit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;0123456789&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- | Is this an Octal digit, i.e., one of @0@..@7@.</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isOctDigit c .=&gt; isDigit c</span><span>
+</span><span id="line-225"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-226"></span><span class="annot"><a href="Data.SBV.Char.html#isOctDigit"><span class="hs-identifier hs-type">isOctDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-227"></span><span id="isOctDigit"><span class="annot"><span class="annottext">isOctDigit :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isOctDigit"><span class="hs-identifier hs-var hs-var">isOctDigit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;01234567&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-228"></span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- | Is this a Hex digit, i.e, one of @0@..@9@, @a@..@f@, @A@..@F@.</span><span>
+</span><span id="line-230"></span><span class="hs-comment">--</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isHexDigit c .=&gt; isAlphaNum c</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-233"></span><span class="annot"><a href="Data.SBV.Char.html#isHexDigit"><span class="hs-identifier hs-type">isHexDigit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-234"></span><span id="isHexDigit"><span class="annot"><span class="annottext">isHexDigit :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isHexDigit"><span class="hs-identifier hs-var hs-var">isHexDigit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;0123456789abcdefABCDEF&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- | Is this an alphabet character. Note that this function is equivalent to 'isAlpha'.</span><span>
+</span><span id="line-237"></span><span class="hs-comment">--</span><span>
+</span><span id="line-238"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isLetter c .&lt;=&gt; isAlpha c</span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-240"></span><span class="annot"><a href="Data.SBV.Char.html#isLetter"><span class="hs-identifier hs-type">isLetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-241"></span><span id="isLetter"><span class="annot"><span class="annottext">isLetter :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isLetter"><span class="hs-identifier hs-var hs-var">isLetter</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAlpha"><span class="hs-identifier hs-var">isAlpha</span></a></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span class="hs-comment">-- | Is this a mark? Note that the Latin-1 subset doesn't have any marks; so this function</span><span>
+</span><span id="line-244"></span><span class="hs-comment">-- is simply constant false for the time being.</span><span>
+</span><span id="line-245"></span><span class="hs-comment">--</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ sNot . isMark</span><span>
+</span><span id="line-247"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-248"></span><span class="annot"><a href="Data.SBV.Char.html#isMark"><span class="hs-identifier hs-type">isMark</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-249"></span><span id="isMark"><span class="annot"><span class="annottext">isMark :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isMark"><span class="hs-identifier hs-var hs-var">isMark</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SBool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span>
+</span><span id="line-250"></span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- | Is this a number character? Note that this set contains not only the digits, but also</span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- the codes for a few numeric looking characters like 1/2 etc. Use 'isDigit' for the digits @0@ through @9@.</span><span>
+</span><span id="line-253"></span><span class="annot"><a href="Data.SBV.Char.html#isNumber"><span class="hs-identifier hs-type">isNumber</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-254"></span><span id="isNumber"><span class="annot"><span class="annottext">isNumber :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isNumber"><span class="hs-identifier hs-var hs-var">isNumber</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;0123456789\178\179\185\188\189\190&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-255"></span><span>
+</span><span id="line-256"></span><span class="hs-comment">-- | Is this a punctuation mark?</span><span>
+</span><span id="line-257"></span><span class="annot"><a href="Data.SBV.Char.html#isPunctuation"><span class="hs-identifier hs-type">isPunctuation</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-258"></span><span id="isPunctuation"><span class="annot"><span class="annottext">isPunctuation :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isPunctuation"><span class="hs-identifier hs-var hs-var">isPunctuation</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;!\&quot;#%&amp;'()*,-./:;?@[\\]_{}\161\167\171\182\183\187\191&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span class="hs-comment">-- | Is this a symbol?</span><span>
+</span><span id="line-261"></span><span class="annot"><a href="Data.SBV.Char.html#isSymbol"><span class="hs-identifier hs-type">isSymbol</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-262"></span><span id="isSymbol"><span class="annot"><span class="annottext">isSymbol :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isSymbol"><span class="hs-identifier hs-var hs-var">isSymbol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;$+&lt;=&gt;^`|~\162\163\164\165\166\168\169\172\174\175\176\177\180\184\215\247&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-263"></span><span>
+</span><span id="line-264"></span><span class="hs-comment">-- | Is this a separator?</span><span>
+</span><span id="line-265"></span><span class="hs-comment">--</span><span>
+</span><span id="line-266"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isSeparator c .=&gt; isSpace c</span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-268"></span><span class="annot"><a href="Data.SBV.Char.html#isSeparator"><span class="hs-identifier hs-type">isSeparator</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-269"></span><span id="isSeparator"><span class="annot"><span class="annottext">isSeparator :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isSeparator"><span class="hs-identifier hs-var hs-var">isSeparator</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot; \160&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- | Is this an ASCII character, i.e., the first 128 characters.</span><span>
+</span><span id="line-272"></span><span class="annot"><a href="Data.SBV.Char.html#isAscii"><span class="hs-identifier hs-type">isAscii</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-273"></span><span id="isAscii"><span class="annot"><span class="annottext">isAscii :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAscii"><span class="hs-identifier hs-var hs-var">isAscii</span></a></span></span><span> </span><span id="local-6989586621681153105"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153105"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SInteger
+</span><a href="Data.SBV.Char.html#ord"><span class="hs-identifier hs-var">ord</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153105"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C"><span class="hs-operator hs-var">.&lt;</span></a></span><span> </span><span class="annot"><span class="hs-number">128</span></span><span>
+</span><span id="line-274"></span><span>
+</span><span id="line-275"></span><span class="hs-comment">-- | Is this a Latin1 character? Note that this function is always true since 'SChar' corresponds</span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- precisely to Latin1 for the time being.</span><span>
+</span><span id="line-277"></span><span class="hs-comment">--</span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- &gt;&gt;&gt; prove isLatin1</span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-280"></span><span class="annot"><a href="Data.SBV.Char.html#isLatin1"><span class="hs-identifier hs-type">isLatin1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-281"></span><span id="isLatin1"><span class="annot"><span class="annottext">isLatin1 :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isLatin1"><span class="hs-identifier hs-var hs-var">isLatin1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SChar -&gt; SBool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier hs-var">sTrue</span></a></span><span>
+</span><span id="line-282"></span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- | Is this an ASCII letter?</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--</span><span>
+</span><span id="line-285"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAsciiLetter c .&lt;=&gt; isAsciiUpper c .|| isAsciiLower c</span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-287"></span><span class="annot"><a href="Data.SBV.Char.html#isAsciiLetter"><span class="hs-identifier hs-type">isAsciiLetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-288"></span><span id="isAsciiLetter"><span class="annot"><span class="annottext">isAsciiLetter :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAsciiLetter"><span class="hs-identifier hs-var hs-var">isAsciiLetter</span></a></span></span><span> </span><span id="local-6989586621681153102"><span class="annot"><span class="annottext">c :: SChar
+</span><a href="#local-6989586621681153102"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAsciiUpper"><span class="hs-identifier hs-var">isAsciiUpper</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153102"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAsciiLower"><span class="hs-identifier hs-var">isAsciiLower</span></a></span><span> </span><span class="annot"><span class="annottext">SChar
+</span><a href="#local-6989586621681153102"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-289"></span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- | Is this an ASCII Upper-case letter? i.e., @A@ thru @Z@</span><span>
+</span><span id="line-291"></span><span class="hs-comment">--</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAsciiUpper c .&lt;=&gt; ord c .&gt;= ord (literal 'A') .&amp;&amp; ord c .&lt;= ord (literal 'Z')</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAsciiUpper c .&lt;=&gt; isAscii c .&amp;&amp; isUpper c</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-296"></span><span class="annot"><a href="Data.SBV.Char.html#isAsciiUpper"><span class="hs-identifier hs-type">isAsciiUpper</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-297"></span><span id="isAsciiUpper"><span class="annot"><span class="annottext">isAsciiUpper :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAsciiUpper"><span class="hs-identifier hs-var hs-var">isAsciiUpper</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; SString
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-char">'A'</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-char">'Z'</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-298"></span><span>
+</span><span id="line-299"></span><span class="hs-comment">-- | Is this an ASCII Lower-case letter? i.e., @a@ thru @z@</span><span>
+</span><span id="line-300"></span><span class="hs-comment">--</span><span>
+</span><span id="line-301"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAsciiLower c .&lt;=&gt; ord c .&gt;= ord (literal 'a') .&amp;&amp; ord c .&lt;= ord (literal 'z')</span><span>
+</span><span id="line-302"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-303"></span><span class="hs-comment">-- &gt;&gt;&gt; prove $ \c -&gt; isAsciiLower c .&lt;=&gt; isAscii c .&amp;&amp; isLower c</span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-305"></span><span class="annot"><a href="Data.SBV.Char.html#isAsciiLower"><span class="hs-identifier hs-type">isAsciiLower</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SChar"><span class="hs-identifier hs-type">SChar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-306"></span><span id="isAsciiLower"><span class="annot"><span class="annottext">isAsciiLower :: SChar -&gt; SBool
+</span><a href="Data.SBV.Char.html#isAsciiLower"><span class="hs-identifier hs-var hs-var">isAsciiLower</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SChar -&gt; SString -&gt; SBool
+</span><a href="Data.SBV.Char.html#elem"><span class="hs-operator hs-var">`elem`</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; SString
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-char">'a'</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-char">'z'</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-307"></span></pre></body></html>

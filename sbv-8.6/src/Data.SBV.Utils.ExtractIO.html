@@ -1,0 +1,126 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Data.SBV.Utils.ExtractIO</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Brian Schroeder</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Helper typeclass for interoperation with APIs which take IO actions in</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- negative position.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.SBV.Utils.ExtractIO</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runExceptT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MaybeT</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MaybeT</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runMaybeT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer.Lazy</span></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">LW</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SW</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | Monads which support 'IO' operations and can extract all 'IO' behavior for</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- interoperation with functions like 'Control.Concurrent.catches', which takes</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- an 'IO' action in negative position. This function can not be implemented</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- for transformers like @ReaderT r@ or @StateT s@, whose resultant 'IO'</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- actions are a function of some environment or state.</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681125272"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="ExtractIO"><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-var">ExtractIO</span></a></span></span><span> </span><span id="local-6989586621681125272"><span class="annot"><a href="#local-6989586621681125272"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-comment">-- | Law: the @m a@ yielded by 'IO' is pure with respect to 'IO'.</span><span>
+</span><span id="line-31"></span><span>    </span><span id="local-6989586621681125274"><span id="extractIO"><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#extractIO"><span class="hs-identifier hs-type">extractIO</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681125272"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125274"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681125272"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125274"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Trivial IO extraction for 'IO'.</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-35"></span><span>    </span><span id="local-6989586621681125217"><span class="annot"><span class="annottext">extractIO :: IO a -&gt; IO (IO a)
+</span><a href="#local-6989586621681125217"><span class="hs-identifier hs-var hs-var hs-var hs-var">extractIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; IO (IO a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- | IO extraction for 'MaybeT'.</span><span>
+</span><span id="line-38"></span><span id="local-6989586621681125216"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125216"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><a href="#local-6989586621681125216"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>    </span><span id="local-6989586621681125213"><span class="annot"><span class="annottext">extractIO :: MaybeT m a -&gt; IO (MaybeT m a)
+</span><a href="#local-6989586621681125213"><span class="hs-identifier hs-var hs-var hs-var hs-var">extractIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m (Maybe a) -&gt; MaybeT m a) -&gt; IO (m (Maybe a)) -&gt; IO (MaybeT m a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe a) -&gt; MaybeT m a
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="annot"><span class="annottext">(IO (m (Maybe a)) -&gt; IO (MaybeT m a))
+-&gt; (MaybeT m a -&gt; IO (m (Maybe a)))
+-&gt; MaybeT m a
+-&gt; IO (MaybeT m a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe a) -&gt; IO (m (Maybe a))
+forall (m :: * -&gt; *) a. ExtractIO m =&gt; m a -&gt; IO (m a)
+</span><a href="Data.SBV.Utils.ExtractIO.html#extractIO"><span class="hs-identifier hs-var">extractIO</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe a) -&gt; IO (m (Maybe a)))
+-&gt; (MaybeT m a -&gt; m (Maybe a)) -&gt; MaybeT m a -&gt; IO (m (Maybe a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">MaybeT m a -&gt; m (Maybe a)
+forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var hs-var">runMaybeT</span></span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | IO extraction for 'ExceptT'.</span><span>
+</span><span id="line-42"></span><span id="local-6989586621681125210"><span id="local-6989586621681125211"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125211"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681125210"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125211"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>    </span><span id="local-6989586621681125207"><span class="annot"><span class="annottext">extractIO :: ExceptT e m a -&gt; IO (ExceptT e m a)
+</span><a href="#local-6989586621681125207"><span class="hs-identifier hs-var hs-var hs-var hs-var">extractIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m (Either e a) -&gt; ExceptT e m a)
+-&gt; IO (m (Either e a)) -&gt; IO (ExceptT e m a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">m (Either e a) -&gt; ExceptT e m a
+forall e (m :: * -&gt; *) a. m (Either e a) -&gt; ExceptT e m a
+</span><span class="hs-identifier hs-var">ExceptT</span></span><span> </span><span class="annot"><span class="annottext">(IO (m (Either e a)) -&gt; IO (ExceptT e m a))
+-&gt; (ExceptT e m a -&gt; IO (m (Either e a)))
+-&gt; ExceptT e m a
+-&gt; IO (ExceptT e m a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (Either e a) -&gt; IO (m (Either e a))
+forall (m :: * -&gt; *) a. ExtractIO m =&gt; m a -&gt; IO (m a)
+</span><a href="Data.SBV.Utils.ExtractIO.html#extractIO"><span class="hs-identifier hs-var">extractIO</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Either e a) -&gt; IO (m (Either e a)))
+-&gt; (ExceptT e m a -&gt; m (Either e a))
+-&gt; ExceptT e m a
+-&gt; IO (m (Either e a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ExceptT e m a -&gt; m (Either e a)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span></span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | IO extraction for lazy 'LW.WriterT'.</span><span>
+</span><span id="line-46"></span><span id="local-6989586621681125205"><span id="local-6989586621681125206"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681125206"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125205"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">LW.WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681125206"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125205"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621681125202"><span class="annot"><span class="annottext">extractIO :: WriterT w m a -&gt; IO (WriterT w m a)
+</span><a href="#local-6989586621681125202"><span class="hs-identifier hs-var hs-var hs-var hs-var">extractIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m (a, w) -&gt; WriterT w m a) -&gt; IO (m (a, w)) -&gt; IO (WriterT w m a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; WriterT w m a
+forall w (m :: * -&gt; *) a. m (a, w) -&gt; WriterT w m a
+</span><span class="hs-identifier hs-var">LW.WriterT</span></span><span> </span><span class="annot"><span class="annottext">(IO (m (a, w)) -&gt; IO (WriterT w m a))
+-&gt; (WriterT w m a -&gt; IO (m (a, w)))
+-&gt; WriterT w m a
+-&gt; IO (WriterT w m a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; IO (m (a, w))
+forall (m :: * -&gt; *) a. ExtractIO m =&gt; m a -&gt; IO (m a)
+</span><a href="Data.SBV.Utils.ExtractIO.html#extractIO"><span class="hs-identifier hs-var">extractIO</span></a></span><span> </span><span class="annot"><span class="annottext">(m (a, w) -&gt; IO (m (a, w)))
+-&gt; (WriterT w m a -&gt; m (a, w)) -&gt; WriterT w m a -&gt; IO (m (a, w))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m a -&gt; m (a, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var hs-var">LW.runWriterT</span></span></span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- | IO extraction for strict 'SW.WriterT'.</span><span>
+</span><span id="line-50"></span><span id="local-6989586621681125198"><span id="local-6989586621681125199"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681125199"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125198"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Utils.ExtractIO.html#ExtractIO"><span class="hs-identifier hs-type">ExtractIO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">SW.WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681125199"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681125198"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>    </span><span id="local-6989586621681125195"><span class="annot"><span class="annottext">extractIO :: WriterT w m a -&gt; IO (WriterT w m a)
+</span><a href="#local-6989586621681125195"><span class="hs-identifier hs-var hs-var hs-var hs-var">extractIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m (a, w) -&gt; WriterT w m a) -&gt; IO (m (a, w)) -&gt; IO (WriterT w m a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; WriterT w m a
+forall w (m :: * -&gt; *) a. m (a, w) -&gt; WriterT w m a
+</span><span class="hs-identifier hs-var">SW.WriterT</span></span><span> </span><span class="annot"><span class="annottext">(IO (m (a, w)) -&gt; IO (WriterT w m a))
+-&gt; (WriterT w m a -&gt; IO (m (a, w)))
+-&gt; WriterT w m a
+-&gt; IO (WriterT w m a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (a, w) -&gt; IO (m (a, w))
+forall (m :: * -&gt; *) a. ExtractIO m =&gt; m a -&gt; IO (m a)
+</span><a href="Data.SBV.Utils.ExtractIO.html#extractIO"><span class="hs-identifier hs-var">extractIO</span></a></span><span> </span><span class="annot"><span class="annottext">(m (a, w) -&gt; IO (m (a, w)))
+-&gt; (WriterT w m a -&gt; m (a, w)) -&gt; WriterT w m a -&gt; IO (m (a, w))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">WriterT w m a -&gt; m (a, w)
+forall w (m :: * -&gt; *) a. WriterT w m a -&gt; m (a, w)
+</span><span class="hs-identifier hs-var hs-var">SW.runWriterT</span></span></span></span><span>
+</span><span id="line-52"></span></pre></body></html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Uninterpreted.Shannon</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Proves (instances of) Shannon's expansion theorem and other relevant</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- facts.  See: &lt;http://en.wikipedia.org/wiki/Shannon's_expansion&gt;</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Uninterpreted.Shannon</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- * Boolean functions</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- | A ternary boolean function</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">type</span><span> </span><span id="Ternary"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-var">Ternary</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | A binary boolean function</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">type</span><span> </span><span id="Binary"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Binary"><span class="hs-identifier hs-var">Binary</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- * Shannon cofactors</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Positive Shannon cofactor of a boolean function, with</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- respect to its first argument</span><span>
+</span><span id="line-35"></span><span id="local-6989586621681170311"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-type">pos</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681170311"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681170311"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-36"></span><span id="pos"><span class="annot"><span class="annottext">pos :: (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var hs-var">pos</span></a></span></span><span> </span><span id="local-6989586621681170304"><span class="annot"><span class="annottext">f :: SBool -&gt; a
+</span><a href="#local-6989586621681170304"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; a
+</span><a href="#local-6989586621681170304"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sTrue"><span class="hs-identifier hs-var">sTrue</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Negative Shannon cofactor of a boolean function, with</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- respect to its first argument</span><span>
+</span><span id="line-40"></span><span id="local-6989586621681170302"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-type">neg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681170302"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681170302"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-41"></span><span id="neg"><span class="annot"><span class="annottext">neg :: (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var hs-var">neg</span></a></span></span><span> </span><span id="local-6989586621681170300"><span class="annot"><span class="annottext">f :: SBool -&gt; a
+</span><a href="#local-6989586621681170300"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; a
+</span><a href="#local-6989586621681170300"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="Data.SBV.Core.Data.html#sFalse"><span class="hs-identifier hs-var">sFalse</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- * Shannon expansion theorem</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Shannon's expansion over the first argument of a function. We have:</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- &gt;&gt;&gt; shannon</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#shannon"><span class="hs-identifier hs-type">shannon</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-52"></span><span id="shannon"><span class="annot"><span class="annottext">shannon :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#shannon"><span class="hs-identifier hs-var hs-var">shannon</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681170296"><span class="annot"><span class="annottext">x :: SBool
+</span><a href="#local-6989586621681170296"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681170295"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170295"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170294"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170294"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170293"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170296"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170295"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170294"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170296"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170293"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170295"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170294"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170296"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170293"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170295"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170294"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681170293"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span>
+</span><span id="line-54"></span><span>       </span><span id="local-6989586621681170293"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170293"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Alternative form of Shannon's expansion over the first argument of a function. We have:</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;&gt;&gt; shannon2</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-60"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#shannon2"><span class="hs-identifier hs-type">shannon2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-61"></span><span id="shannon2"><span class="annot"><span class="annottext">shannon2 :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#shannon2"><span class="hs-identifier hs-var hs-var">shannon2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681170286"><span class="annot"><span class="annottext">x :: SBool
+</span><a href="#local-6989586621681170286"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681170285"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170285"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170284"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170284"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170283"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170286"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170285"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170284"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170286"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170283"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170285"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170284"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170286"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170283"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170285"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170284"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681170283"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span>
+</span><span id="line-63"></span><span>       </span><span id="local-6989586621681170283"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170283"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- * Derivatives</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- | Computing the derivative of a boolean function (boolean difference).</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- Defined as exclusive-or of Shannon cofactors with respect to that</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- variable.</span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#derivative"><span class="hs-identifier hs-type">derivative</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Binary"><span class="hs-identifier hs-type">Binary</span></a></span><span>
+</span><span id="line-73"></span><span id="derivative"><span class="annot"><span class="annottext">derivative :: (SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#derivative"><span class="hs-identifier hs-var hs-var">derivative</span></a></span></span><span> </span><span id="local-6989586621681170281"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170281"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681170280"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170280"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170279"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170279"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170281"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170280"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170279"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3C%2B%3E"><span class="hs-operator hs-var">.&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170281"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170280"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170279"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | The no-wiggle theorem: If the derivative of a function with respect to</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- a variable is constant False, then that variable does not &quot;wiggle&quot; the</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- function; i.e., any changes to it won't affect the result of the function.</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- In fact, we have an equivalence: The variable only changes the</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- result of the function iff the derivative with respect to it is not False:</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- &gt;&gt;&gt; noWiggle</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#noWiggle"><span class="hs-identifier hs-type">noWiggle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-84"></span><span id="noWiggle"><span class="annot"><span class="annottext">noWiggle :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#noWiggle"><span class="hs-identifier hs-var hs-var">noWiggle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681170276"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170276"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170275"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170275"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170274"><span class="hs-identifier hs-var">f'</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170276"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170275"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3C%3D%3E"><span class="hs-operator hs-var">.&lt;=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170272"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170276"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170275"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170272"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170276"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170275"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681170272"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span>
+</span><span id="line-86"></span><span>        </span><span id="local-6989586621681170272"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170272"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-87"></span><span>        </span><span id="local-6989586621681170274"><span class="annot"><span class="annottext">f' :: SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170274"><span class="hs-identifier hs-var hs-var">f'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#derivative"><span class="hs-identifier hs-var">derivative</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170272"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- * Universal quantification</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | Universal quantification of a boolean function with respect to a variable.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- Simply defined as the conjunction of the Shannon cofactors.</span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#universal"><span class="hs-identifier hs-type">universal</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Binary"><span class="hs-identifier hs-type">Binary</span></a></span><span>
+</span><span id="line-96"></span><span id="universal"><span class="annot"><span class="annottext">universal :: (SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#universal"><span class="hs-identifier hs-var hs-var">universal</span></a></span></span><span> </span><span id="local-6989586621681170270"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170270"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681170269"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170269"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170268"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170268"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170270"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170269"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170268"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170270"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170269"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170268"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- | Show that universal quantification is really meaningful: That is, if the universal</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- quantification with respect to a variable is True, then both cofactors are true for</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- those arguments. Of course, this is a trivial theorem if you think about it for a</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- moment, or you can just let SBV prove it for you:</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &gt;&gt;&gt; univOK</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#univOK"><span class="hs-identifier hs-type">univOK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-106"></span><span id="univOK"><span class="annot"><span class="annottext">univOK :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#univOK"><span class="hs-identifier hs-var hs-var">univOK</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681170266"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170266"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170265"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170265"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170264"><span class="hs-identifier hs-var">f'</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170266"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170265"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170262"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170266"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170265"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170262"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170266"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170265"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681170262"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span>
+</span><span id="line-108"></span><span>        </span><span id="local-6989586621681170262"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170262"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-109"></span><span>        </span><span id="local-6989586621681170264"><span class="annot"><span class="annottext">f' :: SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170264"><span class="hs-identifier hs-var hs-var">f'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#universal"><span class="hs-identifier hs-var">universal</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170262"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- * Existential quantification</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- | Existential quantification of a boolean function with respect to a variable.</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- Simply defined as the conjunction of the Shannon cofactors.</span><span>
+</span><span id="line-117"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#existential"><span class="hs-identifier hs-type">existential</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Binary"><span class="hs-identifier hs-type">Binary</span></a></span><span>
+</span><span id="line-118"></span><span id="existential"><span class="annot"><span class="annottext">existential :: (SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#existential"><span class="hs-identifier hs-var hs-var">existential</span></a></span></span><span> </span><span id="local-6989586621681170260"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170260"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681170259"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170259"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170258"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170258"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170260"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170259"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170258"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170260"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170259"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170258"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- | Show that existential quantification is really meaningful: That is, if the existential</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- quantification with respect to a variable is True, then one of the cofactors must be true for</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- those arguments. Again, this is a trivial theorem if you think about it for a moment, but</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- we will just let SBV prove it:</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- &gt;&gt;&gt; existsOK</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-127"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#existsOK"><span class="hs-identifier hs-type">existsOK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-128"></span><span id="existsOK"><span class="annot"><span class="annottext">existsOK :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#existsOK"><span class="hs-identifier hs-var hs-var">existsOK</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">((SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult)
+-&gt; (SBool -&gt; SBool -&gt; SBool) -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681170256"><span class="annot"><span class="annottext">y :: SBool
+</span><a href="#local-6989586621681170256"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621681170255"><span class="annot"><span class="annottext">z :: SBool
+</span><a href="#local-6989586621681170255"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170254"><span class="hs-identifier hs-var">f'</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170256"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170255"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%3D%3E"><span class="hs-operator hs-var">.=&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#pos"><span class="hs-identifier hs-var">pos</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170253"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170256"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170255"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. (SBool -&gt; a) -&gt; a
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#neg"><span class="hs-identifier hs-var">neg</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170253"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170256"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">SBool
+</span><a href="#local-6989586621681170255"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="annot"><a href="#local-6989586621681170253"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#Ternary"><span class="hs-identifier hs-type">Ternary</span></a></span><span>
+</span><span id="line-130"></span><span>        </span><span id="local-6989586621681170253"><span class="annot"><span class="annottext">f :: SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170253"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;f&quot;</span></span><span>
+</span><span id="line-131"></span><span>        </span><span id="local-6989586621681170254"><span class="annot"><span class="annottext">f' :: SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170254"><span class="hs-identifier hs-var hs-var">f'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SBool -&gt; SBool -&gt; SBool) -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Uninterpreted.Shannon.html#existential"><span class="hs-identifier hs-var">existential</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool -&gt; SBool
+</span><a href="#local-6989586621681170253"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-132"></span></pre></body></html>

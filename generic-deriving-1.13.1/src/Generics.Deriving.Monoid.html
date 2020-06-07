@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans #-}</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 704
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#elif __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.Monoid</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html"><span class="hs-identifier">Generics.Deriving.Monoid.Internal</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html"><span class="hs-identifier">Generics.Deriving.Monoid.Internal</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Semigroup.html"><span class="hs-identifier">Generics.Deriving.Semigroup</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Semigroup.Internal.html#GSemigroup"><span class="hs-identifier">GSemigroup</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">WrappedMonoid</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-19"></span><span id="local-6989586621679124678"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679124673"><span class="annot"><a href="Generics.Deriving.Semigroup.Internal.html#GSemigroup"><span class="hs-identifier hs-type">GSemigroup</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124678"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html#GMonoid"><span class="hs-identifier hs-type">GMonoid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679124678"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621679124671"><span class="annot"><span class="annottext">gmempty :: Maybe a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmempty"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmempty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621679124669"><span class="annot"><span class="annottext">gmappend :: Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmappend"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmappend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a -&gt; Maybe a
+forall a. GSemigroup a =&gt; a -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Semigroup.Internal.html#gsappend"><span class="hs-identifier hs-var">gsappend</span></a></span></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679124666"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679124661"><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html#GMonoid"><span class="hs-identifier hs-type">GMonoid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124666"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html#GMonoid"><span class="hs-identifier hs-type">GMonoid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WrappedMonoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679124666"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>  </span><span id="local-6989586621679124660"><span class="annot"><span class="annottext">gmempty :: WrappedMonoid m
+</span><a href="#local-6989586621679124660"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmempty</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WrappedMonoid m
+forall a. (Generic a, GMonoid' (Rep a)) =&gt; a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmemptydefault"><span class="hs-identifier hs-var">gmemptydefault</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span id="local-6989586621679124658"><span class="annot"><span class="annottext">gmappend :: WrappedMonoid m -&gt; WrappedMonoid m -&gt; WrappedMonoid m
+</span><a href="#local-6989586621679124658"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmappend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WrappedMonoid m -&gt; WrappedMonoid m -&gt; WrappedMonoid m
+forall a. (Generic a, GMonoid' (Rep a)) =&gt; a -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmappenddefault"><span class="hs-identifier hs-var">gmappenddefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span></pre></body></html>

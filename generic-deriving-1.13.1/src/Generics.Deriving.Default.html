@@ -1,0 +1,494 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Generics.Deriving.Default</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Description : Default implementations of generic classes</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer  : generics@haskell.org</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Portability : non-portable</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- GHC 8.6 introduced the</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- @&lt;https://downloads.haskell.org/~ghc/8.6.3/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia DerivingVia&gt;@</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- language extension, which means a typeclass instance can be derived from</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- an existing instance for an isomorphic type. Any newtype is isomorphic</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- to the underlying type. By implementing a typeclass once for the newtype,</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- it is possible to derive any typeclass for any type with a 'Generic' instance.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- For a number of classes, there are sensible default instantiations. In</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- older GHCs, these can be supplied in the class definition, using the</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- @&lt;https://downloads.haskell.org/~ghc/8.6.3/docs/html/users_guide/glasgow_exts.html?highlight=defaultsignatures#extension-DefaultSignatures DefaultSignatures&gt;@</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- extension. However, only one default can be provided! With</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- @&lt;https://downloads.haskell.org/~ghc/8.6.3/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia DerivingVia&gt;@</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- it is now possible to choose from many</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- default instantiations.</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- This package contains a number of such classes. This module demonstrates</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- how one might create a family of newtypes ('Default', 'Default1') for</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- which such instances are defined.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- One might then use</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- @&lt;https://downloads.haskell.org/~ghc/8.6.3/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia DerivingVia&gt;@</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- as follows. The implementations of the data types are elided here (they</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- are irrelevant). For most cases, either the deriving clause with the</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- data type definition or the standalone clause will work (for some types</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- it is necessary to supply the context explicitly using the latter form).</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- See the source of this module for the implementations of instances for</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- the 'Default' family of newtypes and the source of the test suite for</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- some types which derive instances via these wrappers.</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE DefaultSignatures #-}</span><span class="hs-cpp">
+# if __GLASGOW_HASKELL__ &gt;= 704
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+# else
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+# endif
+</span><span class="hs-cpp">#endif
+</span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-49"></span><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.Default</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Kind @*@ (aka @Type@)</span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="hs-comment">-- $default</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier">Default</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-comment">-- * Kind @* -&gt; *@ (aka @Type -&gt; Type@)</span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><span class="hs-comment">-- $default1</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier">Default1</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Other kinds</span></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><span class="hs-comment">-- $other-kinds</span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#if !(MIN_VERSION_base(4,8,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">liftM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Base.html"><span class="hs-identifier">Generics.Deriving.Base</span></a></span><span>
+</span><span id="line-75"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html"><span class="hs-identifier">Generics.Deriving.Copoint</span></a></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Enum.html"><span class="hs-identifier">Generics.Deriving.Enum</span></a></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Eq.html"><span class="hs-identifier">Generics.Deriving.Eq</span></a></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Foldable.html"><span class="hs-identifier">Generics.Deriving.Foldable</span></a></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html"><span class="hs-identifier">Generics.Deriving.Functor</span></a></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.html"><span class="hs-identifier">Generics.Deriving.Monoid</span></a></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Semigroup.html"><span class="hs-identifier">Generics.Deriving.Semigroup</span></a></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Show.html"><span class="hs-identifier">Generics.Deriving.Show</span></a></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html"><span class="hs-identifier">Generics.Deriving.Traversable</span></a></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Generics.Deriving.Uniplate.html"><span class="hs-identifier">Generics.Deriving.Uniplate</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- $default</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- For classes which take an argument of kind 'Data.Kind.Type', use</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- 'Default'. An example of this class from @base@ would be 'Eq', or</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- 'Generic'.</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- These examples use 'GShow' and 'GEq'; they are interchangeable.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- data MyType = &#8230;</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--  deriving ('Generic')</span><span>
+</span><span id="line-97"></span><span class="hs-comment">--  deriving ('GEq') via ('Default' MyType)</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- deriving via ('Default' MyType) instance 'GShow' MyType</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- Instances may be parameterized by type variables.</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- data MyType1 a = &#8230;</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--  deriving ('Generic')</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--  deriving ('GShow') via ('Default' (MyType1 a))</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- deriving via 'Default' (MyType1 a) instance 'GEq' a =&gt; 'GEq' (MyType1 a)</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- These types both require instances for 'Generic'. This is because the</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- implementations of 'geq' and 'gshowsPrec' for @'Default' b@ have a @'Generic'</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- b@ constraint, i.e. the type corresponding to @b@ require a 'Generic'</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- instance. For these two types, that means instances for @'Generic' MyType@</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- and @'Generic' (MyType1 a)@ respectively.</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- It also means the 'Generic' instance is not needed when there is already</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- a generic instance for the type used to derive the relevant instances.</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- For an example, see the documentation of the 'GShow' instance for</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- 'Default', below.</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | This newtype wrapper can be used to derive default instances for</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- classes taking an argument of kind 'Data.Kind.Type'.</span><span>
+</span><span id="line-125"></span><span class="hs-keyword">newtype</span><span> </span><span id="Default"><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span></span><span> </span><span id="local-6989586621679129228"><span class="annot"><a href="#local-6989586621679129228"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Default"><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unDefault"><span class="annot"><span class="annottext">Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679129228"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- $default1</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- For classes which take an argument of kind @'Data.Kind.Type' -&gt;</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- 'Data.Kind.Type'@, use 'Default1'.  An example of this class from @base@</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- would be 'Data.Functor.Classes.Eq1', or 'Generic1'.</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- Unlike for @MyType1@, there can be no implementation of these classes for @MyType :: 'Data.Kind.Type'@.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- data MyType1 a = &#8230;</span><span>
+</span><span id="line-137"></span><span class="hs-comment">--  deriving ('Generic1')</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--  deriving ('GFunctor') via ('Default1' MyType1)</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- deriving via ('Default1' MyType1) instance 'GFoldable' MyType1</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- Note that these instances require a @'Generic1' MyType1@ constraint as</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- 'gmap' and 'gfoldMap' have @'Generic1' a@ constraints on the</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- implementations for @'Default1' a@.</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- | This newtype wrapper can be used to derive default instances for</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- classes taking an argument of kind @'Data.Kind.Type' -&gt; 'Data.Kind.Type'@.</span><span>
+</span><span id="line-149"></span><span class="hs-keyword">newtype</span><span> </span><span id="Default1"><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-var">Default1</span></a></span></span><span> </span><span id="local-6989586621679129168"><span class="annot"><a href="#local-6989586621679129168"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span id="local-6989586621679129167"><span class="annot"><a href="#local-6989586621679129167"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Default1"><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-var">Default1</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unDefault1"><span class="annot"><span class="annottext">Default1 f a -&gt; f a
+</span><a href="Generics.Deriving.Default.html#unDefault1"><span class="hs-identifier hs-var hs-var">unDefault1</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679129168"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129167"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- $other-kinds</span><span>
+</span><span id="line-152"></span><span class="hs-comment">--</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- These principles extend to classes taking arguments of other kinds.</span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- Eq</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span id="local-6989586621679129094"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Eq.html#GEq%27"><span class="hs-identifier hs-type">GEq'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Eq.html#GEq"><span class="hs-identifier hs-type">GEq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129094"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-comment">-- geq :: Default a -&gt; Default a -&gt; Bool</span><span>
+</span><span id="line-161"></span><span>  </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129091"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129091"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679129090"><span class="annot"><span class="annottext">geq :: Default a -&gt; Default a -&gt; Bool
+</span><a href="Generics.Deriving.Eq.html#geq"><span class="hs-operator hs-var hs-var hs-var hs-var">`geq`</span></a></span></span><span> </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129088"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621679129088"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129091"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. (Generic a, GEq' (Rep a)) =&gt; a -&gt; a -&gt; Bool
+</span><a href="Generics.Deriving.Eq.html#geqdefault"><span class="hs-operator hs-var">`geqdefault`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129088"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- Enum</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- | The 'Enum' class in @base@ is slightly different; it comprises 'toEnum' and</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- 'fromEnum'. &quot;Generics.Deriving.Enum&quot; provides functions 'toEnumDefault'</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- and 'fromEnumDefault'.</span><span>
+</span><span id="line-170"></span><span id="local-6989586621679129086"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Eq.html#GEq"><span class="hs-identifier hs-type">GEq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Enum.html#Enum%27"><span class="hs-identifier hs-type">Enum'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Enum.html#GEnum"><span class="hs-identifier hs-type">GEnum</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129086"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-comment">-- genum :: [Default a]</span><span>
+</span><span id="line-172"></span><span>  </span><span id="local-6989586621679129083"><span class="annot"><span class="annottext">genum :: [Default a]
+</span><a href="Generics.Deriving.Enum.html#genum"><span class="hs-identifier hs-var hs-var hs-var hs-var">genum</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; (Rep a Any -&gt; a) -&gt; Rep a Any -&gt; Default a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; a
+forall a x. Generic a =&gt; Rep a x -&gt; a
+</span><span class="hs-identifier hs-var">to</span></span><span> </span><span class="annot"><span class="annottext">(Rep a Any -&gt; Default a) -&gt; [Rep a Any] -&gt; [Default a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Rep a Any]
+forall k (f :: k -&gt; *) (a :: k). Enum' f =&gt; [f a]
+</span><a href="Generics.Deriving.Enum.html#enum%27"><span class="hs-identifier hs-var">enum'</span></a></span></span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- Show</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- | For example, with this type:</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-181"></span><span class="hs-comment">-- newtype TestShow = TestShow 'Bool'</span><span>
+</span><span id="line-182"></span><span class="hs-comment">--   deriving ('GShow') via ('Default' 'Bool')</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- 'gshow' for @TestShow@ would produce the same string as `gshow` for</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- 'Bool'.</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--</span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- In this example, @TestShow@ requires no 'Generic' instance, as the</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- constraint on 'gshowsPrec' from @'Default' 'Bool'@ is @'Generic' 'Bool'@.</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- In general, when using a newtype wrapper, the instance can be derived</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- via the wrapped type, as here (via @'Default' 'Bool'@ rather than @'Default'</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- TestShow@).</span><span>
+</span><span id="line-194"></span><span id="local-6989586621679129077"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679129070"><span id="local-6989586621679129072"><span id="local-6989586621679129074"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129077"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Show.html#GShow%27"><span class="hs-identifier hs-type">GShow'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129077"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Show.html#GShow"><span class="hs-identifier hs-type">GShow</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129077"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-comment">-- gshowsPrec :: Int -&gt; Default a -&gt; ShowS</span><span>
+</span><span id="line-196"></span><span>  </span><span id="local-6989586621679129068"><span class="annot"><span class="annottext">gshowsPrec :: Int -&gt; Default a -&gt; ShowS
+</span><a href="Generics.Deriving.Show.html#gshowsPrec"><span class="hs-identifier hs-var hs-var hs-var hs-var">gshowsPrec</span></a></span></span><span> </span><span id="local-6989586621679129066"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679129066"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129065"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129065"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; ShowS
+forall a. (Generic a, GShow' (Rep a)) =&gt; Int -&gt; a -&gt; ShowS
+</span><a href="Generics.Deriving.Show.html#gshowsPrecdefault"><span class="hs-identifier hs-var">gshowsPrecdefault</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679129066"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129065"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- Semigroup</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- | Semigroups often have many sensible implementations of</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- 'Data.Semigroup.&lt;&gt;' / 'gsappend', and therefore no sensible default.</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- Indeed, there is no 'GSemigroup'' instance for representations of sum</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- types.</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- In other cases, one may wish to use the existing wrapper newtypes in</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- @base@, such as the following (using 'Data.Semigroup.First'):</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- newtype FirstSemigroup = FirstSemigroup 'Bool'</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--   deriving stock ('Eq', 'Show')</span><span>
+</span><span id="line-213"></span><span class="hs-comment">--   deriving ('GSemigroup') via ('Data.Semigroup.First' 'Bool')</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--</span><span>
+</span><span id="line-216"></span><span id="local-6989586621679129063"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679129058"><span id="local-6989586621679129060"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129063"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Semigroup.Internal.html#GSemigroup%27"><span class="hs-identifier hs-type">GSemigroup'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129063"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Semigroup.Internal.html#GSemigroup"><span class="hs-identifier hs-type">GSemigroup</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129063"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-comment">-- gsappend :: Default a -&gt; Default a -&gt; Default a</span><span>
+</span><span id="line-218"></span><span>  </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129056"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129056"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679129055"><span class="annot"><span class="annottext">gsappend :: Default a -&gt; Default a -&gt; Default a
+</span><a href="Generics.Deriving.Semigroup.Internal.html#gsappend"><span class="hs-operator hs-var hs-var hs-var hs-var">`gsappend`</span></a></span></span><span> </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129053"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621679129053"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; a -&gt; Default a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129056"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. (Generic a, GSemigroup' (Rep a)) =&gt; a -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Semigroup.Internal.html#gsappenddefault"><span class="hs-operator hs-var">`gsappenddefault`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129053"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-219"></span><span>
+</span><span id="line-220"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- Monoid</span><span>
+</span><span id="line-222"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span id="local-6989586621679129051"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679129046"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129051"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html#GMonoid%27"><span class="hs-identifier hs-type">GMonoid'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129051"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Monoid.Internal.html#GMonoid"><span class="hs-identifier hs-type">GMonoid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129051"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-225"></span><span>  </span><span class="hs-comment">-- gmempty :: Default a</span><span>
+</span><span id="line-226"></span><span>  </span><span id="local-6989586621679129044"><span class="annot"><span class="annottext">gmempty :: Default a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmempty"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmempty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="annot"><span class="annottext">a
+forall a. (Generic a, GMonoid' (Rep a)) =&gt; a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmemptydefault"><span class="hs-identifier hs-var">gmemptydefault</span></a></span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span>  </span><span class="hs-comment">-- gmappend :: Default a -&gt; Default a -&gt; Default a</span><span>
+</span><span id="line-229"></span><span>  </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129041"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129041"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679129040"><span class="annot"><span class="annottext">gmappend :: Default a -&gt; Default a -&gt; Default a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmappend"><span class="hs-operator hs-var hs-var hs-var hs-var">`gmappend`</span></a></span></span><span> </span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129038"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621679129038"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; a -&gt; Default a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129041"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. (Generic a, GMonoid' (Rep a)) =&gt; a -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Monoid.Internal.html#gmappenddefault"><span class="hs-operator hs-var">`gmappenddefault`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129038"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- Uniplate</span><span>
+</span><span id="line-233"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span id="local-6989586621679129036"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Uniplate.html#Uniplate%27"><span class="hs-identifier hs-type">Uniplate'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Uniplate.html#Context%27"><span class="hs-identifier hs-type">Context'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Uniplate.html#Uniplate"><span class="hs-identifier hs-type">Uniplate</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679129036"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span>  </span><span class="hs-comment">-- children   ::                                             Default a  -&gt;   [Default a]</span><span>
+</span><span id="line-238"></span><span>  </span><span class="hs-comment">-- context    ::                             Default a   -&gt; [Default a] -&gt;    Default a</span><span>
+</span><span id="line-239"></span><span>  </span><span class="hs-comment">-- descend    ::            (Default a -&gt;    Default a)  -&gt;  Default a  -&gt;    Default a</span><span>
+</span><span id="line-240"></span><span>  </span><span class="hs-comment">-- descendM   :: Monad m =&gt; (Default a -&gt; m (Default a)) -&gt;  Default a  -&gt; m (Default a)</span><span>
+</span><span id="line-241"></span><span>  </span><span class="hs-comment">-- transform  ::            (Default a -&gt;    Default a)  -&gt;  Default a  -&gt;    Default a</span><span>
+</span><span id="line-242"></span><span>  </span><span class="hs-comment">-- transformM :: Monad m =&gt; (Default a -&gt; m (Default a)) -&gt;  Default a  -&gt; m (Default a)</span><span>
+</span><span id="line-243"></span><span>
+</span><span id="line-244"></span><span>  </span><span id="local-6989586621679129028"><span class="annot"><span class="annottext">children :: Default a -&gt; [Default a]
+</span><a href="Generics.Deriving.Uniplate.html#children"><span class="hs-identifier hs-var hs-var hs-var hs-var">children</span></a></span></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129026"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129026"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span>       </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; [a] -&gt; [Default a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a]
+forall a. (Generic a, Uniplate' (Rep a) a) =&gt; a -&gt; [a]
+</span><a href="Generics.Deriving.Uniplate.html#childrendefault"><span class="hs-identifier hs-var">childrendefault</span></a></span><span>    </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129026"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-245"></span><span>  </span><span id="local-6989586621679129024"><span class="annot"><span class="annottext">context :: Default a -&gt; [Default a] -&gt; Default a
+</span><a href="Generics.Deriving.Uniplate.html#context"><span class="hs-identifier hs-var hs-var hs-var hs-var">context</span></a></span></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129022"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129022"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679129021"><span class="annot"><span class="annottext">ys :: [Default a]
+</span><a href="#local-6989586621679129021"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>       </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; a -&gt; Default a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; a
+forall a. (Generic a, Context' (Rep a) a) =&gt; a -&gt; [a] -&gt; a
+</span><a href="Generics.Deriving.Uniplate.html#contextdefault"><span class="hs-identifier hs-var">contextdefault</span></a></span><span>     </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129022"><span class="hs-identifier hs-var">x</span></a></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Default a -&gt; a
+forall a. Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; a) -&gt; [Default a] -&gt; [a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Default a]
+</span><a href="#local-6989586621679129021"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-246"></span><span>  </span><span id="local-6989586621679129019"><span class="annot"><span class="annottext">descend :: (Default a -&gt; Default a) -&gt; Default a -&gt; Default a
+</span><a href="Generics.Deriving.Uniplate.html#descend"><span class="hs-identifier hs-var hs-var hs-var hs-var">descend</span></a></span></span><span>    </span><span id="local-6989586621679129017"><span class="annot"><span class="annottext">f :: Default a -&gt; Default a
+</span><a href="#local-6989586621679129017"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129016"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129016"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span>       </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; a -&gt; Default a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; a -&gt; a
+forall a. (Generic a, Uniplate' (Rep a) a) =&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Uniplate.html#descenddefault"><span class="hs-identifier hs-var">descenddefault</span></a></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Default a -&gt; a
+forall a. Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; a) -&gt; (a -&gt; Default a) -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; Default a
+</span><a href="#local-6989586621679129017"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; Default a) -&gt; (a -&gt; Default a) -&gt; a -&gt; Default a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129016"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-247"></span><span>  </span><span id="local-6989586621679129014"><span class="annot"><span class="annottext">descendM :: (Default a -&gt; m (Default a)) -&gt; Default a -&gt; m (Default a)
+</span><a href="Generics.Deriving.Uniplate.html#descendM"><span class="hs-identifier hs-var hs-var hs-var hs-var">descendM</span></a></span></span><span>   </span><span id="local-6989586621679129012"><span class="annot"><span class="annottext">f :: Default a -&gt; m (Default a)
+</span><a href="#local-6989586621679129012"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129011"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129011"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; m a -&gt; m (Default a)
+forall (m :: * -&gt; *) a1 r. Monad m =&gt; (a1 -&gt; r) -&gt; m a1 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m (Default a)) -&gt; m a -&gt; m (Default a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; a -&gt; m a
+forall a (m :: * -&gt; *).
+(Generic a, Uniplate' (Rep a) a, Monad m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Generics.Deriving.Uniplate.html#descendMdefault"><span class="hs-identifier hs-var">descendMdefault</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Default a -&gt; a) -&gt; m (Default a) -&gt; m a
+forall (m :: * -&gt; *) a1 r. Monad m =&gt; (a1 -&gt; r) -&gt; m a1 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; a
+forall a. Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Default a) -&gt; m a) -&gt; (a -&gt; m (Default a)) -&gt; a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; m (Default a)
+</span><a href="#local-6989586621679129012"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; m (Default a))
+-&gt; (a -&gt; Default a) -&gt; a -&gt; m (Default a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129011"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-248"></span><span>  </span><span id="local-6989586621679129009"><span class="annot"><span class="annottext">transform :: (Default a -&gt; Default a) -&gt; Default a -&gt; Default a
+</span><a href="Generics.Deriving.Uniplate.html#transform"><span class="hs-identifier hs-var hs-var hs-var hs-var">transform</span></a></span></span><span>  </span><span id="local-6989586621679129007"><span class="annot"><span class="annottext">f :: Default a -&gt; Default a
+</span><a href="#local-6989586621679129007"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129006"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129006"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span>       </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; a -&gt; Default a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; a -&gt; a
+forall a. (Generic a, Uniplate' (Rep a) a) =&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Generics.Deriving.Uniplate.html#transformdefault"><span class="hs-identifier hs-var">transformdefault</span></a></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Default a -&gt; a
+forall a. Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; a) -&gt; (a -&gt; Default a) -&gt; a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; Default a
+</span><a href="#local-6989586621679129007"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; Default a) -&gt; (a -&gt; Default a) -&gt; a -&gt; Default a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129006"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-249"></span><span>  </span><span id="local-6989586621679129004"><span class="annot"><span class="annottext">transformM :: (Default a -&gt; m (Default a)) -&gt; Default a -&gt; m (Default a)
+</span><a href="Generics.Deriving.Uniplate.html#transformM"><span class="hs-identifier hs-var hs-var hs-var hs-var">transformM</span></a></span></span><span> </span><span id="local-6989586621679129002"><span class="annot"><span class="annottext">f :: Default a -&gt; m (Default a)
+</span><a href="#local-6989586621679129002"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-type">Default</span></a></span><span> </span><span id="local-6989586621679129001"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679129001"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Default a) -&gt; m a -&gt; m (Default a)
+forall (m :: * -&gt; *) a1 r. Monad m =&gt; (a1 -&gt; r) -&gt; m a1 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>  </span><span class="annot"><span class="annottext">(m a -&gt; m (Default a)) -&gt; m a -&gt; m (Default a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; a -&gt; m a
+forall a (m :: * -&gt; *).
+(Generic a, Uniplate' (Rep a) a, Monad m) =&gt;
+(a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Generics.Deriving.Uniplate.html#transformMdefault"><span class="hs-identifier hs-var">transformMdefault</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Default a -&gt; a) -&gt; m (Default a) -&gt; m a
+forall (m :: * -&gt; *) a1 r. Monad m =&gt; (a1 -&gt; r) -&gt; m a1 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; a
+forall a. Default a -&gt; a
+</span><a href="Generics.Deriving.Default.html#unDefault"><span class="hs-identifier hs-var hs-var">unDefault</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Default a) -&gt; m a) -&gt; (a -&gt; m (Default a)) -&gt; a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Default a -&gt; m (Default a)
+</span><a href="#local-6989586621679129002"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Default a -&gt; m (Default a))
+-&gt; (a -&gt; Default a) -&gt; a -&gt; m (Default a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Default a
+forall a. a -&gt; Default a
+</span><a href="Generics.Deriving.Default.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679129001"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-250"></span><span>
+</span><span id="line-251"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- Functor</span><span>
+</span><span id="line-253"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-254"></span><span>
+</span><span id="line-255"></span><span id="local-6989586621679128999"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128999"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128999"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor"><span class="hs-identifier hs-type">GFunctor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128999"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-256"></span><span>  </span><span class="hs-comment">-- gmap :: (a -&gt; b) -&gt; (Default1 f) a -&gt; (Default1 f) b</span><span>
+</span><span id="line-257"></span><span>  </span><span id="local-6989586621679128996"><span class="annot"><span class="annottext">gmap :: (a -&gt; b) -&gt; Default1 f a -&gt; Default1 f b
+</span><a href="Generics.Deriving.Functor.html#gmap"><span class="hs-identifier hs-var hs-var hs-var hs-var">gmap</span></a></span></span><span> </span><span id="local-6989586621679128994"><span class="annot"><span class="annottext">f :: a -&gt; b
+</span><a href="#local-6989586621679128994"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span id="local-6989586621679128993"><span class="annot"><span class="annottext">fx :: f a
+</span><a href="#local-6989586621679128993"><span class="hs-identifier hs-var">fx</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f b -&gt; Default1 f b
+forall (f :: * -&gt; *) a. f a -&gt; Default1 f a
+</span><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-var">Default1</span></a></span><span> </span><span class="annot"><span class="annottext">(f b -&gt; Default1 f b) -&gt; f b -&gt; Default1 f b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b.
+(Generic1 f, GFunctor' (Rep1 f)) =&gt;
+(a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Generics.Deriving.Functor.html#gmapdefault"><span class="hs-identifier hs-var">gmapdefault</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128994"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679128993"><span class="hs-identifier hs-var">fx</span></a></span></span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-260"></span><span class="hs-comment">-- Copoint</span><span>
+</span><span id="line-261"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-262"></span><span>
+</span><span id="line-263"></span><span id="local-6989586621679128991"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128991"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128991"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128991"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-264"></span><span>  </span><span class="hs-comment">-- gcopoint :: Default1 f a -&gt; a</span><span>
+</span><span id="line-265"></span><span>  </span><span id="local-6989586621679128988"><span class="annot"><span class="annottext">gcopoint :: Default1 f a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span> </span><span class="annot"><span class="annottext">(f a -&gt; a) -&gt; (Default1 f a -&gt; f a) -&gt; Default1 f a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Default1 f a -&gt; f a
+forall (f :: * -&gt; *) a. Default1 f a -&gt; f a
+</span><a href="Generics.Deriving.Default.html#unDefault1"><span class="hs-identifier hs-var hs-var">unDefault1</span></a></span></span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- Foldable</span><span>
+</span><span id="line-269"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span id="local-6989586621679128985"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679128970"><span id="local-6989586621679128972"><span id="local-6989586621679128974"><span id="local-6989586621679128976"><span id="local-6989586621679128978"><span id="local-6989586621679128980"><span id="local-6989586621679128982"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128985"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Foldable.html#GFoldable%27"><span class="hs-identifier hs-type">GFoldable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128985"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Foldable.html#GFoldable"><span class="hs-identifier hs-type">GFoldable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128985"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-272"></span><span>  </span><span class="hs-comment">-- gfoldMap :: Monoid m =&gt; (a -&gt; m) -&gt; Default1 t a -&gt; m</span><span>
+</span><span id="line-273"></span><span>  </span><span id="local-6989586621679128968"><span class="annot"><span class="annottext">gfoldMap :: (a -&gt; m) -&gt; Default1 t a -&gt; m
+</span><a href="Generics.Deriving.Foldable.html#gfoldMap"><span class="hs-identifier hs-var hs-var hs-var hs-var">gfoldMap</span></a></span></span><span> </span><span id="local-6989586621679128966"><span class="annot"><span class="annottext">f :: a -&gt; m
+</span><a href="#local-6989586621679128966"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span id="local-6989586621679128965"><span class="annot"><span class="annottext">tx :: t a
+</span><a href="#local-6989586621679128965"><span class="hs-identifier hs-var">tx</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m) -&gt; t a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Generic1 t, GFoldable' (Rep1 t), Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><a href="Generics.Deriving.Foldable.html#gfoldMapdefault"><span class="hs-identifier hs-var">gfoldMapdefault</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621679128966"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t a
+</span><a href="#local-6989586621679128965"><span class="hs-identifier hs-var">tx</span></a></span></span><span>
+</span><span id="line-274"></span><span>
+</span><span id="line-275"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- Traversable</span><span>
+</span><span id="line-277"></span><span class="hs-comment">--------------------------------------------------</span><span>
+</span><span id="line-278"></span><span>
+</span><span id="line-279"></span><span id="local-6989586621679128963"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679128954"><span id="local-6989586621679128956"><span id="local-6989586621679128958"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128963"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Functor.html#GFunctor%27"><span class="hs-identifier hs-type">GFunctor'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128963"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Foldable.html#GFoldable%27"><span class="hs-identifier hs-type">GFoldable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128963"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable%27"><span class="hs-identifier hs-type">GTraversable'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679128963"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Traversable.html#GTraversable"><span class="hs-identifier hs-type">GTraversable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128963"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-280"></span><span>  </span><span class="hs-comment">-- gtraverse :: Applicative f =&gt; (a -&gt; f b) -&gt; Default1 t a -&gt; f (Default1 t b)</span><span>
+</span><span id="line-281"></span><span>  </span><span id="local-6989586621679128952"><span class="annot"><span class="annottext">gtraverse :: (a -&gt; f b) -&gt; Default1 t a -&gt; f (Default1 t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraverse"><span class="hs-identifier hs-var hs-var hs-var hs-var">gtraverse</span></a></span></span><span> </span><span id="local-6989586621679128950"><span class="annot"><span class="annottext">f :: a -&gt; f b
+</span><a href="#local-6989586621679128950"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-type">Default1</span></a></span><span> </span><span id="local-6989586621679128949"><span class="annot"><span class="annottext">fx :: t a
+</span><a href="#local-6989586621679128949"><span class="hs-identifier hs-var">fx</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t b -&gt; Default1 t b
+forall (f :: * -&gt; *) a. f a -&gt; Default1 f a
+</span><a href="Generics.Deriving.Default.html#Default1"><span class="hs-identifier hs-var">Default1</span></a></span><span> </span><span class="annot"><span class="annottext">(t b -&gt; Default1 t b) -&gt; f (t b) -&gt; f (Default1 t b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Generic1 t, GTraversable' (Rep1 t), Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><a href="Generics.Deriving.Traversable.html#gtraversedefault"><span class="hs-identifier hs-var">gtraversedefault</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621679128950"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t a
+</span><a href="#local-6989586621679128949"><span class="hs-identifier hs-var">fx</span></a></span></span><span>
+</span><span id="line-282"></span></pre></body></html>

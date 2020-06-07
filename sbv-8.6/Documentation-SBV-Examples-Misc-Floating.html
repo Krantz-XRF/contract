@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Documentation.SBV.Examples.Misc.Floating</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">sbv-8.6: SMT Based Verification: Symbolic Haskell theorem prover using SMT solving.</span><ul class="links" id="page-menu"><li><a href="src/Documentation.SBV.Examples.Misc.Floating.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th valign="top">Copyright</th><td>(c) Levent Erkok</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>erkokl@gmail.com</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Documentation.SBV.Examples.Misc.Floating</p></div><div id="table-of-contents"><div id="contents-list"><p class="caption" onclick="window.scrollTo(0,0)">Contents</p><ul><li><a href="#g:1">FP addition is not associative</a></li><li><a href="#g:2">FP addition by non-zero can result in no change</a></li><li><a href="#g:3">FP multiplicative inverses may not exist</a></li><li><a href="#g:4">Effect of rounding modes</a></li></ul></div></div><div id="description"><p class="caption">Description</p><div class="doc"><p>Several examples involving IEEE-754 floating point numbers, i.e., single
+ precision <code><a href="../base-4.13.0.0/Prelude.html#t:Float" title="Prelude">Float</a></code> (<code><a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a></code>) and double precision <code><a href="../base-4.13.0.0/Prelude.html#t:Double" title="Prelude">Double</a></code> (<code><a href="Data-SBV-Internals.html#t:SDouble" title="Data.SBV.Internals">SDouble</a></code>) types.</p><p>Note that arithmetic with floating point is full of surprises; due to precision
+ issues associativity of arithmetic operations typically do not hold. Also,
+ the presence of <code>NaN</code> is always something to look out for.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:assocPlus">assocPlus</a> :: <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a></li><li class="src short"><a href="#v:assocPlusRegular">assocPlusRegular</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a></li><li class="src short"><a href="#v:nonZeroAddition">nonZeroAddition</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a></li><li class="src short"><a href="#v:multInverse">multInverse</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a></li><li class="src short"><a href="#v:roundingAdd">roundingAdd</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:SatResult" title="Data.SBV.Trans">SatResult</a></li></ul></details></div><div id="interface"><a href="#g:1" id="g:1"><h1>FP addition is not associative</h1></a><div class="top"><p class="src"><a id="v:assocPlus" class="def">assocPlus</a> :: <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a> -&gt; <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a> <a href="src/Documentation.SBV.Examples.Misc.Floating.html#assocPlus" class="link">Source</a> <a href="#v:assocPlus" class="selflink">#</a></p><div class="doc"><p>Prove that floating point addition is not associative. For illustration purposes,
+ we will require one of the inputs to be a <code>NaN</code>. We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>prove $ assocPlus (0/0)
+</code></strong>Falsifiable. Counter-example:
+  s0 = 0.0 :: Float
+  s1 = 0.0 :: Float
+</pre><p>Indeed:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let i = 0/0 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>i + (0.0 + 0.0)
+</code></strong>NaN
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>((i + 0.0) + 0.0)
+</code></strong>NaN
+</pre><p>But keep in mind that <code>NaN</code> does not equal itself in the floating point world! We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let nan = 0/0 :: Float in nan == nan
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:assocPlusRegular" class="def">assocPlusRegular</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a> <a href="src/Documentation.SBV.Examples.Misc.Floating.html#assocPlusRegular" class="link">Source</a> <a href="#v:assocPlusRegular" class="selflink">#</a></p><div class="doc"><p>Prove that addition is not associative, even if we ignore <code>NaN</code>/<code>Infinity</code> values.
+ To do this, we use the predicate <code><a href="Data-SBV-Trans.html#v:fpIsPoint" title="Data.SBV.Trans">fpIsPoint</a></code>, which is true of a floating point
+ number (<code><a href="Data-SBV-Internals.html#t:SFloat" title="Data.SBV.Internals">SFloat</a></code> or <code><a href="Data-SBV-Internals.html#t:SDouble" title="Data.SBV.Internals">SDouble</a></code>) if it is neither <code>NaN</code> nor <code>Infinity</code>. (That is, it's a
+ representable point in the real-number line.)</p><p>We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>assocPlusRegular
+</code></strong>Falsifiable. Counter-example:
+  x =   5.615828e-4 :: Float
+  y = -2.2688436e-3 :: Float
+  z =    -2047.9991 :: Float
+</pre><p>Indeed, we have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x =   5.615828e-4 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let y = -2.2688436e-3 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let z =    -2047.9991 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>x + (y + z)
+</code></strong>-2048.001
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>(x + y) + z
+</code></strong>-2048.0007
+</pre><p>Note the difference in the results!</p></div></div><a href="#g:2" id="g:2"><h1>FP addition by non-zero can result in no change</h1></a><div class="top"><p class="src"><a id="v:nonZeroAddition" class="def">nonZeroAddition</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a> <a href="src/Documentation.SBV.Examples.Misc.Floating.html#nonZeroAddition" class="link">Source</a> <a href="#v:nonZeroAddition" class="selflink">#</a></p><div class="doc"><p>Demonstrate that <code>a+b = a</code> does not necessarily mean <code>b</code> is <code>0</code> in the floating point world,
+ even when we disallow the obvious solution when <code>a</code> and <code>b</code> are <code>Infinity.</code>
+ We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>nonZeroAddition
+</code></strong>Falsifiable. Counter-example:
+  a =   -1.9999999 :: Float
+  b = 9.403954e-38 :: Float
+</pre><p>Indeed, we have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let a =   -1.9999999 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let b = 9.403954e-38 :: Float
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>a + b == a
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>b == 0
+</code></strong>False
+</pre></div></div><a href="#g:3" id="g:3"><h1>FP multiplicative inverses may not exist</h1></a><div class="top"><p class="src"><a id="v:multInverse" class="def">multInverse</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:ThmResult" title="Data.SBV.Trans">ThmResult</a> <a href="src/Documentation.SBV.Examples.Misc.Floating.html#multInverse" class="link">Source</a> <a href="#v:multInverse" class="selflink">#</a></p><div class="doc"><p>This example illustrates that <code>a * (1/a)</code> does not necessarily equal <code>1</code>. Again,
+ we protect against division by <code>0</code> and <code>NaN</code>/<code>Infinity</code>.</p><p>We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>multInverse
+</code></strong>Falsifiable. Counter-example:
+  a = -1.910829855912238e-308 :: Double
+</pre><p>Indeed, we have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let a = -1.910829855912238e-308 :: Double
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>a * (1/a)
+</code></strong>0.9999999999999999
+</pre></div></div><a href="#g:4" id="g:4"><h1>Effect of rounding modes</h1></a><div class="top"><p class="src"><a id="v:roundingAdd" class="def">roundingAdd</a> :: <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> <a href="Data-SBV-Trans.html#t:SatResult" title="Data.SBV.Trans">SatResult</a> <a href="src/Documentation.SBV.Examples.Misc.Floating.html#roundingAdd" class="link">Source</a> <a href="#v:roundingAdd" class="selflink">#</a></p><div class="doc"><p>One interesting aspect of floating-point is that the chosen rounding-mode
+ can effect the results of a computation if the exact result cannot be precisely
+ represented. SBV exports the functions <code><a href="Data-SBV-Trans.html#v:fpAdd" title="Data.SBV.Trans">fpAdd</a></code>, <code><a href="Data-SBV-Trans.html#v:fpSub" title="Data.SBV.Trans">fpSub</a></code>, <code><a href="Data-SBV-Trans.html#v:fpMul" title="Data.SBV.Trans">fpMul</a></code>, <code><a href="Data-SBV-Trans.html#v:fpDiv" title="Data.SBV.Trans">fpDiv</a></code>, <code><a href="Data-SBV-Trans.html#v:fpFMA" title="Data.SBV.Trans">fpFMA</a></code>
+ and <code><a href="Data-SBV-Trans.html#v:fpSqrt" title="Data.SBV.Trans">fpSqrt</a></code> which allows users to specify the IEEE supported <code><a href="Data-SBV-Internals.html#t:RoundingMode" title="Data.SBV.Internals">RoundingMode</a></code> for
+ the operation. This example illustrates how SBV can be used to find rounding-modes
+ where, for instance, addition can produce different results. We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>roundingAdd
+</code></strong>Satisfiable. Model:
+  rm = RoundNearestTiesToAway :: RoundingMode
+  x  =                    1.0 :: Float
+  y  =            -0.43749997 :: Float
+</pre><p>(Note that depending on your version of Z3, you might get a different result.)
+ Unfortunately we can't directly validate this result at the Haskell level, as Haskell only supports
+ <code><a href="Data-SBV-Internals.html#v:RoundNearestTiesToEven" title="Data.SBV.Internals">RoundNearestTiesToEven</a></code>. We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>1.0 + (-0.43749997) :: Float
+</code></strong>0.5625
+</pre><p>While we cannot directly see the result when the mode is <code><a href="Data-SBV-Internals.html#v:RoundNearestTiesToAway" title="Data.SBV.Internals">RoundNearestTiesToAway</a></code> in Haskell, we can use
+ SBV to provide us with that result thusly:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>sat $ \z -&gt; z .== fpAdd sRoundNearestTiesToAway 1.0 (-0.43749997 :: SFloat)
+</code></strong>Satisfiable. Model:
+  s0 = 0.56250006 :: Float
+</pre><p>We can see why these two resuls are indeed different: The <code><a href="Data-SBV-Internals.html#v:RoundNearestTiesToAway" title="Data.SBV.Internals">RoundNearestTiesToAway</a></code>
+ (which rounds away from zero) produces a larger result. Indeed, if we treat these numbers
+ as <code><a href="../base-4.13.0.0/Prelude.html#t:Double" title="Prelude">Double</a></code> values, we get:</p><pre>&gt; 1.0 + (-0.43749997 :: Double)</pre><ol><li>56250003</li></ol><p>we see that the &quot;more precise&quot; result is larger than what the <code><a href="../base-4.13.0.0/Prelude.html#t:Float" title="Prelude">Float</a></code> value is, justifying the
+ larger value with <code><a href="Data-SBV-Internals.html#v:RoundNearestTiesToAway" title="Data.SBV.Internals">RoundNearestTiesToAway</a></code>. A more detailed study is beyond our current scope, so we'll
+ merely note that floating point representation and semantics is indeed a thorny
+ subject, and point to <a href="http://ece.uwaterloo.ca/~dwharder/NumericalAnalysis/02Numerics/Double/paper.pdf">http://ece.uwaterloo.ca/~dwharder/NumericalAnalysis/02Numerics/Double/paper.pdf</a> as
+ an excellent guide.</p></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.23.0</p></div></body></html>

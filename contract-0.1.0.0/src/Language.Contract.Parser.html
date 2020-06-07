@@ -1,0 +1,796 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Language.Contract.Parser</span><span>
+</span><span id="line-2"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#parseTerm"><span class="hs-identifier">parseTerm</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#parseFile"><span class="hs-identifier">parseFile</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Parsec</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Parsec.Token</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.AST.html"><span class="hs-identifier">Language.Contract.AST</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">type</span><span> </span><span id="Parser"><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ParsecT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Reader</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span id="local-6989586621679123998"><span class="annot"><a href="Language.Contract.Parser.html#langDef"><span class="hs-identifier hs-type">langDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679123998"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GenLanguageDef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123998"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-16"></span><span id="langDef"><span class="annot"><span class="annottext">langDef :: GenLanguageDef String () m
+</span><a href="Language.Contract.Parser.html#langDef"><span class="hs-identifier hs-var hs-var">langDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LanguageDef :: forall s u (m :: * -&gt; *).
+String
+-&gt; String
+-&gt; String
+-&gt; Bool
+-&gt; ParsecT s u m Char
+-&gt; ParsecT s u m Char
+-&gt; ParsecT s u m Char
+-&gt; ParsecT s u m Char
+-&gt; [String]
+-&gt; [String]
+-&gt; Bool
+-&gt; GenLanguageDef s u m
+</span><span class="hs-identifier hs-type hs-type">LanguageDef</span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">commentStart :: String
+</span><span class="hs-identifier hs-var">commentStart</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;{-&quot;</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">commentEnd :: String
+</span><span class="hs-identifier hs-var">commentEnd</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;-}&quot;</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">commentLine :: String
+</span><span class="hs-identifier hs-var">commentLine</span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;--&quot;</span></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">nestedComments :: Bool
+</span><span class="hs-identifier hs-var">nestedComments</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">identStart :: ParsecT String () m Char
+</span><span class="hs-identifier hs-var">identStart</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParsecT String () m Char
+forall s (m :: * -&gt; *) u. Stream s m Char =&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">letter</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () m Char
+-&gt; ParsecT String () m Char -&gt; ParsecT String () m Char
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; ParsecT String () m Char
+forall s (m :: * -&gt; *) u.
+Stream s m Char =&gt;
+Char -&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="hs-char">'_'</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">identLetter :: ParsecT String () m Char
+</span><span class="hs-identifier hs-var">identLetter</span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParsecT String () m Char
+forall s (m :: * -&gt; *) u. Stream s m Char =&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">alphaNum</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () m Char
+-&gt; ParsecT String () m Char -&gt; ParsecT String () m Char
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ParsecT String () m Char
+forall s (m :: * -&gt; *) u.
+Stream s m Char =&gt;
+String -&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">oneOf</span></span><span> </span><span class="annot"><span class="hs-string">&quot;_'&quot;</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">opStart :: ParsecT String () m Char
+</span><span class="hs-identifier hs-var">opStart</span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenLanguageDef String () m -&gt; ParsecT String () m Char
+forall s u (m :: * -&gt; *).
+GenLanguageDef s u m -&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var hs-var">opLetter</span></span><span> </span><span class="annot"><span class="annottext">GenLanguageDef String () m
+forall (m :: * -&gt; *). Monad m =&gt; GenLanguageDef String () m
+</span><a href="Language.Contract.Parser.html#langDef"><span class="hs-identifier hs-var">langDef</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">opLetter :: ParsecT String () m Char
+</span><span class="hs-identifier hs-var">opLetter</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; ParsecT String () m Char
+forall s (m :: * -&gt; *) u.
+Stream s m Char =&gt;
+String -&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">oneOf</span></span><span> </span><span class="annot"><span class="hs-string">&quot;:!#$%&amp;*+./&lt;=&gt;?@\\^|-~&quot;</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">reservedOpNames :: [String]
+</span><span class="hs-identifier hs-var">reservedOpNames</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;\\&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;-&gt;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;.&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;&amp;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;|&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;=&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">reservedNames :: [String]
+</span><span class="hs-identifier hs-var">reservedNames</span></span><span>   </span><span class="hs-glyph">=</span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="hs-string">&quot;if&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;then&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;else&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;let&quot;</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;unit&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;true&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;false&quot;</span></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;iszero&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;pred&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;succ&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;not&quot;</span></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;Unit&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;Nat&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;Bool&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">caseSensitive :: Bool
+</span><span class="hs-identifier hs-var">caseSensitive</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span id="local-6989586621679123983"><span class="annot"><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-type">lexer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679123983"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GenTokenParser</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123983"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-35"></span><span id="lexer"><span class="annot"><span class="annottext">lexer :: GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var hs-var">lexer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenLanguageDef String () m -&gt; GenTokenParser String () m
+forall s (m :: * -&gt; *) u.
+Stream s m Char =&gt;
+GenLanguageDef s u m -&gt; GenTokenParser s u m
+</span><span class="hs-identifier hs-var">makeTokenParser</span></span><span> </span><span class="annot"><span class="annottext">GenLanguageDef String () m
+forall (m :: * -&gt; *). Monad m =&gt; GenLanguageDef String () m
+</span><a href="Language.Contract.Parser.html#langDef"><span class="hs-identifier hs-var">langDef</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Language.Contract.Parser.html#unit"><span class="hs-keyword hs-type">unit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-38"></span><span id="unit"><span class="annot"><span class="annottext">unit :: Parser Term
+</span><a href="Language.Contract.Parser.html#unit"><span class="hs-keyword hs-var hs-var">unit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="Language.Contract.AST.html#Unit"><span class="hs-identifier hs-var">Unit</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;unit&quot;</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Language.Contract.Parser.html#nat"><span class="hs-identifier hs-type">nat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-41"></span><span id="nat"><span class="annot"><span class="annottext">nat :: Parser Term
+</span><a href="Language.Contract.Parser.html#nat"><span class="hs-identifier hs-var hs-var">nat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
+</span><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-var">Natural</span></a></span><span> </span><span class="annot"><span class="annottext">(Natural -&gt; Term) -&gt; (Integer -&gt; Natural) -&gt; Integer -&gt; Term
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Natural
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Term)
+-&gt; ParsecT String () (Reader [String]) Integer -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) Integer
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; ParsecT s u m Integer
+</span><span class="hs-identifier hs-var hs-var">natural</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><a href="Language.Contract.Parser.html#bool"><span class="hs-identifier hs-type">bool</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-44"></span><span id="bool"><span class="annot"><span class="annottext">bool :: Parser Term
+</span><a href="Language.Contract.Parser.html#bool"><span class="hs-identifier hs-var hs-var">bool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Term
+</span><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-var">Boolean</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;true&quot;</span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Term
+</span><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-var">Boolean</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;false&quot;</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Language.Contract.Parser.html#predict"><span class="hs-identifier hs-type">predict</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-48"></span><span id="predict"><span class="annot"><span class="annottext">predict :: Parser Term
+</span><a href="Language.Contract.Parser.html#predict"><span class="hs-identifier hs-var hs-var">predict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; forall a.
+   ParsecT String () (Reader [String]) a
+   -&gt; ParsecT String () (Reader [String]) a
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">braces</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">(Parser Term -&gt; Parser Term) -&gt; Parser Term -&gt; Parser Term
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;\\&quot;</span></span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621679123858"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123858"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) String
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; ParsecT s u m String
+</span><span class="hs-identifier hs-var hs-var">identifier</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679123856"><span class="annot"><span class="annottext">env :: Parser Term -&gt; Parser Term
+</span><a href="#local-6989586621679123856"><span class="hs-identifier hs-var hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123858"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="hs-string">&quot;_&quot;</span></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">([String] -&gt; [String]) -&gt; Parser Term -&gt; Parser Term
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123858"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; [String]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;.&quot;</span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+</span><a href="#local-6989586621679123856"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-type">type_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span>
+</span><span id="line-56"></span><span id="type_"><span class="annot"><span class="annottext">type_ :: Parser Type
+</span><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-var hs-var">type_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; Parser Type -&gt; Parser Type
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">parens</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Type
+</span><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-var">type_</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">Parser Type -&gt; Parser Type -&gt; Parser Type
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Type
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Nat&quot;</span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Parser Type -&gt; Parser Type -&gt; Parser Type
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Type
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Bool&quot;</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><span class="annottext">Parser Type -&gt; Parser Type -&gt; Parser Type
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="Language.Contract.AST.html#TUnit"><span class="hs-identifier hs-var">TUnit</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; ParsecT String () (Reader [String]) () -&gt; Parser Type
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;Unit&quot;</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">Parser Type -&gt; Parser Type -&gt; Parser Type
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Type -&gt; Type -&gt; Type
+</span><a href="Language.Contract.AST.html#TArrow"><span class="hs-identifier hs-var">TArrow</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Type -&gt; Type -&gt; Type)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Type -&gt; Type -&gt; Type)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#predict"><span class="hs-identifier hs-var">predict</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Type -&gt; Type -&gt; Type)
+-&gt; Parser Type
+-&gt; ParsecT String () (Reader [String]) (Type -&gt; Type)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Type
+</span><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-var">type_</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Type -&gt; Type)
+-&gt; ParsecT String () (Reader [String]) ()
+-&gt; ParsecT String () (Reader [String]) (Type -&gt; Type)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;-&gt;&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Type -&gt; Type)
+-&gt; Parser Type -&gt; Parser Type
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Type
+</span><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-var">type_</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Language.Contract.Parser.html#atom"><span class="hs-identifier hs-type">atom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-63"></span><span id="atom"><span class="annot"><span class="annottext">atom :: Parser Term
+</span><a href="Language.Contract.Parser.html#atom"><span class="hs-identifier hs-var hs-var">atom</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621679123843"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123843"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) String
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; ParsecT s u m String
+</span><span class="hs-identifier hs-var hs-var">identifier</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="annottext">Bool
+-&gt; ParsecT String () (Reader [String]) ()
+-&gt; ParsecT String () (Reader [String]) ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123843"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-string">&quot;_&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; ParsecT String () (Reader [String]) ()
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Unexpected wildcard '_'.&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621679123841"><span class="annot"><span class="annottext">[(String, Natural)]
+</span><a href="#local-6989586621679123841"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">([String] -&gt; [(String, Natural)])
+-&gt; ParsecT String () (Reader [String]) [(String, Natural)]
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[String] -&gt; [Natural] -&gt; [(String, Natural)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-operator hs-var">`zip`</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String -&gt; [(String, Natural)] -&gt; Maybe Natural
+forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123843"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[(String, Natural)]
+</span><a href="#local-6989586621679123841"><span class="hs-identifier hs-var">names</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679123838"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679123838"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Parser Term
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term
+</span><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-var">Atom</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
+</span><a href="#local-6989586621679123838"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Parser Term
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unbound variable.&quot;</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Language.Contract.Parser.html#lambda"><span class="hs-identifier hs-type">lambda</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-72"></span><span id="lambda"><span class="annot"><span class="annottext">lambda :: Parser Term
+</span><a href="Language.Contract.Parser.html#lambda"><span class="hs-identifier hs-var hs-var">lambda</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;\\&quot;</span></span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621679123835"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123835"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) String
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; ParsecT s u m String
+</span><span class="hs-identifier hs-var hs-var">identifier</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621679123834"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679123834"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser Type
+</span><a href="Language.Contract.Parser.html#type_"><span class="hs-identifier hs-var">type_</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679123833"><span class="annot"><span class="annottext">env :: Parser Term -&gt; Parser Term
+</span><a href="#local-6989586621679123833"><span class="hs-identifier hs-var hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123835"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="hs-string">&quot;_&quot;</span></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">([String] -&gt; [String]) -&gt; Parser Term -&gt; Parser Term
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123835"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; [String]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621679123832"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679123832"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Parser Term -&gt; Parser Term
+forall s (m :: * -&gt; *) t a u.
+Stream s m t =&gt;
+a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var">option</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Term
+</span><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-var">Boolean</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Parser Term -&gt; Parser Term) -&gt; Parser Term -&gt; Parser Term
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+</span><a href="#local-6989586621679123833"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">braces</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>  </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;.&quot;</span></span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621679123830"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679123830"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+</span><a href="#local-6989586621679123833"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; Parser Term
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Type -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-var">Lambda</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679123832"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679123834"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679123830"><span class="hs-identifier hs-var">body</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Language.Contract.Parser.html#if_"><span class="hs-identifier hs-type">if_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-84"></span><span id="if_"><span class="annot"><span class="annottext">if_ :: Parser Term
+</span><a href="Language.Contract.Parser.html#if_"><span class="hs-identifier hs-var hs-var">if_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-var">If</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term -&gt; Term -&gt; Term)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;if&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>  </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term -&gt; Term)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;then&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;else&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="annot"><a href="Language.Contract.Parser.html#assert_"><span class="hs-identifier hs-type">assert_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-89"></span><span id="assert_"><span class="annot"><span class="annottext">assert_ :: Parser Term
+</span><a href="Language.Contract.Parser.html#assert_"><span class="hs-identifier hs-var hs-var">assert_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Assert"><span class="hs-identifier hs-var">Assert</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term -&gt; Term)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">braces</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-type">atomTerm</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-92"></span><span id="atomTerm"><span class="annot"><span class="annottext">atomTerm :: Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var hs-var">atomTerm</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">parens</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#unit"><span class="hs-keyword hs-var">unit</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#nat"><span class="hs-identifier hs-var">nat</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#bool"><span class="hs-identifier hs-var">bool</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#lambda"><span class="hs-identifier hs-var">lambda</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atom"><span class="hs-identifier hs-var">atom</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#if_"><span class="hs-identifier hs-var">if_</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#assert_"><span class="hs-identifier hs-var">assert_</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;iszero&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-var">IsZero</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;pred&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;succ&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-var">Succ</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;not&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Not"><span class="hs-identifier hs-var">Not</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-type">term</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-101"></span><span id="term"><span class="annot"><span class="annottext">term :: Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var hs-var">term</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var">try</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#And"><span class="hs-identifier hs-var">And</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term -&gt; Term)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var">atomTerm</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; ParsecT String () (Reader [String]) ()
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;&amp;&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var">atomTerm</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var">try</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#Or"><span class="hs-identifier hs-var">Or</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term -&gt; Term)
+-&gt; Parser Term
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var">atomTerm</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; ParsecT String () (Reader [String]) ()
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; Term)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;|&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; Term)
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var">atomTerm</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">Parser Term -&gt; Parser Term -&gt; Parser Term
+forall s u (m :: * -&gt; *) a.
+ParsecT s u m a -&gt; ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term -&gt; Term) -&gt; [Term] -&gt; Term
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; a -&gt; a) -&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">foldl1</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-var">App</span></a></span><span> </span><span class="annot"><span class="annottext">([Term] -&gt; Term)
+-&gt; ParsecT String () (Reader [String]) [Term] -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term -&gt; ParsecT String () (Reader [String]) [Term]
+forall s (m :: * -&gt; *) t u a.
+Stream s m t =&gt;
+ParsecT s u m a -&gt; ParsecT s u m [a]
+</span><span class="hs-identifier hs-var">many1</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#atomTerm"><span class="hs-identifier hs-var">atomTerm</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Language.Contract.Parser.html#parseTerm"><span class="hs-identifier hs-type">parseTerm</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ParseError</span></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-106"></span><span id="parseTerm"><span class="annot"><span class="annottext">parseTerm :: String -&gt; Either ParseError Term
+</span><a href="Language.Contract.Parser.html#parseTerm"><span class="hs-identifier hs-var hs-var">parseTerm</span></a></span></span><span> </span><span id="local-6989586621679123813"><span class="annot"><span class="annottext">s :: String
+</span><a href="#local-6989586621679123813"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679123812"><span class="annot"><span class="annottext">prog :: Parser Term
+</span><a href="#local-6989586621679123812"><span class="hs-identifier hs-var hs-var">prog</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *). GenTokenParser s u m -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">whiteSpace</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Term
+-&gt; ParsecT String () (Reader [String]) () -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+forall s (m :: * -&gt; *) t u.
+(Stream s m t, Show t) =&gt;
+ParsecT s u m ()
+</span><span class="hs-identifier hs-var">eof</span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Reader [String] (Either ParseError Term)
+-&gt; [String] -&gt; Either ParseError Term
+forall r a. Reader r a -&gt; r -&gt; a
+</span><span class="hs-identifier hs-var">runReader</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser Term
+-&gt; ()
+-&gt; String
+-&gt; String
+-&gt; Reader [String] (Either ParseError Term)
+forall s (m :: * -&gt; *) t u a.
+Stream s m t =&gt;
+ParsecT s u m a -&gt; u -&gt; String -&gt; s -&gt; m (Either ParseError a)
+</span><span class="hs-identifier hs-var">runParserT</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="#local-6989586621679123812"><span class="hs-identifier hs-var">prog</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-string">&quot;&lt;interactive&gt;&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123813"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Language.Contract.Parser.html#binding"><span class="hs-identifier hs-type">binding</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span id="binding"><span class="annot"><span class="annottext">binding :: Parser (String, Term)
+</span><a href="Language.Contract.Parser.html#binding"><span class="hs-identifier hs-var hs-var">binding</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>  </span><span class="annot"><span class="annottext">(String -&gt; Term -&gt; (String, Term))
+-&gt; ParsecT String () (Reader [String]) String
+-&gt; ParsecT String () (Reader [String]) (Term -&gt; (String, Term))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reserved</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;let&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; ParsecT String () (Reader [String]) String
+-&gt; ParsecT String () (Reader [String]) String
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) String
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; ParsecT s u m String
+</span><span class="hs-identifier hs-var hs-var">identifier</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>  </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) (Term -&gt; (String, Term))
+-&gt; Parser Term -&gt; Parser (String, Term)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; String -&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m -&gt; String -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">reservedOp</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;=&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser Term -&gt; Parser Term
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Term
+</span><a href="Language.Contract.Parser.html#term"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Language.Contract.Parser.html#file"><span class="hs-identifier hs-type">file</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-116"></span><span id="file"><span class="annot"><span class="annottext">file :: Parser [(String, Term)]
+</span><a href="Language.Contract.Parser.html#file"><span class="hs-identifier hs-var hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser (String, Term)
+</span><a href="Language.Contract.Parser.html#binding"><span class="hs-identifier hs-var">binding</span></a></span><span> </span><span class="annot"><span class="annottext">Parser (String, Term)
+-&gt; ParsecT String () (Reader [String]) Char
+-&gt; Parser [(String, Term)]
+forall s (m :: * -&gt; *) t u a sep.
+Stream s m t =&gt;
+ParsecT s u m a -&gt; ParsecT s u m sep -&gt; ParsecT s u m [a]
+</span><span class="hs-operator hs-var">`endBy`</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) Char
+-&gt; ParsecT String () (Reader [String]) Char
+forall s u (m :: * -&gt; *).
+GenTokenParser s u m
+-&gt; forall a. ParsecT s u m a -&gt; ParsecT s u m a
+</span><span class="hs-identifier hs-var hs-var">lexeme</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; ParsecT String () (Reader [String]) Char
+forall s (m :: * -&gt; *) u.
+Stream s m Char =&gt;
+Char -&gt; ParsecT s u m Char
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="hs-char">';'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Language.Contract.Parser.html#parseFile"><span class="hs-identifier hs-type">parseFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ParseError</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-119"></span><span id="parseFile"><span class="annot"><span class="annottext">parseFile :: String -&gt; String -&gt; Either ParseError [(String, Term)]
+</span><a href="Language.Contract.Parser.html#parseFile"><span class="hs-identifier hs-var hs-var">parseFile</span></a></span></span><span> </span><span id="local-6989586621679123803"><span class="annot"><span class="annottext">nm :: String
+</span><a href="#local-6989586621679123803"><span class="hs-identifier hs-var">nm</span></a></span></span><span> </span><span id="local-6989586621679123802"><span class="annot"><span class="annottext">s :: String
+</span><a href="#local-6989586621679123802"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679123801"><span class="annot"><span class="annottext">prog :: Parser [(String, Term)]
+</span><a href="#local-6989586621679123801"><span class="hs-identifier hs-var hs-var">prog</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+-&gt; ParsecT String () (Reader [String]) ()
+forall s u (m :: * -&gt; *). GenTokenParser s u m -&gt; ParsecT s u m ()
+</span><span class="hs-identifier hs-var hs-var">whiteSpace</span></span><span> </span><span class="annot"><span class="annottext">GenTokenParser String () (Reader [String])
+forall (m :: * -&gt; *). Monad m =&gt; GenTokenParser String () m
+</span><a href="Language.Contract.Parser.html#lexer"><span class="hs-identifier hs-var">lexer</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+-&gt; Parser [(String, Term)] -&gt; Parser [(String, Term)]
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser [(String, Term)]
+</span><a href="Language.Contract.Parser.html#file"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">Parser [(String, Term)]
+-&gt; ParsecT String () (Reader [String]) ()
+-&gt; Parser [(String, Term)]
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT String () (Reader [String]) ()
+forall s (m :: * -&gt; *) t u.
+(Stream s m t, Show t) =&gt;
+ParsecT s u m ()
+</span><span class="hs-identifier hs-var">eof</span></span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Reader [String] (Either ParseError [(String, Term)])
+-&gt; [String] -&gt; Either ParseError [(String, Term)]
+forall r a. Reader r a -&gt; r -&gt; a
+</span><span class="hs-identifier hs-var">runReader</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser [(String, Term)]
+-&gt; ()
+-&gt; String
+-&gt; String
+-&gt; Reader [String] (Either ParseError [(String, Term)])
+forall s (m :: * -&gt; *) t u a.
+Stream s m t =&gt;
+ParsecT s u m a -&gt; u -&gt; String -&gt; s -&gt; m (Either ParseError a)
+</span><span class="hs-identifier hs-var">runParserT</span></span><span> </span><span class="annot"><span class="annottext">Parser [(String, Term)]
+</span><a href="#local-6989586621679123801"><span class="hs-identifier hs-var">prog</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123803"><span class="hs-identifier hs-var">nm</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679123802"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-122"></span></pre></body></html>

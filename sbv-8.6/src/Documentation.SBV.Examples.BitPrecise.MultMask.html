@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.BitPrecise.MultMask</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- An SBV solution to the bit-precise puzzle of shuffling the bits in a</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- 64-bit word in a custom order. The idea is to take a 64-bit value:</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--    @1.......2.......3.......4.......5.......6.......7.......8.......@</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- And turn it into another 64-bit value, that looks like this:</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--    @12345678........................................................@</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- We do not care what happens to the bits that are represented by dots. The</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- problem is to do this with one mask and one multiplication.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Apparently this operation has several applications, including in programs</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- that play chess of all things. We use SBV to find the appropriate mask and</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- the multiplier.</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Note that this is an instance of the program synthesis problem, where</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- we &quot;fill in the blanks&quot; given a certain skeleton that satisfy a certain</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- property, using quantified formulas.</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.BitPrecise.MultMask</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Find the multiplier and the mask as described. We have:</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- &gt;&gt;&gt; maskAndMult</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--   mask = 0x8080808080808080 :: Word64</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   mult = 0x0002040810204081 :: Word64</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- That is, any 64 bit value masked by the first and multipled by the second</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- value above will have its bits at positions @[7,15,23,31,39,47,55,63]@ moved</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- to positions @[56,57,58,59,60,61,62,63]@ respectively.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- NB. Depending on your z3 version, you might also get the following</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- multiplier as the result: 0x8202040810204081. That value works just fine as well!</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- Note that we have to use a custom SAT command for this problem, as otherwise it takes too</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- long. See &lt;https://github.com/Z3Prover/z3/issues/2587&gt; for details.</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.MultMask.html#maskAndMult"><span class="hs-identifier hs-type">maskAndMult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span id="maskAndMult"><span class="annot"><span class="annottext">maskAndMult :: IO ()
+</span><a href="Documentation.SBV.Examples.BitPrecise.MultMask.html#maskAndMult"><span class="hs-identifier hs-var hs-var">maskAndMult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SatResult -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(SatResult -&gt; IO ()) -&gt; IO SatResult -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">SMTConfig -&gt; SymbolicT IO SBool -&gt; IO SatResult
+forall a. Provable a =&gt; SMTConfig -&gt; a -&gt; IO SatResult
+</span><a href="Data.SBV.Client.BaseIO.html#satWith"><span class="hs-identifier hs-var">satWith</span></a></span><span> </span><span class="annot"><span class="annottext">SMTConfig
+</span><a href="Data.SBV.Provers.Prover.html#z3"><span class="hs-identifier hs-var">z3</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">printBase :: Int
+</span><a href="Data.SBV.Core.Symbolic.html#printBase"><span class="hs-identifier hs-var">printBase</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="hs-number">16</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">satCmd :: String
+</span><a href="Data.SBV.Core.Symbolic.html#satCmd"><span class="hs-identifier hs-var">satCmd</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;(check-sat-using (and-then simplify smtfd))&quot;</span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool
+</span><a href="#local-6989586621681160196"><span class="hs-identifier hs-var">find</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160196"><span class="annot"><span class="annottext">find :: SymbolicT IO SBool
+</span><a href="#local-6989586621681160196"><span class="hs-identifier hs-var hs-var">find</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681160195"><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160195"><span class="hs-identifier hs-var">mask</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Word64)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mask&quot;</span></span><span>
+</span><span id="line-55"></span><span>                  </span><span id="local-6989586621681160193"><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160193"><span class="hs-identifier hs-var">mult</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Word64)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mult&quot;</span></span><span>
+</span><span id="line-56"></span><span>                  </span><span id="local-6989586621681160192"><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160192"><span class="hs-identifier hs-var">inp</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Word64)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;inp&quot;</span></span><span>
+</span><span id="line-57"></span><span>                  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681160190"><span class="annot"><span class="annottext">res :: SBV Word64
+</span><a href="#local-6989586621681160190"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160195"><span class="hs-identifier hs-var">mask</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word64 -&gt; SBV Word64 -&gt; SBV Word64
+forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.&amp;.</span></span><span> </span><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160192"><span class="hs-identifier hs-var">inp</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBV Word64 -&gt; SBV Word64 -&gt; SBV Word64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160193"><span class="hs-identifier hs-var">mult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord64"><span class="hs-identifier hs-type">SWord64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>                  </span><span class="annot"><span class="annottext">[SBool] -&gt; SymbolicT IO SBool
+</span><a href="Data.SBV.Client.BaseIO.html#solve"><span class="hs-identifier hs-var">solve</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160192"><span class="hs-identifier hs-var">inp</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word64 -&gt; [Int] -&gt; [SBool]
+forall a. SFiniteBits a =&gt; SBV a -&gt; [Int] -&gt; [SBool]
+</span><a href="Data.SBV.Core.Model.html#sExtractBits"><span class="hs-operator hs-var">`sExtractBits`</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">7</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-number">15</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">63</span></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[SBool] -&gt; [SBool] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word64
+</span><a href="#local-6989586621681160190"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word64 -&gt; [Int] -&gt; [SBool]
+forall a. SFiniteBits a =&gt; SBV a -&gt; [Int] -&gt; [SBool]
+</span><a href="Data.SBV.Core.Model.html#sExtractBits"><span class="hs-operator hs-var">`sExtractBits`</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-number">56</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="hs-number">63</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span></pre></body></html>

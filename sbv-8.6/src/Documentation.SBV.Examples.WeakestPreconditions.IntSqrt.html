@@ -1,0 +1,645 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.WeakestPreconditions.IntSqrt</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Proof of correctness of an imperative integer square-root algorithm, using</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- weakest preconditions. The algorithm computes the floor of the square-root</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- of a given non-negative integer by keeping a running some of all odd numbers</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- starting from 1. Recall that @1+3+5+...+(2n+1) = (n+1)^2@, thus we can</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- stop the counting when we exceed the input number.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass        #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE DeriveFoldable        #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric         #-}</span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# LANGUAGE DeriveTraversable     #-}</span><span>
+</span><span id="line-20"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><span id="line-21"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-22"></span><span class="hs-pragma">{-# LANGUAGE NamedFieldPuns        #-}</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.WeakestPreconditions.IntSqrt</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Control.html"><span class="hs-identifier">Data.SBV.Control</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html"><span class="hs-identifier">Data.SBV.Tools.WeakestPreconditions</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">sqrt</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- * Program state</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | The state for the division program, parameterized over a base type @a@.</span><span>
+</span><span id="line-40"></span><span id="local-6989586621681172095"><span id="local-6989586621681172096"></span></span><span class="hs-keyword">data</span><span> </span><span id="SqrtS"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-var">SqrtS</span></a></span></span><span> </span><span id="local-6989586621681172141"><span class="annot"><a href="#local-6989586621681172141"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SqrtS"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-var">SqrtS</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="x"><span class="annot"><span class="annottext">SqrtS a -&gt; a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#x"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681172141"><span class="hs-identifier hs-type">a</span></a></span><span>   </span><span class="hs-comment">-- ^ The input</span><span>
+</span><span id="line-41"></span><span>                     </span><span class="hs-special">,</span><span> </span><span id="sqrt"><span class="annot"><span class="annottext">SqrtS a -&gt; a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#sqrt"><span class="hs-identifier hs-var hs-var">sqrt</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681172141"><span class="hs-identifier hs-type">a</span></a></span><span>   </span><span class="hs-comment">-- ^ The floor of the square root</span><span>
+</span><span id="line-42"></span><span>                     </span><span class="hs-special">,</span><span> </span><span id="i"><span class="annot"><span class="annottext">SqrtS a -&gt; a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#i"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681172141"><span class="hs-identifier hs-type">a</span></a></span><span>   </span><span class="hs-comment">-- ^ Successive squares, as the sum of j's</span><span>
+</span><span id="line-43"></span><span>                     </span><span class="hs-special">,</span><span> </span><span id="j"><span class="annot"><span class="annottext">SqrtS a -&gt; a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#j"><span class="hs-identifier hs-var hs-var">j</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681172141"><span class="hs-identifier hs-type">a</span></a></span><span>   </span><span class="hs-comment">-- ^ Successive odds</span><span>
+</span><span id="line-44"></span><span>                     </span><span class="hs-special">}</span><span>
+</span><span id="line-45"></span><span>                     </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681172084"><span id="local-6989586621681172086"><span id="local-6989586621681172088"><span class="annot"><span class="annottext">Int -&gt; SqrtS a -&gt; ShowS
+[SqrtS a] -&gt; ShowS
+SqrtS a -&gt; String
+(Int -&gt; SqrtS a -&gt; ShowS)
+-&gt; (SqrtS a -&gt; String) -&gt; ([SqrtS a] -&gt; ShowS) -&gt; Show (SqrtS a)
+forall a. Show a =&gt; Int -&gt; SqrtS a -&gt; ShowS
+forall a. Show a =&gt; [SqrtS a] -&gt; ShowS
+forall a. Show a =&gt; SqrtS a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [SqrtS a] -&gt; ShowS
+$cshowList :: forall a. Show a =&gt; [SqrtS a] -&gt; ShowS
+show :: SqrtS a -&gt; String
+$cshow :: forall a. Show a =&gt; SqrtS a -&gt; String
+showsPrec :: Int -&gt; SqrtS a -&gt; ShowS
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; SqrtS a -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. SqrtS a -&gt; Rep (SqrtS a) x)
+-&gt; (forall x. Rep (SqrtS a) x -&gt; SqrtS a) -&gt; Generic (SqrtS a)
+forall x. Rep (SqrtS a) x -&gt; SqrtS a
+forall x. SqrtS a -&gt; Rep (SqrtS a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (SqrtS a) x -&gt; SqrtS a
+forall a x. SqrtS a -&gt; Rep (SqrtS a) x
+$cto :: forall a x. Rep (SqrtS a) x -&gt; SqrtS a
+$cfrom :: forall a x. SqrtS a -&gt; Rep (SqrtS a) x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172076"><span id="local-6989586621681172078"><span class="annot"><span class="annottext">Bool -&gt; SBool -&gt; SqrtS a -&gt; SqrtS a -&gt; SqrtS a
+(Bool -&gt; SBool -&gt; SqrtS a -&gt; SqrtS a -&gt; SqrtS a)
+-&gt; (forall b.
+    (Ord b, SymVal b, Num b) =&gt;
+    [SqrtS a] -&gt; SqrtS a -&gt; SBV b -&gt; SqrtS a)
+-&gt; Mergeable (SqrtS a)
+forall b.
+(Ord b, SymVal b, Num b) =&gt;
+[SqrtS a] -&gt; SqrtS a -&gt; SBV b -&gt; SqrtS a
+forall a.
+Mergeable a =&gt;
+Bool -&gt; SBool -&gt; SqrtS a -&gt; SqrtS a -&gt; SqrtS a
+forall a b.
+(Mergeable a, Ord b, SymVal b, Num b) =&gt;
+[SqrtS a] -&gt; SqrtS a -&gt; SBV b -&gt; SqrtS a
+forall a.
+(Bool -&gt; SBool -&gt; a -&gt; a -&gt; a)
+-&gt; (forall b. (Ord b, SymVal b, Num b) =&gt; [a] -&gt; a -&gt; SBV b -&gt; a)
+-&gt; Mergeable a
+select :: [SqrtS a] -&gt; SqrtS a -&gt; SBV b -&gt; SqrtS a
+$cselect :: forall a b.
+(Mergeable a, Ord b, SymVal b, Num b) =&gt;
+[SqrtS a] -&gt; SqrtS a -&gt; SBV b -&gt; SqrtS a
+symbolicMerge :: Bool -&gt; SBool -&gt; SqrtS a -&gt; SqrtS a -&gt; SqrtS a
+$csymbolicMerge :: forall a.
+Mergeable a =&gt;
+Bool -&gt; SBool -&gt; SqrtS a -&gt; SqrtS a -&gt; SqrtS a
+</span><a href="Data.SBV.Core.Model.html#C%3AMergeable"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Mergeable</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172071"><span id="local-6989586621681172073"><span class="annot"><span class="annottext">a -&gt; SqrtS b -&gt; SqrtS a
+(a -&gt; b) -&gt; SqrtS a -&gt; SqrtS b
+(forall a b. (a -&gt; b) -&gt; SqrtS a -&gt; SqrtS b)
+-&gt; (forall a b. a -&gt; SqrtS b -&gt; SqrtS a) -&gt; Functor SqrtS
+forall a b. a -&gt; SqrtS b -&gt; SqrtS a
+forall a b. (a -&gt; b) -&gt; SqrtS a -&gt; SqrtS b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: a -&gt; SqrtS b -&gt; SqrtS a
+$c&lt;$ :: forall a b. a -&gt; SqrtS b -&gt; SqrtS a
+fmap :: (a -&gt; b) -&gt; SqrtS a -&gt; SqrtS b
+$cfmap :: forall a b. (a -&gt; b) -&gt; SqrtS a -&gt; SqrtS b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172036"><span id="local-6989586621681172038"><span id="local-6989586621681172040"><span id="local-6989586621681172042"><span id="local-6989586621681172044"><span id="local-6989586621681172046"><span id="local-6989586621681172048"><span id="local-6989586621681172050"><span id="local-6989586621681172052"><span id="local-6989586621681172054"><span id="local-6989586621681172056"><span id="local-6989586621681172058"><span id="local-6989586621681172060"><span id="local-6989586621681172062"><span id="local-6989586621681172064"><span id="local-6989586621681172066"><span id="local-6989586621681172068"><span class="annot"><span class="annottext">SqrtS a -&gt; Bool
+(a -&gt; m) -&gt; SqrtS a -&gt; m
+(a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+(forall m. Monoid m =&gt; SqrtS m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SqrtS a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SqrtS a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a)
+-&gt; (forall a. SqrtS a -&gt; [a])
+-&gt; (forall a. SqrtS a -&gt; Bool)
+-&gt; (forall a. SqrtS a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; SqrtS a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; SqrtS a -&gt; a)
+-&gt; (forall a. Ord a =&gt; SqrtS a -&gt; a)
+-&gt; (forall a. Num a =&gt; SqrtS a -&gt; a)
+-&gt; (forall a. Num a =&gt; SqrtS a -&gt; a)
+-&gt; Foldable SqrtS
+forall a. Eq a =&gt; a -&gt; SqrtS a -&gt; Bool
+forall a. Num a =&gt; SqrtS a -&gt; a
+forall a. Ord a =&gt; SqrtS a -&gt; a
+forall m. Monoid m =&gt; SqrtS m -&gt; m
+forall a. SqrtS a -&gt; Bool
+forall a. SqrtS a -&gt; Int
+forall a. SqrtS a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SqrtS a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+product :: SqrtS a -&gt; a
+$cproduct :: forall a. Num a =&gt; SqrtS a -&gt; a
+sum :: SqrtS a -&gt; a
+$csum :: forall a. Num a =&gt; SqrtS a -&gt; a
+minimum :: SqrtS a -&gt; a
+$cminimum :: forall a. Ord a =&gt; SqrtS a -&gt; a
+maximum :: SqrtS a -&gt; a
+$cmaximum :: forall a. Ord a =&gt; SqrtS a -&gt; a
+elem :: a -&gt; SqrtS a -&gt; Bool
+$celem :: forall a. Eq a =&gt; a -&gt; SqrtS a -&gt; Bool
+length :: SqrtS a -&gt; Int
+$clength :: forall a. SqrtS a -&gt; Int
+null :: SqrtS a -&gt; Bool
+$cnull :: forall a. SqrtS a -&gt; Bool
+toList :: SqrtS a -&gt; [a]
+$ctoList :: forall a. SqrtS a -&gt; [a]
+foldl1 :: (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a
+foldr1 :: (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; SqrtS a -&gt; a
+foldl' :: (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+foldl :: (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+foldr' :: (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+foldr :: (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SqrtS a -&gt; b
+foldMap' :: (a -&gt; m) -&gt; SqrtS a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SqrtS a -&gt; m
+foldMap :: (a -&gt; m) -&gt; SqrtS a -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SqrtS a -&gt; m
+fold :: SqrtS m -&gt; m
+$cfold :: forall m. Monoid m =&gt; SqrtS m -&gt; m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681172025"><span id="local-6989586621681172027"><span id="local-6989586621681172029"><span id="local-6989586621681172031"><span class="annot"><span class="annottext">Functor SqrtS
+Foldable SqrtS
+(Functor SqrtS, Foldable SqrtS) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; SqrtS a -&gt; f (SqrtS b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    SqrtS (f a) -&gt; f (SqrtS a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; SqrtS a -&gt; m (SqrtS b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; SqrtS (m a) -&gt; m (SqrtS a))
+-&gt; Traversable SqrtS
+(a -&gt; f b) -&gt; SqrtS a -&gt; f (SqrtS b)
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; SqrtS (m a) -&gt; m (SqrtS a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; SqrtS (f a) -&gt; f (SqrtS a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SqrtS a -&gt; m (SqrtS b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SqrtS a -&gt; f (SqrtS b)
+sequence :: SqrtS (m a) -&gt; m (SqrtS a)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; SqrtS (m a) -&gt; m (SqrtS a)
+mapM :: (a -&gt; m b) -&gt; SqrtS a -&gt; m (SqrtS b)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SqrtS a -&gt; m (SqrtS b)
+sequenceA :: SqrtS (f a) -&gt; f (SqrtS a)
+$csequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; SqrtS (f a) -&gt; f (SqrtS a)
+traverse :: (a -&gt; f b) -&gt; SqrtS a -&gt; f (SqrtS b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SqrtS a -&gt; f (SqrtS b)
+$cp2Traversable :: Foldable SqrtS
+$cp1Traversable :: Functor SqrtS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Show instance for 'SqrtS'. The above deriving clause would work just as well,</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- but we want it to be a little prettier here, and hence the @OVERLAPS@ directive.</span><span>
+</span><span id="line-49"></span><span id="local-6989586621681172023"><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPS</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span id="local-6989586621681172018"><span id="local-6989586621681172021"><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681172023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>   </span><span id="local-6989586621681172017"><span class="annot"><span class="annottext">show :: SqrtS (SBV a) -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span> </span><span id="local-6989586621681172015"><span class="annot"><span class="annottext">x :: SBV a
+</span><a href="#local-6989586621681172015"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681172014"><span class="annot"><span class="annottext">sqrt :: SBV a
+</span><a href="#local-6989586621681172014"><span class="hs-identifier hs-var">sqrt</span></a></span></span><span> </span><span id="local-6989586621681172013"><span class="annot"><span class="annottext">i :: SBV a
+</span><a href="#local-6989586621681172013"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681172012"><span class="annot"><span class="annottext">j :: SBV a
+</span><a href="#local-6989586621681172012"><span class="hs-identifier hs-var">j</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;{x = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172011"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172015"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, sqrt = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172011"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172014"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, i = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172011"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172013"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;, j = &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; String
+forall a. (SymVal a, Show a) =&gt; SBV a -&gt; String
+</span><a href="#local-6989586621681172011"><span class="hs-identifier hs-var">sh</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172012"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot;}&quot;</span></span><span>
+</span><span id="line-51"></span><span>     </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681172011"><span class="annot"><span class="annottext">sh :: SBV a -&gt; String
+</span><a href="#local-6989586621681172011"><span class="hs-identifier hs-var hs-var">sh</span></a></span></span><span> </span><span id="local-6989586621681172010"><span class="annot"><span class="annottext">v :: SBV a
+</span><a href="#local-6989586621681172010"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; Maybe a
+forall a. SymVal a =&gt; SBV a -&gt; Maybe a
+</span><a href="Data.SBV.Core.Data.html#unliteral"><span class="hs-identifier hs-var">unliteral</span></a></span><span> </span><span class="annot"><span class="annottext">SBV a
+</span><a href="#local-6989586621681172010"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-52"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-string">&quot;&lt;symbolic&gt;&quot;</span></span><span>
+</span><span id="line-53"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681172008"><span class="annot"><span class="annottext">l :: a
+</span><a href="#local-6989586621681172008"><span class="hs-identifier hs-var">l</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681172008"><span class="hs-identifier hs-var">l</span></a></span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | 'Fresh' instance for the program state</span><span>
+</span><span id="line-56"></span><span id="local-6989586621681172007"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172007"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.SBV.Control.Utils.html#SMTValue"><span class="hs-identifier hs-type">SMTValue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172007"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Fresh"><span class="hs-identifier hs-type">Fresh</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681172007"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>  </span><span id="local-6989586621681172004"><span class="annot"><span class="annottext">fresh :: QueryT IO (SqrtS (SBV a))
+</span><a href="Data.SBV.Core.Symbolic.html#fresh"><span class="hs-identifier hs-var hs-var hs-var hs-var">fresh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBV a -&gt; SBV a -&gt; SBV a -&gt; SBV a -&gt; SqrtS (SBV a)
+forall a. a -&gt; a -&gt; a -&gt; a -&gt; SqrtS a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-var">SqrtS</span></a></span><span> </span><span class="annot"><span class="annottext">(SBV a -&gt; SBV a -&gt; SBV a -&gt; SBV a -&gt; SqrtS (SBV a))
+-&gt; QueryT IO (SBV a)
+-&gt; QueryT IO (SBV a -&gt; SBV a -&gt; SBV a -&gt; SqrtS (SBV a))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span>  </span><span class="annot"><span class="annottext">QueryT IO (SBV a -&gt; SBV a -&gt; SBV a -&gt; SqrtS (SBV a))
+-&gt; QueryT IO (SBV a) -&gt; QueryT IO (SBV a -&gt; SBV a -&gt; SqrtS (SBV a))
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a -&gt; SBV a -&gt; SqrtS (SBV a))
+-&gt; QueryT IO (SBV a) -&gt; QueryT IO (SBV a -&gt; SqrtS (SBV a))
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a -&gt; SqrtS (SBV a))
+-&gt; QueryT IO (SBV a) -&gt; QueryT IO (SqrtS (SBV a))
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryT IO (SBV a)
+forall a. SymVal a =&gt; Query (SBV a)
+</span><a href="Data.SBV.Control.BaseIO.html#freshVar_"><span class="hs-identifier hs-var">freshVar_</span></a></span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | Helper type synonym</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">type</span><span> </span><span id="S"><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-var">S</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- * The algorithm</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- | The imperative square-root algorithm, assuming non-negative @x@</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--    sqrt = 0                  -- set sqrt to 0</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--    i    = 1                  -- set i to 1, sum of j's so far</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--    j    = 1                  -- set j to be the first odd number i</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--    while i &lt;= x              -- while the sum hasn't exceeded x yet</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--      sqrt = sqrt + 1              -- increase the sqrt</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--      j    = j + 2                 -- next odd number</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--      i    = i + j                 -- running sum of j's</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- Note that we need to explicitly annotate each loop with its invariant and the termination</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- measure. For convenience, we take those two as parameters for simplicity.</span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#algorithm"><span class="hs-identifier hs-type">algorithm</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Stmt"><span class="hs-identifier hs-type">Stmt</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-79"></span><span id="algorithm"><span class="annot"><span class="annottext">algorithm :: Invariant S -&gt; Maybe (Measure S) -&gt; Stmt S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#algorithm"><span class="hs-identifier hs-var hs-var">algorithm</span></a></span></span><span> </span><span id="local-6989586621681171999"><span class="annot"><span class="annottext">inv :: Invariant S
+</span><a href="#local-6989586621681171999"><span class="hs-identifier hs-var">inv</span></a></span></span><span> </span><span id="local-6989586621681171998"><span class="annot"><span class="annottext">msr :: Maybe (Measure S)
+</span><a href="#local-6989586621681171998"><span class="hs-identifier hs-var">msr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Stmt S] -&gt; Stmt S
+forall st. [Stmt st] -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Seq"><span class="hs-identifier hs-var">Seq</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String -&gt; Invariant S -&gt; Stmt S
+forall st. String -&gt; (st -&gt; SBool) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#assert"><span class="hs-identifier hs-var">assert</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x &gt;= 0&quot;</span></span><span> </span><span class="annot"><span class="annottext">(Invariant S -&gt; Stmt S) -&gt; Invariant S -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171995"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171995"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171995"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-80"></span><span>                        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(S -&gt; S) -&gt; Stmt S
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((S -&gt; S) -&gt; Stmt S) -&gt; (S -&gt; S) -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681171992"><span class="annot"><span class="annottext">st :: S
+</span><a href="#local-6989586621681171992"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">S
+</span><a href="#local-6989586621681171992"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">sqrt :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#sqrt"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">i :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#i"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">j :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#j"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">}</span><span>
+</span><span id="line-81"></span><span>                        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; Invariant S
+-&gt; Maybe (Measure S)
+-&gt; Invariant S
+-&gt; Stmt S
+-&gt; Stmt S
+forall st.
+String
+-&gt; Invariant st
+-&gt; Maybe (Measure st)
+-&gt; Invariant st
+-&gt; Stmt st
+-&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#While"><span class="hs-identifier hs-var">While</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;i &lt;= x&quot;</span></span><span>
+</span><span id="line-82"></span><span>                                </span><span class="annot"><span class="annottext">Invariant S
+</span><a href="#local-6989586621681171999"><span class="hs-identifier hs-var">inv</span></a></span><span>
+</span><span id="line-83"></span><span>                                </span><span class="annot"><span class="annottext">Maybe (Measure S)
+</span><a href="#local-6989586621681171998"><span class="hs-identifier hs-var">msr</span></a></span><span>
+</span><span id="line-84"></span><span>                                </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171990"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171990"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171989"><span class="annot"><span class="annottext">SInteger
+i :: SInteger
+i :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171989"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171989"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171990"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>                                </span><span class="annot"><span class="annottext">(Stmt S -&gt; Stmt S) -&gt; Stmt S -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Stmt S] -&gt; Stmt S
+forall st. [Stmt st] -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Seq"><span class="hs-identifier hs-var">Seq</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">(S -&gt; S) -&gt; Stmt S
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((S -&gt; S) -&gt; Stmt S) -&gt; (S -&gt; S) -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681171987"><span class="annot"><span class="annottext">st :: S
+</span><a href="#local-6989586621681171987"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171986"><span class="annot"><span class="annottext">SInteger
+sqrt :: SInteger
+sqrt :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171986"><span class="hs-identifier hs-var hs-var">sqrt</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">S
+</span><a href="#local-6989586621681171987"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">sqrt :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#sqrt"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171986"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">}</span><span>
+</span><span id="line-86"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(S -&gt; S) -&gt; Stmt S
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((S -&gt; S) -&gt; Stmt S) -&gt; (S -&gt; S) -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681171984"><span class="annot"><span class="annottext">st :: S
+</span><a href="#local-6989586621681171984"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171983"><span class="annot"><span class="annottext">SInteger
+j :: SInteger
+j :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171983"><span class="hs-identifier hs-var hs-var">j</span></a></span></span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">S
+</span><a href="#local-6989586621681171984"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">j :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#j"><span class="hs-identifier hs-var">j</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171983"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">}</span><span>
+</span><span id="line-87"></span><span>                                      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(S -&gt; S) -&gt; Stmt S
+forall st. (st -&gt; st) -&gt; Stmt st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Assign"><span class="hs-identifier hs-var">Assign</span></a></span><span> </span><span class="annot"><span class="annottext">((S -&gt; S) -&gt; Stmt S) -&gt; (S -&gt; S) -&gt; Stmt S
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681171982"><span class="annot"><span class="annottext">st :: S
+</span><a href="#local-6989586621681171982"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171981"><span class="annot"><span class="annottext">SInteger
+i :: SInteger
+i :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171981"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171980"><span class="annot"><span class="annottext">SInteger
+j :: SInteger
+j :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171980"><span class="hs-identifier hs-var hs-var">j</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">S
+</span><a href="#local-6989586621681171982"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">i :: SInteger
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#i"><span class="hs-identifier hs-var">i</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171981"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171980"><span class="hs-identifier hs-var">j</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-88"></span><span>                                      </span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span><span>                        </span><span class="hs-special">]</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- | Precondition for our program: @x@ must be non-negative. Note that there is an explicit</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- call to 'Data.SBV.Tools.WeakestPreconditions.abort' in our program to protect against this case, so if we do not have this</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- precondition, all programs will fail.</span><span>
+</span><span id="line-94"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#pre"><span class="hs-identifier hs-type">pre</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-95"></span><span id="pre"><span class="annot"><span class="annottext">pre :: Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#pre"><span class="hs-identifier hs-var hs-var">pre</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171978"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171978"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171978"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Postcondition for our program: The @sqrt@ squared must be less than or equal to @x@, and</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- @sqrt+1@ squared must strictly exceed @x@.</span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#post"><span class="hs-identifier hs-type">post</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-100"></span><span id="post"><span class="annot"><span class="annottext">post :: Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#post"><span class="hs-identifier hs-var hs-var">post</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171976"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171976"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171975"><span class="annot"><span class="annottext">SInteger
+sqrt :: SInteger
+sqrt :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171975"><span class="hs-identifier hs-var hs-var">sqrt</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a
+</span><a href="#local-6989586621681171974"><span class="hs-identifier hs-var">sq</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171975"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171976"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a
+</span><a href="#local-6989586621681171974"><span class="hs-identifier hs-var">sq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171975"><span class="hs-identifier hs-var">sqrt</span></a></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171976"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681171974"><span class="annot"><span class="annottext">sq :: a -&gt; a
+</span><a href="#local-6989586621681171974"><span class="hs-identifier hs-var hs-var">sq</span></a></span></span><span> </span><span id="local-6989586621681171971"><span class="annot"><span class="annottext">n :: a
+</span><a href="#local-6989586621681171971"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681171971"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681171971"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- | Stability condition: Program must leave @x@ unchanged.</span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#noChange"><span class="hs-identifier hs-type">noChange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Stable"><span class="hs-identifier hs-type">Stable</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-105"></span><span id="noChange"><span class="annot"><span class="annottext">noChange :: Stable S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#noChange"><span class="hs-identifier hs-var hs-var">noChange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String -&gt; (S -&gt; SInteger) -&gt; S -&gt; S -&gt; (String, SBool)
+forall a st.
+EqSymbolic a =&gt;
+String -&gt; (st -&gt; a) -&gt; st -&gt; st -&gt; (String, SBool)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#stable"><span class="hs-identifier hs-var">stable</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;x&quot;</span></span><span> </span><span class="annot"><span class="annottext">S -&gt; SInteger
+forall a. SqrtS a -&gt; a
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#x"><span class="hs-identifier hs-var hs-var">x</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- | A program is the algorithm, together with its pre- and post-conditions.</span><span>
+</span><span id="line-108"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#imperativeSqrt"><span class="hs-identifier hs-type">imperativeSqrt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-109"></span><span id="imperativeSqrt"><span class="annot"><span class="annottext">imperativeSqrt :: Invariant S -&gt; Maybe (Measure S) -&gt; Program S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#imperativeSqrt"><span class="hs-identifier hs-var hs-var">imperativeSqrt</span></a></span></span><span> </span><span id="local-6989586621681171966"><span class="annot"><span class="annottext">inv :: Invariant S
+</span><a href="#local-6989586621681171966"><span class="hs-identifier hs-var">inv</span></a></span></span><span> </span><span id="local-6989586621681171965"><span class="annot"><span class="annottext">msr :: Maybe (Measure S)
+</span><a href="#local-6989586621681171965"><span class="hs-identifier hs-var">msr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Program :: forall st.
+Symbolic ()
+-&gt; (st -&gt; SBool)
+-&gt; Stmt st
+-&gt; (st -&gt; SBool)
+-&gt; Stable st
+-&gt; Program st
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#Program"><span class="hs-identifier hs-type hs-type">Program</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">setup :: Symbolic ()
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#setup"><span class="hs-identifier hs-var">setup</span></a></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; Symbolic ()
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">precondition :: Invariant S
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#precondition"><span class="hs-identifier hs-var">precondition</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#pre"><span class="hs-identifier hs-var">pre</span></a></span><span>
+</span><span id="line-111"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">program :: Stmt S
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#program"><span class="hs-identifier hs-var">program</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant S -&gt; Maybe (Measure S) -&gt; Stmt S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#algorithm"><span class="hs-identifier hs-var">algorithm</span></a></span><span> </span><span class="annot"><span class="annottext">Invariant S
+</span><a href="#local-6989586621681171966"><span class="hs-identifier hs-var">inv</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Measure S)
+</span><a href="#local-6989586621681171965"><span class="hs-identifier hs-var">msr</span></a></span><span>
+</span><span id="line-112"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">postcondition :: Invariant S
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#postcondition"><span class="hs-identifier hs-var">postcondition</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#post"><span class="hs-identifier hs-var">post</span></a></span><span>
+</span><span id="line-113"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">stability :: Stable S
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#stability"><span class="hs-identifier hs-var">stability</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Stable S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#noChange"><span class="hs-identifier hs-var">noChange</span></a></span><span>
+</span><span id="line-114"></span><span>                                 </span><span class="hs-special">}</span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- * Correctness</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- | The invariant is that at each iteration of the loop @sqrt@ remains below or equal</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- to the actual square-root, and @i@ tracks the square of the next value. We also</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- have that @j@ is the @sqrt@'th odd value. Coming up with this invariant is not for</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- the faint of heart, for details I would strongly recommend looking at Manna's seminal</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- /Mathematical Theory of Computation/ book (chapter 3). The @j .&gt; 0@ part is needed</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- to establish the termination.</span><span>
+</span><span id="line-124"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#invariant"><span class="hs-identifier hs-type">invariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Invariant"><span class="hs-identifier hs-type">Invariant</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-125"></span><span id="invariant"><span class="annot"><span class="annottext">invariant :: Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#invariant"><span class="hs-identifier hs-var hs-var">invariant</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171956"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171956"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171955"><span class="annot"><span class="annottext">SInteger
+sqrt :: SInteger
+sqrt :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171955"><span class="hs-identifier hs-var hs-var">sqrt</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171954"><span class="annot"><span class="annottext">SInteger
+i :: SInteger
+i :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171954"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171953"><span class="annot"><span class="annottext">SInteger
+j :: SInteger
+j :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171953"><span class="hs-identifier hs-var hs-var">j</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171953"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E"><span class="hs-operator hs-var">.&gt;</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a
+</span><a href="#local-6989586621681171952"><span class="hs-identifier hs-var">sq</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171955"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171956"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171954"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a
+</span><a href="#local-6989586621681171952"><span class="hs-identifier hs-var">sq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171955"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%26%26"><span class="hs-operator hs-var">.&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171953"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171955"><span class="hs-identifier hs-var">sqrt</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681171952"><span class="annot"><span class="annottext">sq :: a -&gt; a
+</span><a href="#local-6989586621681171952"><span class="hs-identifier hs-var hs-var">sq</span></a></span></span><span> </span><span id="local-6989586621681171950"><span class="annot"><span class="annottext">n :: a
+</span><a href="#local-6989586621681171950"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681171950"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681171950"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | The measure. In each iteration @i@ strictly increases, thus reducing the differential @x - i@</span><span>
+</span><span id="line-129"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#measure"><span class="hs-identifier hs-type">measure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Tools.WeakestPreconditions.html#Measure"><span class="hs-identifier hs-type">Measure</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#S"><span class="hs-identifier hs-type">S</span></a></span><span>
+</span><span id="line-130"></span><span id="measure"><span class="annot"><span class="annottext">measure :: Measure S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#measure"><span class="hs-identifier hs-var hs-var">measure</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#SqrtS"><span class="hs-identifier hs-type">SqrtS</span></a></span><span class="hs-special">{</span><span id="local-6989586621681171948"><span class="annot"><span class="annottext">SInteger
+x :: SInteger
+x :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171948"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681171947"><span class="annot"><span class="annottext">SInteger
+i :: SInteger
+i :: forall a. SqrtS a -&gt; a
+</span><a href="#local-6989586621681171947"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171948"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SInteger
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">SInteger
+</span><a href="#local-6989586621681171947"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- | Check that the program terminates and the post condition holds. We have:</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- &gt;&gt;&gt; correctness</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- Total correctness is established.</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-137"></span><span class="annot"><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#correctness"><span class="hs-identifier hs-type">correctness</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-138"></span><span id="correctness"><span class="annot"><span class="annottext">correctness :: IO ()
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#correctness"><span class="hs-identifier hs-var hs-var">correctness</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ProofResult (SqrtS Integer) -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">(ProofResult (SqrtS Integer) -&gt; IO ())
+-&gt; IO (ProofResult (SqrtS Integer)) -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">WPConfig -&gt; Program S -&gt; IO (ProofResult (SqrtS Integer))
+forall st res.
+(Show res, Mergeable st, Queriable IO st res) =&gt;
+WPConfig -&gt; Program st -&gt; IO (ProofResult res)
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#wpProveWith"><span class="hs-identifier hs-var">wpProveWith</span></a></span><span> </span><span class="annot"><span class="annottext">WPConfig
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#defaultWPCfg"><span class="hs-identifier hs-var">defaultWPCfg</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">wpVerbose :: Bool
+</span><a href="Data.SBV.Tools.WeakestPreconditions.html#wpVerbose"><span class="hs-identifier hs-var">wpVerbose</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">}</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Invariant S -&gt; Maybe (Measure S) -&gt; Program S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#imperativeSqrt"><span class="hs-identifier hs-var">imperativeSqrt</span></a></span><span> </span><span class="annot"><span class="annottext">Invariant S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#invariant"><span class="hs-identifier hs-var">invariant</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Measure S -&gt; Maybe (Measure S)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Measure S
+</span><a href="Documentation.SBV.Examples.WeakestPreconditions.IntSqrt.html#measure"><span class="hs-identifier hs-var">measure</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span></pre></body></html>

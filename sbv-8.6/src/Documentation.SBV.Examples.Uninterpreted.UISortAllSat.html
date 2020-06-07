@@ -1,0 +1,367 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_1RXG8Qpu8EoDCgO0vmiw83"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Uninterpreted.UISortAllSat</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates uninterpreted sorts and how all-sat behaves for them.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Thanks to Eric Seidel for the idea.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Uninterpreted.UISortAllSat</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Generics</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | A &quot;list-like&quot; data type, but one we plan to uninterpret at the SMT level.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- The actual shape is really immaterial for us, but could be used as a proxy</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- to generate test cases or explore data-space in some other part of a program.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Note that we neither rely on the shape of this data, nor need the actual</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- constructors.</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="L"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#L"><span class="hs-identifier hs-var">L</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Nil"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span></span><span>
+</span><span id="line-28"></span><span>       </span><span class="hs-glyph">|</span><span> </span><span id="Cons"><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#Cons"><span class="hs-identifier hs-var">Cons</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#L"><span class="hs-identifier hs-type">L</span></a></span><span>
+</span><span id="line-29"></span><span>       </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681170733"><span id="local-6989586621681170735"><span class="annot"><span class="annottext">L -&gt; L -&gt; Bool
+(L -&gt; L -&gt; Bool) -&gt; (L -&gt; L -&gt; Bool) -&gt; Eq L
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: L -&gt; L -&gt; Bool
+$c/= :: L -&gt; L -&gt; Bool
+== :: L -&gt; L -&gt; Bool
+$c== :: L -&gt; L -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170717"><span id="local-6989586621681170719"><span id="local-6989586621681170721"><span id="local-6989586621681170723"><span id="local-6989586621681170725"><span id="local-6989586621681170727"><span id="local-6989586621681170729"><span class="annot"><span class="annottext">Eq L
+Eq L =&gt;
+(L -&gt; L -&gt; Ordering)
+-&gt; (L -&gt; L -&gt; Bool)
+-&gt; (L -&gt; L -&gt; Bool)
+-&gt; (L -&gt; L -&gt; Bool)
+-&gt; (L -&gt; L -&gt; Bool)
+-&gt; (L -&gt; L -&gt; L)
+-&gt; (L -&gt; L -&gt; L)
+-&gt; Ord L
+L -&gt; L -&gt; Bool
+L -&gt; L -&gt; Ordering
+L -&gt; L -&gt; L
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: L -&gt; L -&gt; L
+$cmin :: L -&gt; L -&gt; L
+max :: L -&gt; L -&gt; L
+$cmax :: L -&gt; L -&gt; L
+&gt;= :: L -&gt; L -&gt; Bool
+$c&gt;= :: L -&gt; L -&gt; Bool
+&gt; :: L -&gt; L -&gt; Bool
+$c&gt; :: L -&gt; L -&gt; Bool
+&lt;= :: L -&gt; L -&gt; Bool
+$c&lt;= :: L -&gt; L -&gt; Bool
+&lt; :: L -&gt; L -&gt; Bool
+$c&lt; :: L -&gt; L -&gt; Bool
+compare :: L -&gt; L -&gt; Ordering
+$ccompare :: L -&gt; L -&gt; Ordering
+$cp1Ord :: Eq L
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170710"><span id="local-6989586621681170712"><span id="local-6989586621681170714"><span class="annot"><span class="annottext">Int -&gt; L -&gt; ShowS
+[L] -&gt; ShowS
+L -&gt; String
+(Int -&gt; L -&gt; ShowS) -&gt; (L -&gt; String) -&gt; ([L] -&gt; ShowS) -&gt; Show L
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [L] -&gt; ShowS
+$cshowList :: [L] -&gt; ShowS
+show :: L -&gt; String
+$cshow :: L -&gt; String
+showsPrec :: Int -&gt; L -&gt; ShowS
+$cshowsPrec :: Int -&gt; L -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170701"><span id="local-6989586621681170703"><span id="local-6989586621681170705"><span id="local-6989586621681170707"><span class="annot"><span class="annottext">ReadPrec [L]
+ReadPrec L
+Int -&gt; ReadS L
+ReadS [L]
+(Int -&gt; ReadS L)
+-&gt; ReadS [L] -&gt; ReadPrec L -&gt; ReadPrec [L] -&gt; Read L
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [L]
+$creadListPrec :: ReadPrec [L]
+readPrec :: ReadPrec L
+$creadPrec :: ReadPrec L
+readList :: ReadS [L]
+$creadList :: ReadS [L]
+readsPrec :: Int -&gt; ReadS L
+$creadsPrec :: Int -&gt; ReadS L
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="%24cCons"><span id="%24cNil"><span id="%24tL"><span id="local-6989586621681170671"><span id="local-6989586621681170673"><span id="local-6989586621681170675"><span id="local-6989586621681170677"><span id="local-6989586621681170679"><span id="local-6989586621681170681"><span id="local-6989586621681170683"><span id="local-6989586621681170685"><span id="local-6989586621681170687"><span id="local-6989586621681170689"><span id="local-6989586621681170691"><span id="local-6989586621681170693"><span id="local-6989586621681170695"><span id="local-6989586621681170697"><span class="annot"><span class="annottext">Typeable L
+DataType
+Constr
+Typeable L =&gt;
+(forall (c :: * -&gt; *).
+ (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+ -&gt; (forall g. g -&gt; c g) -&gt; L -&gt; c L)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c L)
+-&gt; (L -&gt; Constr)
+-&gt; (L -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c L))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c L))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; L -&gt; L)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; [u])
+-&gt; (forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L)
+-&gt; Data L
+L -&gt; DataType
+L -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; L -&gt; L
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; L -&gt; c L
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c L
+forall a.
+Typeable a =&gt;
+(forall (c :: * -&gt; *).
+ (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+ -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c L
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; L -&gt; c L
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c L)
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c L)
+$cCons :: Constr
+$cNil :: Constr
+$tL :: DataType
+gmapMo :: (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+gmapMp :: (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+gmapM :: (forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; L -&gt; m L
+gmapQi :: Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; u
+$cgmapQi :: forall u. Int -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; u
+gmapQ :: (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; L -&gt; [u]
+gmapQr :: (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+gmapQl :: (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; L -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; L -&gt; L
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; L -&gt; L
+dataCast2 :: (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c L)
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c L)
+dataCast1 :: (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c L)
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c L)
+dataTypeOf :: L -&gt; DataType
+$cdataTypeOf :: L -&gt; DataType
+toConstr :: L -&gt; Constr
+$ctoConstr :: L -&gt; Constr
+gunfold :: (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c L
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c L
+gfoldl :: (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; L -&gt; c L
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; L -&gt; c L
+$cp1Data :: Typeable L
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | Declare instances to make 'L' a usable uninterpreted sort. First we need the</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- 'SymVal' instance, with the default definition sufficing.</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681170629"><span id="local-6989586621681170631"><span id="local-6989586621681170633"><span id="local-6989586621681170635"><span id="local-6989586621681170637"><span id="local-6989586621681170639"><span id="local-6989586621681170641"><span id="local-6989586621681170643"><span id="local-6989586621681170645"><span id="local-6989586621681170647"><span id="local-6989586621681170649"><span id="local-6989586621681170651"><span id="local-6989586621681170653"><span id="local-6989586621681170655"><span id="local-6989586621681170657"><span id="local-6989586621681170659"><span id="local-6989586621681170661"><span id="local-6989586621681170663"><span class="annot"><a href="Data.SBV.Core.Data.html#SymVal"><span class="hs-identifier hs-type">SymVal</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#L"><span class="hs-identifier hs-type">L</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | Similarly, 'HasKind's default implementation is sufficient.</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681170592"><span id="local-6989586621681170594"><span id="local-6989586621681170596"><span id="local-6989586621681170598"><span id="local-6989586621681170600"><span id="local-6989586621681170602"><span id="local-6989586621681170604"><span id="local-6989586621681170606"><span id="local-6989586621681170608"><span id="local-6989586621681170610"><span id="local-6989586621681170612"><span id="local-6989586621681170614"><span id="local-6989586621681170616"><span id="local-6989586621681170618"><span id="local-6989586621681170620"><span id="local-6989586621681170622"><span id="local-6989586621681170624"><span id="local-6989586621681170626"><span class="annot"><a href="Data.SBV.Core.Kind.html#HasKind"><span class="hs-identifier hs-type">HasKind</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#L"><span class="hs-identifier hs-type">L</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | An uninterpreted &quot;classify&quot; function. Really, we only care about</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- the fact that such a function exists, not what it does.</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#classify"><span class="hs-identifier hs-type">classify</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#L"><span class="hs-identifier hs-type">L</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SInteger"><span class="hs-identifier hs-type">SInteger</span></a></span><span>
+</span><span id="line-41"></span><span id="classify"><span class="annot"><span class="annottext">classify :: SBV L -&gt; SInteger
+</span><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#classify"><span class="hs-identifier hs-var hs-var">classify</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; SBV L -&gt; SInteger
+forall a. Uninterpreted a =&gt; String -&gt; a
+</span><a href="Data.SBV.Core.Model.html#uninterpret"><span class="hs-identifier hs-var">uninterpret</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;classify&quot;</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Formulate a query that essentially asserts a cardinality constraint on</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- the uninterpreted sort 'L'. The goal is to say there are precisely 3</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- such things, as it might be the case. We manage this by declaring four</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- elements, and asserting that for a free variable of this sort, the</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- shape of the data matches one of these three instances. That is, we</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- assert that all the instances of the data 'L' can be classified into</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- 3 equivalence classes. Then, allSat returns all the possible instances,</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- which of course are all uninterpreted.</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- As expected, we have:</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- &gt;&gt;&gt; allSat genLs</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-56"></span><span class="hs-comment">--   l  = L!val!0 :: L</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--   l0 = L!val!0 :: L</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   l1 = L!val!1 :: L</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--   l2 = L!val!2 :: L</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   classify :: L -&gt; Integer</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--   classify L!val!2 = 2</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--   classify L!val!1 = 1</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--   classify _       = 0</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- Solution #2:</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--   l  = L!val!1 :: L</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   l0 = L!val!0 :: L</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   l1 = L!val!1 :: L</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--   l2 = L!val!2 :: L</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--   classify :: L -&gt; Integer</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--   classify L!val!2 = 2</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--   classify L!val!1 = 1</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   classify _       = 0</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Solution #3:</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   l  = L!val!2 :: L</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--   l0 = L!val!0 :: L</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   l1 = L!val!1 :: L</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   l2 = L!val!2 :: L</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- &lt;BLANKLINE&gt;</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   classify :: L -&gt; Integer</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--   classify L!val!2 = 2</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--   classify L!val!1 = 1</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--   classify _       = 0</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- Found 3 different solutions.</span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#genLs"><span class="hs-identifier hs-type">genLs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Predicate"><span class="hs-identifier hs-type">Predicate</span></a></span><span>
+</span><span id="line-87"></span><span id="genLs"><span class="annot"><span class="annottext">genLs :: Predicate
+</span><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#genLs"><span class="hs-identifier hs-var hs-var">genLs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">[</span><span id="local-6989586621681170587"><span class="annot"><span class="annottext">l :: SBV L
+</span><a href="#local-6989586621681170587"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170586"><span class="annot"><span class="annottext">l0 :: SBV L
+</span><a href="#local-6989586621681170586"><span class="hs-identifier hs-var">l0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170585"><span class="annot"><span class="annottext">l1 :: SBV L
+</span><a href="#local-6989586621681170585"><span class="hs-identifier hs-var">l1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681170584"><span class="annot"><span class="annottext">l2 :: SBV L
+</span><a href="#local-6989586621681170584"><span class="hs-identifier hs-var">l2</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Symbolic [SBV L]
+forall a. SymVal a =&gt; [String] -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#symbolics"><span class="hs-identifier hs-var">symbolics</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;l&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;l0&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;l1&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;l2&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-88"></span><span>           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SInteger
+</span><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#classify"><span class="hs-identifier hs-var">classify</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170586"><span class="hs-identifier hs-var">l0</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-89"></span><span>           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SInteger
+</span><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#classify"><span class="hs-identifier hs-var">classify</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170585"><span class="hs-identifier hs-var">l1</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-90"></span><span>           </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SInteger
+</span><a href="Documentation.SBV.Examples.Uninterpreted.UISortAllSat.html#classify"><span class="hs-identifier hs-var">classify</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170584"><span class="hs-identifier hs-var">l2</span></a></span><span> </span><span class="annot"><span class="annottext">SInteger -&gt; SInteger -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-91"></span><span>           </span><span class="annot"><span class="annottext">SBool -&gt; Predicate
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Predicate) -&gt; SBool -&gt; Predicate
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170587"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SBV L -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170586"><span class="hs-identifier hs-var">l0</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170587"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SBV L -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170585"><span class="hs-identifier hs-var">l1</span></a></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#.%7C%7C"><span class="hs-operator hs-var">.||</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170587"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L -&gt; SBV L -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV L
+</span><a href="#local-6989586621681170584"><span class="hs-identifier hs-var">l2</span></a></span><span>
+</span><span id="line-92"></span></pre></body></html>

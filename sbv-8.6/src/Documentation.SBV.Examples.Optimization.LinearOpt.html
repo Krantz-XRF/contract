@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Optimization.LinearOpt</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Simple linear optimization example, as found in operations research texts.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Optimization.LinearOpt</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | Taken from &lt;http://people.brunel.ac.uk/~mastjjb/jeb/or/morelp.html&gt;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--    *  maximize 5x1 + 6x2</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--       - subject to</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--          1. x1 + x2 &lt;= 10</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--          2. x1 - x2 &gt;= 3</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--          3. 5x1 + 4x2 &lt;= 35</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--          4. x1 &gt;= 0</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--          5. x2 &gt;= 0</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- &gt;&gt;&gt; optimize Lexicographic problem</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--   x1   =  47 % 9 :: Real</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--   x2   =  20 % 9 :: Real</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--   goal = 355 % 9 :: Real</span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.LinearOpt.html#problem"><span class="hs-identifier hs-type">problem</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.SBV.Provers.Prover.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span>
+</span><span id="line-35"></span><span id="problem"><span class="annot"><span class="annottext">problem :: Goal
+</span><a href="Documentation.SBV.Examples.Optimization.LinearOpt.html#problem"><span class="hs-identifier hs-var hs-var">problem</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">[</span><span id="local-6989586621681163179"><span class="annot"><span class="annottext">x1 :: SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681163178"><span class="annot"><span class="annottext">x2 :: SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(String -&gt; SymbolicT IO SReal) -&gt; [String] -&gt; SymbolicT IO [SReal]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; SymbolicT IO SReal
+</span><a href="Data.SBV.Client.BaseIO.html#sReal"><span class="hs-identifier hs-var">sReal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-string">&quot;x1&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-string">&quot;x2&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-38"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span>
+</span><span id="line-39"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">4</span></span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">35</span></span><span>
+</span><span id="line-40"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-41"></span><span>             </span><span class="annot"><span class="annottext">SBool -&gt; Goal
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Goal) -&gt; SBool -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>             </span><span class="annot"><span class="annottext">String -&gt; SReal -&gt; Goal
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; Goal
+</span><a href="Data.SBV.Client.BaseIO.html#maximize"><span class="hs-identifier hs-var">maximize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;goal&quot;</span></span><span> </span><span class="annot"><span class="annottext">(SReal -&gt; Goal) -&gt; SReal -&gt; Goal
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163179"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">6</span></span><span> </span><span class="annot"><span class="annottext">SReal -&gt; SReal -&gt; SReal
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">SReal
+</span><a href="#local-6989586621681163178"><span class="hs-identifier hs-var">x2</span></a></span><span>
+</span><span id="line-44"></span></pre></body></html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_1VXgghUgGyjC8OH4DNdi3C"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Optimization.Enumerate</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates how enumerations can be used with optimization,</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- by properly defining your metric values.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass      #-}</span><span>
+</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable  #-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving  #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell     #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies        #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Optimization.Enumerate</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | A simple enumeration</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="Day"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Day"><span class="hs-identifier hs-var">Day</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Mon"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Mon"><span class="hs-identifier hs-var">Mon</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Tue"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Tue"><span class="hs-identifier hs-var">Tue</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Wed"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Wed"><span class="hs-identifier hs-var">Wed</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Thu"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Thu"><span class="hs-identifier hs-var">Thu</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Fri"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Fri"><span class="hs-identifier hs-var">Fri</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Sat"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sat"><span class="hs-identifier hs-var">Sat</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Sun"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sun"><span class="hs-identifier hs-var">Sun</span></a></span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Make 'Day' a symbolic value.</span><span>
+</span><span id="line-30"></span><span id="%24cSun"><span id="%24cSat"><span id="%24cFri"><span id="%24cThu"><span id="%24cWed"><span id="%24cTue"><span id="%24cMon"><span id="%24tDay"><span id="local-6989586621681162873"><span id="local-6989586621681162875"><span id="local-6989586621681162877"><span id="local-6989586621681162879"><span id="local-6989586621681162881"><span id="local-6989586621681162883"><span id="local-6989586621681162885"><span id="local-6989586621681162887"><span id="local-6989586621681162889"><span id="local-6989586621681162891"><span id="local-6989586621681162893"><span id="local-6989586621681162895"><span id="local-6989586621681162898"><span id="local-6989586621681162900"><span id="local-6989586621681162902"><span id="local-6989586621681162904"><span id="local-6989586621681162906"><span id="local-6989586621681162908"><span id="local-6989586621681162910"><span id="local-6989586621681162912"><span id="local-6989586621681162914"><span id="local-6989586621681162916"><span id="local-6989586621681162918"><span id="local-6989586621681162920"><span id="local-6989586621681162922"><span id="local-6989586621681162924"><span id="local-6989586621681162926"><span id="local-6989586621681162928"><span id="local-6989586621681162930"><span id="local-6989586621681162932"><span id="local-6989586621681162935"><span id="local-6989586621681162937"><span id="local-6989586621681162939"><span id="local-6989586621681162941"><span id="local-6989586621681162943"><span id="local-6989586621681162945"><span id="local-6989586621681162947"><span id="local-6989586621681162949"><span id="local-6989586621681162951"><span id="local-6989586621681162953"><span id="local-6989586621681162955"><span id="local-6989586621681162957"><span id="local-6989586621681162959"><span id="local-6989586621681162961"><span id="local-6989586621681162963"><span id="local-6989586621681162965"><span id="local-6989586621681162967"><span id="local-6989586621681162969"><span id="local-6989586621681162973"><span id="local-6989586621681162975"><span id="local-6989586621681162977"><span id="local-6989586621681162979"><span id="local-6989586621681162981"><span id="local-6989586621681162983"><span id="local-6989586621681162985"><span id="local-6989586621681162987"><span id="local-6989586621681162989"><span id="local-6989586621681162991"><span id="local-6989586621681162993"><span id="local-6989586621681162995"><span id="local-6989586621681162997"><span id="local-6989586621681162999"><span id="local-6989586621681163001"><span id="local-6989586621681163003"><span id="local-6989586621681163005"><span id="local-6989586621681163007"><span id="local-6989586621681163009"><span id="local-6989586621681163011"><span id="local-6989586621681163013"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Day</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | Give a name to the symbolic variants of 'Day', for convenience</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">type</span><span> </span><span id="SDay"><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#SDay"><span class="hs-identifier hs-var">SDay</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | Make day an optimizable value, by mapping it to 'Word8' in the most</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- obvious way. We can map it to any value the underlying solver can optimize,</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- but 'Word8' is the simplest and it'll fit the bill.</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681162849"><span id="local-6989586621681162851"><span class="annot"><a href="Data.SBV.Core.Model.html#Metric"><span class="hs-identifier hs-type">Metric</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Day"><span class="hs-identifier hs-type">Day</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="MetricSpace"><span class="annot"><a href="Data.SBV.Core.Model.html#MetricSpace"><span class="hs-identifier hs-var">MetricSpace</span></a></span></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621681162847"><span class="annot"><span class="annottext">toMetricSpace :: SBV Day -&gt; SBV (MetricSpace Day)
+</span><a href="Data.SBV.Core.Model.html#toMetricSpace"><span class="hs-identifier hs-var hs-var hs-var hs-var">toMetricSpace</span></a></span></span><span> </span><span id="local-6989586621681162845"><span class="annot"><span class="annottext">x :: SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Mon"><span class="hs-identifier hs-var">Mon</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-42"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Word8 -&gt; SBV (MetricSpace Day))
+-&gt; SBV Word8 -&gt; SBV (MetricSpace Day)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Tue"><span class="hs-identifier hs-var">Tue</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-43"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Word8 -&gt; SBV Word8) -&gt; SBV Word8 -&gt; SBV Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Wed"><span class="hs-identifier hs-var">Wed</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-44"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Word8 -&gt; SBV Word8) -&gt; SBV Word8 -&gt; SBV Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Thu"><span class="hs-identifier hs-var">Thu</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">3</span></span><span>
+</span><span id="line-45"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Word8 -&gt; SBV Word8) -&gt; SBV Word8 -&gt; SBV Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Fri"><span class="hs-identifier hs-var">Fri</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">4</span></span><span>
+</span><span id="line-46"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Word8 -&gt; SBV Word8) -&gt; SBV Word8 -&gt; SBV Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Word8 -&gt; SBV Word8 -&gt; SBV Word8
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162845"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBV Day -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sat"><span class="hs-identifier hs-var">Sat</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-number">5</span></span><span>
+</span><span id="line-47"></span><span>                                              </span><span class="annot"><span class="hs-number">6</span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>  </span><span id="local-6989586621681162841"><span class="annot"><span class="annottext">fromMetricSpace :: SBV (MetricSpace Day) -&gt; SBV Day
+</span><a href="Data.SBV.Core.Model.html#fromMetricSpace"><span class="hs-identifier hs-var hs-var hs-var hs-var">fromMetricSpace</span></a></span></span><span> </span><span id="local-6989586621681162839"><span class="annot"><span class="annottext">x :: SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Mon"><span class="hs-identifier hs-var">Mon</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Day -&gt; SBV Day) -&gt; SBV Day -&gt; SBV Day
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Tue"><span class="hs-identifier hs-var">Tue</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Day -&gt; SBV Day) -&gt; SBV Day -&gt; SBV Day
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Wed"><span class="hs-identifier hs-var">Wed</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Day -&gt; SBV Day) -&gt; SBV Day -&gt; SBV Day
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">3</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Thu"><span class="hs-identifier hs-var">Thu</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Day -&gt; SBV Day) -&gt; SBV Day -&gt; SBV Day
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">4</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Fri"><span class="hs-identifier hs-var">Fri</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>                    </span><span class="annot"><span class="annottext">(SBV Day -&gt; SBV Day) -&gt; SBV Day -&gt; SBV Day
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBV Day -&gt; SBV Day -&gt; SBV Day
+forall a. Mergeable a =&gt; SBool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#ite"><span class="hs-identifier hs-var">ite</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Word8
+SBV (MetricSpace Day)
+</span><a href="#local-6989586621681162839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Word8 -&gt; SBV Word8 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="hs-number">5</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sat"><span class="hs-identifier hs-var">Sat</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>                                    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sun"><span class="hs-identifier hs-var">Sun</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Identify weekend days</span><span>
+</span><span id="line-58"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#isWeekend"><span class="hs-identifier hs-type">isWeekend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#SDay"><span class="hs-identifier hs-type">SDay</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-59"></span><span id="isWeekend"><span class="annot"><span class="annottext">isWeekend :: SBV Day -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#isWeekend"><span class="hs-identifier hs-var hs-var">isWeekend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day -&gt; [SBV Day] -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#sElem"><span class="hs-operator hs-var">`sElem`</span></a></span><span> </span><span class="annot"><span class="annottext">[SBV Day]
+</span><a href="#local-6989586621681162836"><span class="hs-identifier hs-var">weekend</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681162836"><span class="annot"><span class="annottext">weekend :: [SBV Day]
+</span><a href="#local-6989586621681162836"><span class="hs-identifier hs-var hs-var">weekend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Day -&gt; SBV Day) -&gt; [Day] -&gt; [SBV Day]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Day -&gt; SBV Day
+forall a. SymVal a =&gt; a -&gt; SBV a
+</span><a href="Data.SBV.Core.Data.html#literal"><span class="hs-identifier hs-var">literal</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sat"><span class="hs-identifier hs-var">Sat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Day
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#Sun"><span class="hs-identifier hs-var">Sun</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Using optimization, find the latest day that is not a weekend.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- &gt;&gt;&gt; almostWeekend</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   almostWeekend = Fri :: Day</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   last-day      =   4 :: Word8</span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#almostWeekend"><span class="hs-identifier hs-type">almostWeekend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#OptimizeResult"><span class="hs-identifier hs-type">OptimizeResult</span></a></span><span>
+</span><span id="line-70"></span><span id="almostWeekend"><span class="annot"><span class="annottext">almostWeekend :: IO OptimizeResult
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#almostWeekend"><span class="hs-identifier hs-var hs-var">almostWeekend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptimizeStyle -&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a. Provable a =&gt; OptimizeStyle -&gt; a -&gt; IO OptimizeResult
+</span><a href="Data.SBV.Client.BaseIO.html#optimize"><span class="hs-identifier hs-var">optimize</span></a></span><span> </span><span class="annot"><span class="annottext">OptimizeStyle
+</span><a href="Data.SBV.Core.Symbolic.html#Lexicographic"><span class="hs-identifier hs-var">Lexicographic</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO () -&gt; IO OptimizeResult)
+-&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>                    </span><span id="local-6989586621681162832"><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162832"><span class="hs-identifier hs-var">day</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Day)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;almostWeekend&quot;</span></span><span>
+</span><span id="line-72"></span><span>                    </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#isWeekend"><span class="hs-identifier hs-var">isWeekend</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162832"><span class="hs-identifier hs-var">day</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>                    </span><span class="annot"><span class="annottext">String -&gt; SBV Day -&gt; SymbolicT IO ()
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; SymbolicT IO ()
+</span><a href="Data.SBV.Client.BaseIO.html#maximize"><span class="hs-identifier hs-var">maximize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;last-day&quot;</span></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162832"><span class="hs-identifier hs-var">day</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | Using optimization, find the first day after the weekend.</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- &gt;&gt;&gt; weekendJustOver</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--   weekendJustOver = Mon :: Day</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--   first-day       =   0 :: Word8</span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#weekendJustOver"><span class="hs-identifier hs-type">weekendJustOver</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#OptimizeResult"><span class="hs-identifier hs-type">OptimizeResult</span></a></span><span>
+</span><span id="line-83"></span><span id="weekendJustOver"><span class="annot"><span class="annottext">weekendJustOver :: IO OptimizeResult
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#weekendJustOver"><span class="hs-identifier hs-var hs-var">weekendJustOver</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptimizeStyle -&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a. Provable a =&gt; OptimizeStyle -&gt; a -&gt; IO OptimizeResult
+</span><a href="Data.SBV.Client.BaseIO.html#optimize"><span class="hs-identifier hs-var">optimize</span></a></span><span> </span><span class="annot"><span class="annottext">OptimizeStyle
+</span><a href="Data.SBV.Core.Symbolic.html#Lexicographic"><span class="hs-identifier hs-var">Lexicographic</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO () -&gt; IO OptimizeResult)
+-&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>                      </span><span id="local-6989586621681162826"><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162826"><span class="hs-identifier hs-var">day</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Day)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;weekendJustOver&quot;</span></span><span>
+</span><span id="line-85"></span><span>                      </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBool -&gt; SBool
+</span><a href="Data.SBV.Core.Data.html#sNot"><span class="hs-identifier hs-var">sNot</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV Day -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#isWeekend"><span class="hs-identifier hs-var">isWeekend</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162826"><span class="hs-identifier hs-var">day</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>                      </span><span class="annot"><span class="annottext">String -&gt; SBV Day -&gt; SymbolicT IO ()
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; SymbolicT IO ()
+</span><a href="Data.SBV.Client.BaseIO.html#minimize"><span class="hs-identifier hs-var">minimize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;first-day&quot;</span></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162826"><span class="hs-identifier hs-var">day</span></a></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- | Using optimization, find the first weekend day:</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- We have:</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- &gt;&gt;&gt; firstWeekend</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- Optimal model:</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--   firstWeekend  = Sat :: Day</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--   first-weekend =   5 :: Word8</span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#firstWeekend"><span class="hs-identifier hs-type">firstWeekend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#OptimizeResult"><span class="hs-identifier hs-type">OptimizeResult</span></a></span><span>
+</span><span id="line-96"></span><span id="firstWeekend"><span class="annot"><span class="annottext">firstWeekend :: IO OptimizeResult
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#firstWeekend"><span class="hs-identifier hs-var hs-var">firstWeekend</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptimizeStyle -&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a. Provable a =&gt; OptimizeStyle -&gt; a -&gt; IO OptimizeResult
+</span><a href="Data.SBV.Client.BaseIO.html#optimize"><span class="hs-identifier hs-var">optimize</span></a></span><span> </span><span class="annot"><span class="annottext">OptimizeStyle
+</span><a href="Data.SBV.Core.Symbolic.html#Lexicographic"><span class="hs-identifier hs-var">Lexicographic</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO () -&gt; IO OptimizeResult)
+-&gt; SymbolicT IO () -&gt; IO OptimizeResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-97"></span><span>                      </span><span id="local-6989586621681162823"><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162823"><span class="hs-identifier hs-var">day</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV Day)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#free"><span class="hs-identifier hs-var">free</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;firstWeekend&quot;</span></span><span>
+</span><span id="line-98"></span><span>                      </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO ()
+forall (m :: * -&gt; *). SolverContext m =&gt; SBool -&gt; m ()
+</span><a href="Data.SBV.Core.Data.html#constrain"><span class="hs-identifier hs-var">constrain</span></a></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO ()) -&gt; SBool -&gt; SymbolicT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV Day -&gt; SBool
+</span><a href="Documentation.SBV.Examples.Optimization.Enumerate.html#isWeekend"><span class="hs-identifier hs-var">isWeekend</span></a></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162823"><span class="hs-identifier hs-var">day</span></a></span><span>
+</span><span id="line-99"></span><span>                      </span><span class="annot"><span class="annottext">String -&gt; SBV Day -&gt; SymbolicT IO ()
+forall a. Metric a =&gt; String -&gt; SBV a -&gt; SymbolicT IO ()
+</span><a href="Data.SBV.Client.BaseIO.html#minimize"><span class="hs-identifier hs-var">minimize</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;first-weekend&quot;</span></span><span> </span><span class="annot"><span class="annottext">SBV Day
+</span><a href="#local-6989586621681162823"><span class="hs-identifier hs-var">day</span></a></span><span>
+</span><span id="line-100"></span></pre></body></html>

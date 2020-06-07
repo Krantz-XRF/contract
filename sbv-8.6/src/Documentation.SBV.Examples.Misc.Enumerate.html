@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_4Rb4wibnq7ID9z0z5DmDY8"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Misc.Enumerate</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Demonstrates how enumerations can be translated to their SMT-Lib</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- counterparts, without losing any information content. Also see</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- &quot;Documentation.SBV.Examples.Puzzles.U2Bridge&quot; for a more detailed</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- example involving enumerations.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass      #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable  #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving  #-}</span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell     #-}</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Misc.Enumerate</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- | A simple enumerated type, that we'd like to translate to SMT-Lib intact;</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- i.e., this type will not be uninterpreted but rather preserved and will</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- be just like any other symbolic type SBV provides.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- Also note that we need to have the following @LANGUAGE@ options defined:</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- @TemplateHaskell@, @StandaloneDeriving@, @DeriveDataTypeable@, @DeriveAnyClass@ for</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- this to work.</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">data</span><span> </span><span id="E"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#E"><span class="hs-identifier hs-var">E</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="A"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#A"><span class="hs-identifier hs-var">A</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="B"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#B"><span class="hs-identifier hs-var">B</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="C"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#C"><span class="hs-identifier hs-var">C</span></a></span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | Make 'E' a symbolic value.</span><span>
+</span><span id="line-37"></span><span id="%24cC"><span id="%24cB"><span id="%24cA"><span id="%24tE"><span id="local-6989586621681162249"><span id="local-6989586621681162251"><span id="local-6989586621681162253"><span id="local-6989586621681162255"><span id="local-6989586621681162257"><span id="local-6989586621681162259"><span id="local-6989586621681162261"><span id="local-6989586621681162263"><span id="local-6989586621681162265"><span id="local-6989586621681162267"><span id="local-6989586621681162269"><span id="local-6989586621681162271"><span id="local-6989586621681162274"><span id="local-6989586621681162276"><span id="local-6989586621681162278"><span id="local-6989586621681162280"><span id="local-6989586621681162282"><span id="local-6989586621681162284"><span id="local-6989586621681162286"><span id="local-6989586621681162288"><span id="local-6989586621681162290"><span id="local-6989586621681162292"><span id="local-6989586621681162294"><span id="local-6989586621681162296"><span id="local-6989586621681162298"><span id="local-6989586621681162300"><span id="local-6989586621681162302"><span id="local-6989586621681162304"><span id="local-6989586621681162306"><span id="local-6989586621681162308"><span id="local-6989586621681162311"><span id="local-6989586621681162313"><span id="local-6989586621681162315"><span id="local-6989586621681162317"><span id="local-6989586621681162319"><span id="local-6989586621681162321"><span id="local-6989586621681162323"><span id="local-6989586621681162325"><span id="local-6989586621681162327"><span id="local-6989586621681162329"><span id="local-6989586621681162331"><span id="local-6989586621681162333"><span id="local-6989586621681162335"><span id="local-6989586621681162337"><span id="local-6989586621681162339"><span id="local-6989586621681162341"><span id="local-6989586621681162343"><span id="local-6989586621681162345"><span id="local-6989586621681162349"><span id="local-6989586621681162351"><span id="local-6989586621681162353"><span id="local-6989586621681162355"><span id="local-6989586621681162357"><span id="local-6989586621681162359"><span id="local-6989586621681162361"><span id="local-6989586621681162363"><span id="local-6989586621681162365"><span id="local-6989586621681162367"><span id="local-6989586621681162369"><span id="local-6989586621681162371"><span id="local-6989586621681162373"><span id="local-6989586621681162375"><span id="local-6989586621681162377"><span id="local-6989586621681162379"><span id="local-6989586621681162381"><span id="local-6989586621681162383"><span id="local-6989586621681162385"><span id="local-6989586621681162387"><span id="local-6989586621681162389"><span class="hs-identifier">mkSymbolicEnumeration</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">E</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Give a name to the symbolic variants of 'E', for convenience</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">type</span><span> </span><span id="SE"><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#SE"><span class="hs-identifier hs-var">SE</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBV"><span class="hs-identifier hs-type">SBV</span></a></span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#E"><span class="hs-identifier hs-type">E</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Have the SMT solver enumerate the elements of the domain. We have:</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- &gt;&gt;&gt; elts</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- Solution #1:</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   s0 = A :: E</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- Solution #2:</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--   s0 = B :: E</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- Solution #3:</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--   s0 = C :: E</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- Found 3 different solutions.</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#elts"><span class="hs-identifier hs-type">elts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#AllSatResult"><span class="hs-identifier hs-type">AllSatResult</span></a></span><span>
+</span><span id="line-53"></span><span id="elts"><span class="annot"><span class="annottext">elts :: IO AllSatResult
+</span><a href="Documentation.SBV.Examples.Misc.Enumerate.html#elts"><span class="hs-identifier hs-var hs-var">elts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV E -&gt; SBool) -&gt; IO AllSatResult
+forall a. Provable a =&gt; a -&gt; IO AllSatResult
+</span><a href="Data.SBV.Client.BaseIO.html#allSat"><span class="hs-identifier hs-var">allSat</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV E -&gt; SBool) -&gt; IO AllSatResult)
+-&gt; (SBV E -&gt; SBool) -&gt; IO AllSatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621681162232"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162232"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-glyph">::</span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#SE"><span class="hs-identifier hs-type">SE</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162232"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">SBV E -&gt; SBV E -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162232"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Shows that if we require 4 distinct elements of the type 'E', we shall fail; as</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- the domain only has three elements. We have:</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;&gt;&gt; four</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Unsatisfiable</span><span>
+</span><span id="line-60"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#four"><span class="hs-identifier hs-type">four</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SatResult"><span class="hs-identifier hs-type">SatResult</span></a></span><span>
+</span><span id="line-61"></span><span id="four"><span class="annot"><span class="annottext">four :: IO SatResult
+</span><a href="Documentation.SBV.Examples.Misc.Enumerate.html#four"><span class="hs-identifier hs-var hs-var">four</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SBV E -&gt; SBV E -&gt; SBV E -&gt; SBV E -&gt; SBool) -&gt; IO SatResult
+forall a. Provable a =&gt; a -&gt; IO SatResult
+</span><a href="Data.SBV.Client.BaseIO.html#sat"><span class="hs-identifier hs-var">sat</span></a></span><span> </span><span class="annot"><span class="annottext">((SBV E -&gt; SBV E -&gt; SBV E -&gt; SBV E -&gt; SBool) -&gt; IO SatResult)
+-&gt; (SBV E -&gt; SBV E -&gt; SBV E -&gt; SBV E -&gt; SBool) -&gt; IO SatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681162228"><span class="annot"><span class="annottext">a :: SBV E
+</span><a href="#local-6989586621681162228"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681162227"><span class="annot"><span class="annottext">b :: SBV E
+</span><a href="#local-6989586621681162227"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681162226"><span class="annot"><span class="annottext">c :: SBV E
+</span><a href="#local-6989586621681162226"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681162225"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162225"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-glyph">::</span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#SE"><span class="hs-identifier hs-type">SE</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[SBV E] -&gt; SBool
+forall a. EqSymbolic a =&gt; [a] -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#distinct"><span class="hs-identifier hs-var">distinct</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162228"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162227"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162226"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162225"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | Enumerations are automatically ordered, so we can ask for the maximum</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- element. Note the use of quantification. We have:</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; maxE</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   maxE = C :: E</span><span>
+</span><span id="line-69"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#maxE"><span class="hs-identifier hs-type">maxE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SatResult"><span class="hs-identifier hs-type">SatResult</span></a></span><span>
+</span><span id="line-70"></span><span id="maxE"><span class="annot"><span class="annottext">maxE :: IO SatResult
+</span><a href="Documentation.SBV.Examples.Misc.Enumerate.html#maxE"><span class="hs-identifier hs-var hs-var">maxE</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO SatResult
+forall a. Provable a =&gt; a -&gt; IO SatResult
+</span><a href="Data.SBV.Client.BaseIO.html#sat"><span class="hs-identifier hs-var">sat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO SatResult)
+-&gt; SymbolicT IO SBool -&gt; IO SatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681162222"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162222"><span class="hs-identifier hs-var">mx</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV E)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;maxE&quot;</span></span><span>
+</span><span id="line-71"></span><span>                </span><span id="local-6989586621681162220"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162220"><span class="hs-identifier hs-var">e</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV E)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;e&quot;</span></span><span>
+</span><span id="line-72"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162222"><span class="hs-identifier hs-var">mx</span></a></span><span> </span><span class="annot"><span class="annottext">SBV E -&gt; SBV E -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3E%3D"><span class="hs-operator hs-var">.&gt;=</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162220"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-glyph">::</span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#SE"><span class="hs-identifier hs-type">SE</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | Similarly, we get the minumum element. We have:</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- &gt;&gt;&gt; minE</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- Satisfiable. Model:</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--   minE = A :: E</span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#minE"><span class="hs-identifier hs-type">minE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#SatResult"><span class="hs-identifier hs-type">SatResult</span></a></span><span>
+</span><span id="line-80"></span><span id="minE"><span class="annot"><span class="annottext">minE :: IO SatResult
+</span><a href="Documentation.SBV.Examples.Misc.Enumerate.html#minE"><span class="hs-identifier hs-var hs-var">minE</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SymbolicT IO SBool -&gt; IO SatResult
+forall a. Provable a =&gt; a -&gt; IO SatResult
+</span><a href="Data.SBV.Client.BaseIO.html#sat"><span class="hs-identifier hs-var">sat</span></a></span><span> </span><span class="annot"><span class="annottext">(SymbolicT IO SBool -&gt; IO SatResult)
+-&gt; SymbolicT IO SBool -&gt; IO SatResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621681162216"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162216"><span class="hs-identifier hs-var">mx</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV E)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#exists"><span class="hs-identifier hs-var">exists</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;minE&quot;</span></span><span>
+</span><span id="line-81"></span><span>                </span><span id="local-6989586621681162215"><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162215"><span class="hs-identifier hs-var">e</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; Symbolic (SBV E)
+forall a. SymVal a =&gt; String -&gt; Symbolic (SBV a)
+</span><a href="Data.SBV.Client.BaseIO.html#forall"><span class="hs-keyword hs-var">forall</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;e&quot;</span></span><span>
+</span><span id="line-82"></span><span>                </span><span class="annot"><span class="annottext">SBool -&gt; SymbolicT IO SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; SymbolicT IO SBool) -&gt; SBool -&gt; SymbolicT IO SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162216"><span class="hs-identifier hs-var">mx</span></a></span><span> </span><span class="annot"><span class="annottext">SBV E -&gt; SBV E -&gt; SBool
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3C%3D"><span class="hs-operator hs-var">.&lt;=</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SBV E
+</span><a href="#local-6989586621681162215"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-glyph">::</span><span class="annot"><a href="Documentation.SBV.Examples.Misc.Enumerate.html#SE"><span class="hs-identifier hs-type">SE</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span></pre></body></html>

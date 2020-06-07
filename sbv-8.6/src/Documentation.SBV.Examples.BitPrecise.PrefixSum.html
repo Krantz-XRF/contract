@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.BitPrecise.PrefixSum</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- The PrefixSum algorithm over power-lists and proof of</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- the Ladner-Fischer implementation.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- See &lt;http://dl.acm.org/citation.cfm?id=197356&gt;</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- and &lt;http://www.cs.utexas.edu/~plaxton/c/337/05f/slides/ParallelRecursion-4.pdf&gt;.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE Rank2Types          #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.BitPrecise.PrefixSum</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- * Formalizing power-lists</span><span>
+</span><span id="line-26"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | A poor man's representation of powerlists and</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- basic operations on them: &lt;http://dl.acm.org/citation.cfm?id=197356&gt;</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- We merely represent power-lists by ordinary lists.</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">type</span><span> </span><span id="PowerList"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-var">PowerList</span></a></span></span><span> </span><span id="local-6989586621681160269"><span class="annot"><a href="#local-6989586621681160269"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681160269"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | The tie operator, concatenation.</span><span>
+</span><span id="line-34"></span><span id="local-6989586621681160268"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#tiePL"><span class="hs-identifier hs-type">tiePL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160268"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160268"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160268"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-35"></span><span id="tiePL"><span class="annot"><span class="annottext">tiePL :: PowerList a -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#tiePL"><span class="hs-identifier hs-var hs-var">tiePL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; PowerList a -&gt; PowerList a
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">(++)</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- | The zip operator, zips the power-lists of the same size, returns</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- a powerlist of double the size.</span><span>
+</span><span id="line-39"></span><span id="local-6989586621681160266"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-type">zipPL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160266"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160266"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160266"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-40"></span><span id="zipPL"><span class="annot"><span class="annottext">zipPL :: PowerList a -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-var hs-var">zipPL</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-var">zipPL</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160264"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681160264"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681160263"><span class="annot"><span class="annottext">xs :: PowerList a
+</span><a href="#local-6989586621681160263"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160262"><span class="annot"><span class="annottext">y :: a
+</span><a href="#local-6989586621681160262"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681160261"><span class="annot"><span class="annottext">ys :: PowerList a
+</span><a href="#local-6989586621681160261"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681160264"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; PowerList a -&gt; PowerList a
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681160262"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; PowerList a -&gt; PowerList a
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; PowerList a -&gt; PowerList a
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-var">zipPL</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160263"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160261"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-42"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-var">zipPL</span></a></span><span> </span><span class="hs-identifier">_</span><span>      </span><span class="hs-identifier">_</span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; PowerList a
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;zipPL: nonsimilar powerlists received&quot;</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Inverse of zipping.</span><span>
+</span><span id="line-45"></span><span id="local-6989586621681160295"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#unzipPL"><span class="hs-identifier hs-type">unzipPL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160295"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160295"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160295"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-46"></span><span id="unzipPL"><span class="annot"><span class="annottext">unzipPL :: PowerList a -&gt; (PowerList a, PowerList a)
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#unzipPL"><span class="hs-identifier hs-var hs-var">unzipPL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(a, a)] -&gt; (PowerList a, PowerList a)
+forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">([(a, a)] -&gt; (PowerList a, PowerList a))
+-&gt; (PowerList a -&gt; [(a, a)])
+-&gt; PowerList a
+-&gt; (PowerList a, PowerList a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; [(a, a)]
+forall b. [b] -&gt; [(b, b)]
+</span><a href="#local-6989586621681160256"><span class="hs-identifier hs-var">chunk2</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681160256"><span class="annot"><span class="annottext">chunk2 :: [b] -&gt; [(b, b)]
+</span><a href="#local-6989586621681160256"><span class="hs-identifier hs-var hs-var">chunk2</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>        </span><span class="annot"><a href="#local-6989586621681160256"><span class="hs-identifier hs-var">chunk2</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160255"><span class="annot"><span class="annottext">x :: b
+</span><a href="#local-6989586621681160255"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681160254"><span class="annot"><span class="annottext">y :: b
+</span><a href="#local-6989586621681160254"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681160253"><span class="annot"><span class="annottext">xs :: [b]
+</span><a href="#local-6989586621681160253"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681160255"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681160254"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(b, b) -&gt; [(b, b)] -&gt; [(b, b)]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[b] -&gt; [(b, b)]
+</span><a href="#local-6989586621681160256"><span class="hs-identifier hs-var">chunk2</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621681160253"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-49"></span><span>        </span><span class="annot"><a href="#local-6989586621681160256"><span class="hs-identifier hs-var">chunk2</span></a></span><span> </span><span class="hs-identifier">_</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [(b, b)]
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;unzipPL: malformed powerlist&quot;</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- * Reference prefix-sum implementation</span><span>
+</span><span id="line-53"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- | Reference prefix sum (@ps@) is simply Haskell's @scanl1@ function.</span><span>
+</span><span id="line-56"></span><span id="local-6989586621681160252"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#ps"><span class="hs-identifier hs-type">ps</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160252"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-57"></span><span id="ps"><span class="annot"><span class="annottext">ps :: (a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#ps"><span class="hs-identifier hs-var hs-var">ps</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160250"><span class="annot"><span class="annottext">f :: a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160250"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+forall a. (a -&gt; a -&gt; a) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">scanl1</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160250"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- * The Ladner-Fischer parallel version</span><span>
+</span><span id="line-61"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | The Ladner-Fischer (@lf@) implementation of prefix-sum. See &lt;http://www.cs.utexas.edu/~plaxton/c/337/05f/slides/ParallelRecursion-4.pdf&gt;</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- or pg. 16 of &lt;http://dl.acm.org/citation.cfm?id=197356&gt;</span><span>
+</span><span id="line-65"></span><span id="local-6989586621681160294"><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-type">lf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160294"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-66"></span><span id="lf"><span class="annot"><span class="annottext">lf :: (a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-var hs-var">lf</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; PowerList a
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;lf: malformed (empty) powerlist&quot;</span></span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-var">lf</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">[</span><span id="local-6989586621681160247"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621681160247"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">]</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681160247"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-var">lf</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160246"><span class="annot"><span class="annottext">zero :: a
+</span><a href="#local-6989586621681160246"><span class="hs-identifier hs-var">zero</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160245"><span class="annot"><span class="annottext">f :: a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160245"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681160244"><span class="annot"><span class="annottext">pl :: PowerList a
+</span><a href="#local-6989586621681160244"><span class="hs-identifier hs-var">pl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; PowerList a -&gt; PowerList a
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#zipPL"><span class="hs-identifier hs-var">zipPL</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a -&gt; PowerList a
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160245"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PowerList a -&gt; PowerList a
+</span><a href="#local-6989586621681160242"><span class="hs-identifier hs-var">rsh</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160241"><span class="hs-identifier hs-var">lfpq</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160240"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160241"><span class="hs-identifier hs-var">lfpq</span></a></span><span>
+</span><span id="line-69"></span><span>   </span><span class="hs-keyword">where</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681160240"><span class="annot"><span class="annottext">p :: PowerList a
+</span><a href="#local-6989586621681160240"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681160239"><span class="annot"><span class="annottext">q :: PowerList a
+</span><a href="#local-6989586621681160239"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; (PowerList a, PowerList a)
+forall a. PowerList a -&gt; (PowerList a, PowerList a)
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#unzipPL"><span class="hs-identifier hs-var">unzipPL</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160244"><span class="hs-identifier hs-var">pl</span></a></span><span>
+</span><span id="line-70"></span><span>         </span><span id="local-6989586621681160238"><span class="annot"><span class="annottext">pq :: PowerList a
+</span><a href="#local-6989586621681160238"><span class="hs-identifier hs-var hs-var">pq</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a -&gt; PowerList a
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160245"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160240"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160239"><span class="hs-identifier hs-var">q</span></a></span><span>
+</span><span id="line-71"></span><span>         </span><span id="local-6989586621681160241"><span class="annot"><span class="annottext">lfpq :: PowerList a
+</span><a href="#local-6989586621681160241"><span class="hs-identifier hs-var hs-var">lfpq</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+forall a. (a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-var">lf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681160246"><span class="hs-identifier hs-var">zero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621681160245"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160238"><span class="hs-identifier hs-var">pq</span></a></span><span>
+</span><span id="line-72"></span><span>         </span><span id="local-6989586621681160242"><span class="annot"><span class="annottext">rsh :: PowerList a -&gt; PowerList a
+</span><a href="#local-6989586621681160242"><span class="hs-identifier hs-var hs-var">rsh</span></a></span></span><span> </span><span id="local-6989586621681160237"><span class="annot"><span class="annottext">xs :: PowerList a
+</span><a href="#local-6989586621681160237"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681160246"><span class="hs-identifier hs-var">zero</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; PowerList a -&gt; PowerList a
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">PowerList a -&gt; PowerList a
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">init</span></span><span> </span><span class="annot"><span class="annottext">PowerList a
+</span><a href="#local-6989586621681160237"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- * Sample proofs for concrete operators</span><span>
+</span><span id="line-77"></span><span class="hs-comment">----------------------------------------------------------------------</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- | Correctness theorem, for a powerlist of given size, an associative operator, and its left-unit element.</span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#flIsCorrect"><span class="hs-identifier hs-type">flIsCorrect</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681160292"><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.SBV.Core.Model.html#OrdSymbolic"><span class="hs-identifier hs-type">OrdSymbolic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Num</span></span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bits</span></span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681160292"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.SBV.Core.Symbolic.html#Symbolic"><span class="hs-identifier hs-type">Symbolic</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SBool"><span class="hs-identifier hs-type">SBool</span></a></span><span>
+</span><span id="line-81"></span><span id="flIsCorrect"><span class="annot"><span class="annottext">flIsCorrect :: Int
+-&gt; (forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a))
+-&gt; Symbolic SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#flIsCorrect"><span class="hs-identifier hs-var hs-var">flIsCorrect</span></a></span></span><span> </span><span id="local-6989586621681160234"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681160234"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681160233"><span class="annot"><span class="annottext">zf :: forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a)
+</span><a href="#local-6989586621681160233"><span class="hs-identifier hs-var">zf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>        </span><span id="local-6989586621681160232"><span class="annot"><span class="annottext">PowerList SWord32
+</span><a href="#local-6989586621681160232"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#PowerList"><span class="hs-identifier hs-type">PowerList</span></a></span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SWord32"><span class="hs-identifier hs-type">SWord32</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Symbolic (PowerList SWord32)
+forall a. SymVal a =&gt; Int -&gt; Symbolic [SBV a]
+</span><a href="Data.SBV.Client.BaseIO.html#mkForallVars"><span class="hs-identifier hs-var">mkForallVars</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681160234"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-83"></span><span>        </span><span class="annot"><span class="annottext">SBool -&gt; Symbolic SBool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(SBool -&gt; Symbolic SBool) -&gt; SBool -&gt; Symbolic SBool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SWord32, SWord32 -&gt; SWord32 -&gt; SWord32)
+-&gt; PowerList SWord32 -&gt; PowerList SWord32
+forall a. (a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#ps"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord32, SWord32 -&gt; SWord32 -&gt; SWord32)
+forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a)
+</span><a href="#local-6989586621681160233"><span class="hs-identifier hs-var">zf</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList SWord32
+</span><a href="#local-6989586621681160232"><span class="hs-identifier hs-var">args</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList SWord32 -&gt; PowerList SWord32 -&gt; SBool
+forall a. EqSymbolic a =&gt; a -&gt; a -&gt; SBool
+</span><a href="Data.SBV.Core.Model.html#.%3D%3D"><span class="hs-operator hs-var">.==</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord32, SWord32 -&gt; SWord32 -&gt; SWord32)
+-&gt; PowerList SWord32 -&gt; PowerList SWord32
+forall a. (a, a -&gt; a -&gt; a) -&gt; PowerList a -&gt; PowerList a
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#lf"><span class="hs-identifier hs-var">lf</span></a></span><span> </span><span class="annot"><span class="annottext">(SWord32, SWord32 -&gt; SWord32 -&gt; SWord32)
+forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a)
+</span><a href="#local-6989586621681160233"><span class="hs-identifier hs-var">zf</span></a></span><span> </span><span class="annot"><span class="annottext">PowerList SWord32
+</span><a href="#local-6989586621681160232"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | Proves Ladner-Fischer is equivalent to reference specification for addition.</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- @0@ is the left-unit element, and we use a power-list of size @8@. We have:</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- &gt;&gt;&gt; thm1</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-90"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#thm1"><span class="hs-identifier hs-type">thm1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-91"></span><span id="thm1"><span class="annot"><span class="annottext">thm1 :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#thm1"><span class="hs-identifier hs-var hs-var">thm1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbolic SBool -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">(Symbolic SBool -&gt; IO ThmResult) -&gt; Symbolic SBool -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int
+-&gt; (forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a))
+-&gt; Symbolic SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#flIsCorrect"><span class="hs-identifier hs-var">flIsCorrect</span></a></span><span>  </span><span class="annot"><span class="hs-number">8</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | Proves Ladner-Fischer is equivalent to reference specification for the function @max@.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- @0@ is the left-unit element, and we use a power-list of size @16@. We have:</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- &gt;&gt;&gt; thm2</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- Q.E.D.</span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#thm2"><span class="hs-identifier hs-type">thm2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Data.SBV.SMT.SMT.html#ThmResult"><span class="hs-identifier hs-type">ThmResult</span></a></span><span>
+</span><span id="line-99"></span><span id="thm2"><span class="annot"><span class="annottext">thm2 :: IO ThmResult
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#thm2"><span class="hs-identifier hs-var hs-var">thm2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbolic SBool -&gt; IO ThmResult
+forall a. Provable a =&gt; a -&gt; IO ThmResult
+</span><a href="Data.SBV.Client.BaseIO.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">(Symbolic SBool -&gt; IO ThmResult) -&gt; Symbolic SBool -&gt; IO ThmResult
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int
+-&gt; (forall a. (OrdSymbolic a, Num a, Bits a) =&gt; (a, a -&gt; a -&gt; a))
+-&gt; Symbolic SBool
+</span><a href="Documentation.SBV.Examples.BitPrecise.PrefixSum.html#flIsCorrect"><span class="hs-identifier hs-var">flIsCorrect</span></a></span><span> </span><span class="annot"><span class="hs-number">16</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. OrdSymbolic a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.SBV.Core.Model.html#smax"><span class="hs-identifier hs-var">smax</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span></pre></body></html>

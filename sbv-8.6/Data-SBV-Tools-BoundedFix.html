@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Data.SBV.Tools.BoundedFix</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">sbv-8.6: SMT Based Verification: Symbolic Haskell theorem prover using SMT solving.</span><ul class="links" id="page-menu"><li><a href="src/Data.SBV.Tools.BoundedFix.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th valign="top">Copyright</th><td>(c) Levent Erkok</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>erkokl@gmail.com</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Data.SBV.Tools.BoundedFix</p></div><div id="description"><p class="caption">Description</p><div class="doc"><p>Bounded fixed-point unrolling.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:bfix">bfix</a> :: (<a href="Data-SBV-Internals.html#t:SymVal" title="Data.SBV.Internals">SymVal</a> a, <a href="Data-SBV-Trans.html#t:Uninterpreted" title="Data.SBV.Trans">Uninterpreted</a> (<a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r)) =&gt; <a href="../base-4.13.0.0/Data-Int.html#t:Int" title="Data.Int">Int</a> -&gt; <a href="../base-4.13.0.0/Data-String.html#t:String" title="Data.String">String</a> -&gt; ((<a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r) -&gt; <a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r) -&gt; <a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r</li></ul></details></div><div id="interface"><h1>Documentation</h1><div class="top"><p class="src"><a id="v:bfix" class="def">bfix</a> :: (<a href="Data-SBV-Internals.html#t:SymVal" title="Data.SBV.Internals">SymVal</a> a, <a href="Data-SBV-Trans.html#t:Uninterpreted" title="Data.SBV.Trans">Uninterpreted</a> (<a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r)) =&gt; <a href="../base-4.13.0.0/Data-Int.html#t:Int" title="Data.Int">Int</a> -&gt; <a href="../base-4.13.0.0/Data-String.html#t:String" title="Data.String">String</a> -&gt; ((<a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r) -&gt; <a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r) -&gt; <a href="Data-SBV-Internals.html#t:SBV" title="Data.SBV.Internals">SBV</a> a -&gt; r <a href="src/Data.SBV.Tools.BoundedFix.html#bfix" class="link">Source</a> <a href="#v:bfix" class="selflink">#</a></p><div class="doc"><p>Bounded fixed-point operation. The call <code>bfix bnd nm f</code> unrolls the recursion in <code>f</code> at most
+ <code>bnd</code> times, and uninterprets the function (with the name <code>nm</code>) after the bound is reached.</p><p>This combinator is handy for dealing with recursive definitions that are not symbolically terminating
+ and when the property we are interested in does not require an infinite unrolling, or when we are happy
+ with a bounded proof.  In particular, this operator can be used as a basis of software-bounded model
+ checking algorithms built on top of SBV. The bound can be successively refined in a CEGAR like loop
+ as necessary, by analyzing the counter-examples and rejecting them if they are false-negatives.</p><p>For instance, we can define the factorial function using the bounded fixed-point operator like this:</p><pre>    bfac :: SInteger -&gt; SInteger
+    bfac = bfix 10 &quot;fac&quot; fact
+      where fact f n = ite (n .== 0) 1 (n * f (n-1))
+</pre><p>This definition unrolls the recursion in factorial at most 10 times before uninterpreting the result.
+ We can now prove:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>prove $ \n -&gt; n .&gt;= 1 .&amp;&amp; n .&lt;= 9 .=&gt; bfac n .== n * bfac (n-1)
+</code></strong>Q.E.D.
+</pre><p>And we would get a bogus counter-example if the proof of our property needs a larger bound:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>prove $ \n -&gt; n .== 10 .=&gt; bfac n .== 3628800
+</code></strong>Falsifiable. Counter-example:
+  s0 = 10 :: Integer
+
+  fac :: Integer -&gt; Integer
+  fac _ = 2
+</pre><p>The counter-example is telling us how it instantiated the function <code>fac</code> when the recursion
+ bottomed out: It simply made it return <code>2</code> for all arguments at that point, which provides
+ the (unintended) counter-example.</p><p>By design, if a function defined via <code><a href="Data-SBV-Tools-BoundedFix.html#v:bfix" title="Data.SBV.Tools.BoundedFix">bfix</a></code> is given a concrete argument, it will unroll
+ the recursion as much as necessary to complete the call (which can of course diverge). The bound
+ only applies if the given argument is symbolic. This fact can be used to observe concrete
+ values to see where the bounded-model-checking approach fails:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>prove $ \n -&gt; n .== 10 .=&gt; observe &quot;bfac_n&quot; (bfac n) .== observe &quot;bfac_10&quot; (bfac 10)
+</code></strong>Falsifiable. Counter-example:
+  bfac_10 = 3628800 :: Integer
+  bfac_n  = 7257600 :: Integer
+  s0      =      10 :: Integer
+
+  fac :: Integer -&gt; Integer
+  fac _ = 2
+</pre><p>Here, we see further evidence that the SMT solver must have decided to assign the
+ value <code>2</code> in the final call just as it was reaching the base case, and thus got the
+ final result incorrect. (Note that <code>7257600 = 2 * 3628800</code>.) A wrapper algorithm can
+ then assert the actual value of <code>bfac 10</code> here as an extra constraint and can
+ search for &quot;deeper bugs.&quot;</p></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.23.0</p></div></body></html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module    : Documentation.SBV.Examples.Misc.SetAlgebra</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright : (c) Levent Erkok</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License   : BSD3</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer: erkokl@gmail.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Proves various algebraic properties of sets using SBV. The properties we</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- prove all come from &lt;http://en.wikipedia.org/wiki/Algebra_of_sets&gt;.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall -Werror #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Documentation.SBV.Examples.Misc.SetAlgebra</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.html"><span class="hs-identifier">Data.SBV</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">complement</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.SBV.Set.html"><span class="hs-identifier">Data.SBV.Set</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>   </span><span class="hs-comment">-- This import shouldn't be necessary, but I can't get doctest to work otherwise. Sigh.</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- &gt;&gt;&gt; -- For doctest purposes only:</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.SBV hiding (complement)</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.SBV.Set</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XScopedTypeVariables</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | Abbreviation for set of integers. For convenience only in monomorphising the properties.</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">type</span><span> </span><span id="SI"><span class="annot"><a href="Documentation.SBV.Examples.Misc.SetAlgebra.html#SI"><span class="hs-identifier hs-var">SI</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Data.SBV.Core.Data.html#SSet"><span class="hs-identifier hs-type">SSet</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- * Commutativity</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- $commutativity</span><span>
+</span><span id="line-31"></span><span class="hs-comment">{- $commutativity
+\(A\cup B=B\cup A\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `union` b .== b `union` a
+Q.E.D.
+
+\(A\cap B=B\cap A\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `intersection` b .== b `intersection` a
+Q.E.D.
+-}</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- * Associativity</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- $associativity</span><span>
+</span><span id="line-45"></span><span class="hs-comment">{- $associativity
+
+\((A\cup B)\cup C=A\cup (B\cup C)\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `union` (b `union` c) .== (a `union` b) `union` c
+Q.E.D.
+
+\((A\cap B)\cap C=A\cap (B\cap C)\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `intersection` (b `intersection` c) .== (a `intersection` b) `intersection` c
+Q.E.D.
+-}</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- * Distributivity</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- $distributivity</span><span>
+</span><span id="line-60"></span><span class="hs-comment">{- $distributivity
+\(A\cup (B\cap C)=(A\cup B)\cap (A\cup C)\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `union` (b `intersection` c) .== (a `union` b) `intersection` (a `union` c)
+Q.E.D.
+
+\(A\cap (B\cup C)=(A\cap B)\cup (A\cap C)\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `intersection` (b `union` c) .== (a `intersection` b) `union` (a `intersection` c)
+Q.E.D.
+-}</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- * Identity properties</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- $identity</span><span>
+</span><span id="line-74"></span><span class="hs-comment">{- $identity
+
+\(A\cup \varnothing = A\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `union` empty .== a
+Q.E.D.
+
+\(A\cap U = A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `intersection` full .== a
+Q.E.D.
+-}</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- * Complement properties</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- $complement</span><span>
+</span><span id="line-89"></span><span class="hs-comment">{- $complement
+
+\( A\cup A^{C}=U \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `union` complement a .== full
+Q.E.D.
+
+\( A\cap A^{C}=\varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `intersection` complement a .== empty
+Q.E.D.
+
+\({(A^{C})}^{C}=A\)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; complement (complement a) .== a
+Q.E.D.
+
+\(\varnothing ^{C}=U\)
+
+&gt;&gt;&gt; prove $ complement (empty :: SI) .== full
+Q.E.D.
+
+\( U^{C}=\varnothing \)
+
+&gt;&gt;&gt; prove $ complement (full :: SI) .== empty
+Q.E.D.
+-}</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- * Uniqueness of the complement</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- $compUnique</span><span>
+</span><span id="line-120"></span><span class="hs-comment">{- $compUnique
+The complement of a set is the only set that satisfies the first two complement properties above. That
+is complementation is characterized by those two laws, as we can formally establish:
+
+\( A\cup B=U \land A\cap B=\varnothing \iff B=A^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `union` b .== full .&amp;&amp; a `intersection` b .== empty .&lt;=&gt; b .== complement a
+Q.E.D.
+-}</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- * Idempotency</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- $idempotent</span><span>
+</span><span id="line-132"></span><span class="hs-comment">{- $idempotent
+
+\( A\cup A=A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `union` a .== a
+Q.E.D.
+
+\( A\cap A=A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `intersection` a .== a
+Q.E.D.
+-}</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- * Domination properties</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- $domination</span><span>
+</span><span id="line-147"></span><span class="hs-comment">{- $domination
+
+\( A\cup U=U \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `union` full .== full
+Q.E.D.
+
+\( A\cap \varnothing =\varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `intersection` empty .== empty
+Q.E.D.
+-}</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- * Absorption properties</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- $absorption</span><span>
+</span><span id="line-162"></span><span class="hs-comment">{- $absorption
+
+\( A\cup (A\cap B)=A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `union` (a `intersection` b) .== a
+Q.E.D.
+
+\( A\cap (A\cup B)=A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `intersection` (a `union` b) .== a
+Q.E.D.
+-}</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- * Intersection and set difference</span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- $intdiff</span><span>
+</span><span id="line-177"></span><span class="hs-comment">{- $intdiff
+
+\( A\cap B=A\setminus (A\setminus B) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `intersection` b .== a `difference` (a `difference` b)
+Q.E.D.
+-}</span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- * De Morgan's laws</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- $deMorgan</span><span>
+</span><span id="line-187"></span><span class="hs-comment">{- $deMorgan
+
+\( (A\cup B)^{C}=A^{C}\cap B^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; complement (a `union` b) .== complement a `intersection` complement b
+Q.E.D.
+
+\( (A\cap B)^{C}=A^{C}\cup B^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; complement (a `intersection` b) .== complement a `union` complement b
+Q.E.D.
+-}</span><span>
+</span><span id="line-199"></span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- * Inclusion is a partial order</span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- $incPO</span><span>
+</span><span id="line-202"></span><span class="hs-comment">{- $incPO
+Subset inclusion is a partial order, i.e., it is reflexive, antisymmetric, and transitive:
+
+\( A \subseteq A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a `isSubsetOf` a
+Q.E.D.
+
+\( A\subseteq B \land B\subseteq A \iff A = B \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` b .&amp;&amp; b `isSubsetOf` a .&lt;=&gt; a .== b
+Q.E.D.
+
+\( A\subseteq B \land B\subseteq C \Rightarrow A \subseteq C \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `isSubsetOf` b .&amp;&amp; b `isSubsetOf` c .=&gt; a `isSubsetOf` c
+Q.E.D.
+-}</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- * Joins and meets</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- $joinMeet</span><span>
+</span><span id="line-223"></span><span class="hs-comment">{- $joinMeet
+
+\( A\subseteq A\cup B \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` (a `union` b)
+Q.E.D.
+
+
+\( A\subseteq C \land B\subseteq C \Rightarrow (A \cup B) \subseteq C \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `isSubsetOf` c .&amp;&amp; b `isSubsetOf` c .=&gt; (a `union` b) `isSubsetOf` c
+Q.E.D.
+
+\( A\cap B\subseteq A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; (a `intersection` b) `isSubsetOf` a
+Q.E.D.
+
+\( A\cap B\subseteq B \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; (a `intersection` b) `isSubsetOf` b
+Q.E.D.
+
+\( C\subseteq A \land C\subseteq B \Rightarrow C \subseteq (A \cap B) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; c `isSubsetOf` a .&amp;&amp; c `isSubsetOf` b .=&gt; c `isSubsetOf` (a `intersection` b)
+Q.E.D.
+-}</span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- * Subset characterization</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- $subsetChar</span><span>
+</span><span id="line-254"></span><span class="hs-comment">{- $subsetChar
+There are multiple equivalent ways of characterizing the subset relationship:
+
+\( A\subseteq B  \iff A \cap B = A \) 
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` b .&lt;=&gt; a `intersection` b .== a
+Q.E.D.
+
+
+\( A\subseteq B \iff A \cup B = B \) 
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` b .&lt;=&gt; a `union` b .== b
+Q.E.D.
+
+\( A\subseteq B \iff A \setminus B = \varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` b .&lt;=&gt; a `difference` b .== empty
+Q.E.D.
+
+\( A\subseteq B \iff B^{C} \subseteq A^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; a `isSubsetOf` b .&lt;=&gt; complement b `isSubsetOf` complement a
+Q.E.D.
+-}</span><span>
+</span><span id="line-278"></span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- * Relative complements</span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- $relComp</span><span>
+</span><span id="line-281"></span><span class="hs-comment">{- $relComp
+
+\( C\setminus (A\cap B)=(C\setminus A)\cup (C\setminus B) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; c \\ (a `intersection` b) .== (c \\ a) `union` (c \\ b)
+Q.E.D.
+
+\( C\setminus (A\cup B)=(C\setminus A)\cap (C\setminus B) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; c \\ (a `union` b) .== (c \\ a) `intersection` (c \\ b)
+Q.E.D.
+
+
+\( \displaystyle C\setminus (B\setminus A)=(A\cap C)\cup (C\setminus B) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; c \\ (b \\ a) .== (a `intersection` c) `union` (c \\ b)
+Q.E.D.
+
+\( (B\setminus A)\cap C = (B\cap C)\setminus A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; (b \\ a) `intersection` c .== (b `intersection` c) \\ a
+Q.E.D.
+
+\( (B\setminus A)\cap C= B\cap (C\setminus A) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; (b \\ a) `intersection` c .== b `intersection` (c \\ a)
+Q.E.D.
+
+\( (B\setminus A)\cup C=(B\cup C)\setminus (A\setminus C) \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; (b \\ a) `union` c .== (b `union` c) \\ (a \\ c)
+Q.E.D.
+
+
+\( A \setminus A = \varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a \\ a .== empty
+Q.E.D.
+
+\( \varnothing \setminus A = \varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; empty \\ a .== empty
+Q.E.D.
+
+\( A \setminus \varnothing = A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a \\ empty .== a
+Q.E.D.
+
+\( B \setminus A = A^{C} \cap B \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; b \\ a .== complement a `intersection` b
+Q.E.D.
+
+\( {(B \setminus A)}^{C} = A \cup B^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b -&gt; complement (b \\ a) .== a `union` complement b
+Q.E.D.
+
+\( U \setminus A = A^{C} \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; full \\ a .== complement a
+Q.E.D.
+
+
+\( A \setminus U = \varnothing \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) -&gt; a \\ full .== empty
+Q.E.D.
+-}</span><span>
+</span><span id="line-351"></span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- * Distributing subset relation</span><span>
+</span><span id="line-353"></span><span class="hs-comment">-- $distSubset</span><span>
+</span><span id="line-354"></span><span class="hs-comment">{- $distSubset
+
+A common mistake newcomers to set theory make is to distribute the subset relationship over intersection
+and unions, which is only true as described above. Here, we use SBV to show two incorrect cases:
+
+Subset relation does /not/ distribute over union on the left:
+
+\(A \subseteq (B \cup C) \nRightarrow A \subseteq B \land A \subseteq C \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; a `isSubsetOf` (b `union` c) .=&gt; a `isSubsetOf` b .&amp;&amp; a `isSubsetOf` c
+Falsifiable. Counter-example:
+  s0 =     {0} :: {Integer}
+  s1 =       U :: {Integer}
+  s2 = U - {0} :: {Integer}
+
+Similarly, subset relation does /not/ distribute over intersection on the right:
+
+\( (B \cap C) \subseteq A \nRightarrow B \subseteq A \land C \subseteq A \)
+
+&gt;&gt;&gt; prove $ \(a :: SI) b c -&gt; (b `intersection` c) `isSubsetOf` a .=&gt; b `isSubsetOf` a .&amp;&amp; c `isSubsetOf` a
+Falsifiable. Counter-example:
+  s0 = U - {0} :: {Integer}
+  s1 =      {} :: {Integer}
+  s2 =     {0} :: {Integer}
+-}</span><span>
+</span><span id="line-379"></span></pre></body></html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Documentation.SBV.Examples.Uninterpreted.Multiply</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">sbv-8.6: SMT Based Verification: Symbolic Haskell theorem prover using SMT solving.</span><ul class="links" id="page-menu"><li><a href="src/Documentation.SBV.Examples.Uninterpreted.Multiply.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th valign="top">Copyright</th><td>(c) Levent Erkok</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>erkokl@gmail.com</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Documentation.SBV.Examples.Uninterpreted.Multiply</p></div><div id="description"><p class="caption">Description</p><div class="doc"><p>Demonstrates how to use uninterpreted function models to synthesize
+ a simple two-bit multiplier.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:mul22">mul22</a> :: (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>) -&gt; (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>) -&gt; (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>)</li><li class="src short"><a href="#v:synthMul22">synthMul22</a> :: <a href="Data-SBV-Trans.html#t:Goal" title="Data.SBV.Trans">Goal</a></li></ul></details></div><div id="interface"><h1>Documentation</h1><div class="top"><p class="src"><a id="v:mul22" class="def">mul22</a> :: (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>) -&gt; (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>) -&gt; (<a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>, <a href="Data-SBV-Internals.html#t:SBool" title="Data.SBV.Internals">SBool</a>) <a href="src/Documentation.SBV.Examples.Uninterpreted.Multiply.html#mul22" class="link">Source</a> <a href="#v:mul22" class="selflink">#</a></p><div class="doc"><p>The uninterpreted implementation of our 2x2 multiplier. We simply
+ receive two 2-bit values, and return the high and the low bit of the
+ resulting multiplication via two uninterpreted functions that we
+ called <code>mul22_hi</code> and <code>mul22_lo</code>. Note that there is absolutely
+ no computation going on here, aside from simply passing the arguments
+ to the uninterpreted functions and stitching it back together.</p><p>NB. While definining <code>mul22_lo</code> we used our domain knowledge that the
+ low-bit of the multiplication only depends on the low bits of the inputs.
+ However, this is merely a simplifying assumption; we could have passed
+ all the arguments as well.</p></div></div><div class="top"><p class="src"><a id="v:synthMul22" class="def">synthMul22</a> :: <a href="Data-SBV-Trans.html#t:Goal" title="Data.SBV.Trans">Goal</a> <a href="src/Documentation.SBV.Examples.Uninterpreted.Multiply.html#synthMul22" class="link">Source</a> <a href="#v:synthMul22" class="selflink">#</a></p><div class="doc"><p>Synthesize a 2x2 multiplier. We use 8-bit inputs merely because that is
+ the lowest bit-size SBV supports but that is more or less irrelevant. (Larger
+ sizes would work too.) We simply assert this for all input values, extract
+ the bottom two bits, and assert that our &quot;uninterpreted&quot; implementation in <code><a href="Documentation-SBV-Examples-Uninterpreted-Multiply.html#v:mul22" title="Documentation.SBV.Examples.Uninterpreted.Multiply">mul22</a></code>
+ is precisely the same. We have:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>sat synthMul22
+</code></strong>Satisfiable. Model:
+  mul22_hi :: Bool -&gt; Bool -&gt; Bool -&gt; Bool -&gt; Bool
+  mul22_hi False True  True  False = True
+  mul22_hi False True  True  True  = True
+  mul22_hi True  False False True  = True
+  mul22_hi True  False True  True  = True
+  mul22_hi True  True  False True  = True
+  mul22_hi True  True  True  False = True
+  mul22_hi _     _     _     _     = False
+
+  mul22_lo :: Bool -&gt; Bool -&gt; Bool
+  mul22_lo True True = True
+  mul22_lo _    _    = False
+</pre><p>It is easy to see that the low bit is simply the logical-and of the low bits. It takes a moment of
+ staring, but you can see that the high bit is correct as well: The logical formula is <code>a1b xor a0b1</code>,
+ and if you work out the truth-table presented, you'll see that it is exactly that. Of course,
+ you can use SBV to prove this. First, define the model we were given to make it symbolic:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:{
+</code></strong>mul22_hi :: SBool -&gt; SBool -&gt; SBool -&gt; SBool -&gt; SBool
+mul22_hi a1 a0 b1 b0 = ite ([a1, a0, b1, b0] .== [sFalse, sTrue , sTrue , sFalse]) sTrue
+                     $ ite ([a1, a0, b1, b0] .== [sFalse, sTrue , sTrue , sTrue ]) sTrue
+                     $ ite ([a1, a0, b1, b0] .== [sTrue , sFalse, sFalse, sTrue ]) sTrue
+                     $ ite ([a1, a0, b1, b0] .== [sTrue , sFalse, sTrue , sTrue ]) sTrue
+                     $ ite ([a1, a0, b1, b0] .== [sTrue , sTrue , sFalse, sTrue ]) sTrue
+                     $ ite ([a1, a0, b1, b0] .== [sTrue , sTrue , sTrue , sFalse]) sTrue
+                       sFalse
+:}
+</pre><p>Now we can say:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>prove $ \a1 a0 b1 b0 -&gt; mul22_hi a1 a0 b1 b0 .== (a1 .&amp;&amp; b0) .&lt;+&gt; (a0 .&amp;&amp; b1)
+</code></strong>Q.E.D.
+</pre><p>and rest assured that we have a correctly synthesized circuit!</p></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.23.0</p></div></body></html>

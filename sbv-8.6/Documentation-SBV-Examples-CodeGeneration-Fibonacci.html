@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Documentation.SBV.Examples.CodeGeneration.Fibonacci</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">sbv-8.6: SMT Based Verification: Symbolic Haskell theorem prover using SMT solving.</span><ul class="links" id="page-menu"><li><a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th valign="top">Copyright</th><td>(c) Lee Pike<br />Levent Erkok</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>erkokl@gmail.com</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Documentation.SBV.Examples.CodeGeneration.Fibonacci</p></div><div id="table-of-contents"><div id="contents-list"><p class="caption" onclick="window.scrollTo(0,0)">Contents</p><ul><li><a href="#g:1">A naive implementation</a></li><li><a href="#g:2">Using a recursion depth, and accumulating parameters</a></li><li><a href="#g:3">Generating a look-up table</a></li></ul></div></div><div id="description"><p class="caption">Description</p><div class="doc"><p>Computing Fibonacci numbers and generating C code. Inspired by Lee Pike's
+ original implementation, modified for inclusion in the package. It illustrates
+ symbolic termination issues one can have when working with recursive algorithms
+ and how to deal with such, eventually generating good C code.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:fib0">fib0</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a></li><li class="src short"><a href="#v:fib1">fib1</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a></li><li class="src short"><a href="#v:genFib1">genFib1</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> ()</li><li class="src short"><a href="#v:fib2">fib2</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a></li><li class="src short"><a href="#v:genFib2">genFib2</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> ()</li></ul></details></div><div id="interface"><a href="#g:1" id="g:1"><h1>A naive implementation</h1></a><div class="top"><p class="src"><a id="v:fib0" class="def">fib0</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> <a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib0" class="link">Source</a> <a href="#v:fib0" class="selflink">#</a></p><div class="doc"><p>This is a naive implementation of fibonacci, and will work fine (albeit slow)
+ for concrete inputs:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>map fib0 [0..6]
+</code></strong>[0 :: SWord64,1 :: SWord64,1 :: SWord64,2 :: SWord64,3 :: SWord64,5 :: SWord64,8 :: SWord64]
+</pre><p>However, it is not suitable for doing proofs or generating code, as it is not
+ symbolically terminating when it is called with a symbolic value <code>n</code>. When we
+ recursively call <code>fib0</code> on <code>n-1</code> (or <code>n-2</code>), the test against <code>0</code> will always
+ explore both branches since the result will be symbolic, hence will not
+ terminate. (An integrated theorem prover can establish termination
+ after a certain number of unrollings, but this would be quite expensive to
+ implement, and would be impractical.)</p></div></div><a href="#g:2" id="g:2"><h1>Using a recursion depth, and accumulating parameters</h1></a><div class="doc"><p>One way to deal with symbolic termination is to limit the number of recursive
+calls. In this version, we impose a limit on the index to the function, working
+correctly upto that limit. If we use a compile-time constant, then SBV's code generator
+can produce code as the unrolling will eventually stop.</p></div><div class="top"><p class="src"><a id="v:fib1" class="def">fib1</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> <a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib1" class="link">Source</a> <a href="#v:fib1" class="selflink">#</a></p><div class="doc"><p>The recursion-depth limited version of fibonacci. Limiting the maximum number to be 20, we can say:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>map (fib1 20) [0..6]
+</code></strong>[0 :: SWord64,1 :: SWord64,1 :: SWord64,2 :: SWord64,3 :: SWord64,5 :: SWord64,8 :: SWord64]
+</pre><p>The function will work correctly, so long as the index we query is at most <code>top</code>, and otherwise
+ will return the value at <code>top</code>. Note that we also use accumulating parameters here for efficiency,
+ although this is orthogonal to the termination concern.</p><p>A note on modular arithmetic: The 64-bit word we use to represent the values will of course
+ eventually overflow, beware! Fibonacci is a fast growing function..</p></div></div><div class="top"><p class="src"><a id="v:genFib1" class="def">genFib1</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> () <a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib1" class="link">Source</a> <a href="#v:genFib1" class="selflink">#</a></p><div class="doc"><p>We can generate code for <code><a href="Documentation-SBV-Examples-CodeGeneration-Fibonacci.html#v:fib1" title="Documentation.SBV.Examples.CodeGeneration.Fibonacci">fib1</a></code> using the <code><a href="Documentation-SBV-Examples-CodeGeneration-Fibonacci.html#v:genFib1" title="Documentation.SBV.Examples.CodeGeneration.Fibonacci">genFib1</a></code> action. Note that the
+ generated code will grow larger as we pick larger values of <code>top</code>, but only linearly,
+ thanks to the accumulating parameter trick used by <code><a href="Documentation-SBV-Examples-CodeGeneration-Fibonacci.html#v:fib1" title="Documentation.SBV.Examples.CodeGeneration.Fibonacci">fib1</a></code>. The following is an excerpt
+ from the code generated for the call <code>genFib1 10</code>, where the code will work correctly
+ for indexes up to 10:</p><pre>SWord64 fib1(const SWord64 x)
+{
+  const SWord64 s0 = x;
+  const SBool   s2 = s0 == 0x0000000000000000ULL;
+  const SBool   s4 = s0 == 0x0000000000000001ULL;
+  const SBool   s6 = s0 == 0x0000000000000002ULL;
+  const SBool   s8 = s0 == 0x0000000000000003ULL;
+  const SBool   s10 = s0 == 0x0000000000000004ULL;
+  const SBool   s12 = s0 == 0x0000000000000005ULL;
+  const SBool   s14 = s0 == 0x0000000000000006ULL;
+  const SBool   s17 = s0 == 0x0000000000000007ULL;
+  const SBool   s19 = s0 == 0x0000000000000008ULL;
+  const SBool   s22 = s0 == 0x0000000000000009ULL;
+  const SWord64 s25 = s22 ? 0x0000000000000022ULL : 0x0000000000000037ULL;
+  const SWord64 s26 = s19 ? 0x0000000000000015ULL : s25;
+  const SWord64 s27 = s17 ? 0x000000000000000dULL : s26;
+  const SWord64 s28 = s14 ? 0x0000000000000008ULL : s27;
+  const SWord64 s29 = s12 ? 0x0000000000000005ULL : s28;
+  const SWord64 s30 = s10 ? 0x0000000000000003ULL : s29;
+  const SWord64 s31 = s8 ? 0x0000000000000002ULL : s30;
+  const SWord64 s32 = s6 ? 0x0000000000000001ULL : s31;
+  const SWord64 s33 = s4 ? 0x0000000000000001ULL : s32;
+  const SWord64 s34 = s2 ? 0x0000000000000000ULL : s33;
+  
+  return s34;
+}</pre></div></div><a href="#g:3" id="g:3"><h1>Generating a look-up table</h1></a><div class="doc"><p>While <code><a href="Documentation-SBV-Examples-CodeGeneration-Fibonacci.html#v:fib1" title="Documentation.SBV.Examples.CodeGeneration.Fibonacci">fib1</a></code> generates good C code, we can do much better by taking
+advantage of the inherent partial-evaluation capabilities of SBV to generate
+a look-up table, as follows.</p></div><div class="top"><p class="src"><a id="v:fib2" class="def">fib2</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> <a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#fib2" class="link">Source</a> <a href="#v:fib2" class="selflink">#</a></p><div class="doc"><p>Compute the fibonacci numbers statically at <em>code-generation</em> time and
+ put them in a table, accessed by the <code><a href="Data-SBV-Trans.html#v:select" title="Data.SBV.Trans">select</a></code> call. </p></div></div><div class="top"><p class="src"><a id="v:genFib2" class="def">genFib2</a> :: <a href="Data-SBV-Internals.html#t:SWord64" title="Data.SBV.Internals">SWord64</a> -&gt; <a href="../base-4.13.0.0/System-IO.html#t:IO" title="System.IO">IO</a> () <a href="src/Documentation.SBV.Examples.CodeGeneration.Fibonacci.html#genFib2" class="link">Source</a> <a href="#v:genFib2" class="selflink">#</a></p><div class="doc"><p>Once we have <code><a href="Documentation-SBV-Examples-CodeGeneration-Fibonacci.html#v:fib2" title="Documentation.SBV.Examples.CodeGeneration.Fibonacci">fib2</a></code>, we can generate the C code straightforwardly. Below
+ is an excerpt from the code that SBV generates for the call <code>genFib2 64</code>. Note
+ that this code is a constant-time look-up table implementation of fibonacci,
+ with no run-time overhead. The index can be made arbitrarily large,
+ naturally. (Note that this function returns <code>0</code> if the index is larger
+ than 64, as specified by the call to <code><a href="Data-SBV-Trans.html#v:select" title="Data.SBV.Trans">select</a></code> with default <code>0</code>.)</p><pre>SWord64 fibLookup(const SWord64 x)
+{
+  const SWord64 s0 = x;
+  static const SWord64 table0[] = {
+      0x0000000000000000ULL, 0x0000000000000001ULL,
+      0x0000000000000001ULL, 0x0000000000000002ULL,
+      0x0000000000000003ULL, 0x0000000000000005ULL,
+      0x0000000000000008ULL, 0x000000000000000dULL,
+      0x0000000000000015ULL, 0x0000000000000022ULL,
+      0x0000000000000037ULL, 0x0000000000000059ULL,
+      0x0000000000000090ULL, 0x00000000000000e9ULL,
+      0x0000000000000179ULL, 0x0000000000000262ULL,
+      0x00000000000003dbULL, 0x000000000000063dULL,
+      0x0000000000000a18ULL, 0x0000000000001055ULL,
+      0x0000000000001a6dULL, 0x0000000000002ac2ULL,
+      0x000000000000452fULL, 0x0000000000006ff1ULL,
+      0x000000000000b520ULL, 0x0000000000012511ULL,
+      0x000000000001da31ULL, 0x000000000002ff42ULL,
+      0x000000000004d973ULL, 0x000000000007d8b5ULL,
+      0x00000000000cb228ULL, 0x0000000000148addULL,
+      0x0000000000213d05ULL, 0x000000000035c7e2ULL,
+      0x00000000005704e7ULL, 0x00000000008cccc9ULL,
+      0x0000000000e3d1b0ULL, 0x0000000001709e79ULL,
+      0x0000000002547029ULL, 0x0000000003c50ea2ULL,
+      0x0000000006197ecbULL, 0x0000000009de8d6dULL,
+      0x000000000ff80c38ULL, 0x0000000019d699a5ULL,
+      0x0000000029cea5ddULL, 0x0000000043a53f82ULL,
+      0x000000006d73e55fULL, 0x00000000b11924e1ULL,
+      0x000000011e8d0a40ULL, 0x00000001cfa62f21ULL,
+      0x00000002ee333961ULL, 0x00000004bdd96882ULL,
+      0x00000007ac0ca1e3ULL, 0x0000000c69e60a65ULL,
+      0x0000001415f2ac48ULL, 0x000000207fd8b6adULL,
+      0x0000003495cb62f5ULL, 0x0000005515a419a2ULL,
+      0x00000089ab6f7c97ULL, 0x000000dec1139639ULL,
+      0x000001686c8312d0ULL, 0x000002472d96a909ULL,
+      0x000003af9a19bbd9ULL, 0x000005f6c7b064e2ULL, 0x000009a661ca20bbULL
+  };
+  const SWord64 s65 = s0 &gt;= 65 ? 0x0000000000000000ULL : table0[s0];
+  
+  return s65;
+}</pre></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.23.0</p></div></body></html>

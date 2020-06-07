@@ -1,0 +1,355 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE DefaultSignatures #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 705
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 710
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#elif __GLASGOW_HASKELL__ &gt;= 701
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.Deriving.Copoint</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="hs-comment">-- * GCopoint class</span></span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier">GCopoint</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Default method</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier">gcopointdefault</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Internal class</span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier">GCopoint'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">WrappedMonad</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Dual</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Generics.Deriving.Base.html"><span class="hs-identifier">Generics.Deriving.Base</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,6,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Down</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Down</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Alt</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Sum</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Arg</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">First</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Last</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Max</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Min</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WrappedMonoid</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- Generic copoint</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- General copoint may return 'Nothing'</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">class</span><span> </span><span id="GCopoint%27"><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-var">GCopoint'</span></a></span></span><span> </span><span id="local-6989586621679123367"><span class="annot"><a href="#local-6989586621679123367"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-62"></span><span>    </span><span id="local-6989586621679123369"><span id="gcopoint%27"><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-type">gcopoint'</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123367"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123369"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679123369"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621679123261"><span class="annot"><span class="annottext">gcopoint' :: V1 a -&gt; Maybe a
+</span><a href="#local-6989586621679123261"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>    </span><span id="local-6989586621679123259"><span class="annot"><span class="annottext">gcopoint' :: U1 a -&gt; Maybe a
+</span><a href="#local-6989586621679123259"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621679123256"><span class="annot"><span class="annottext">gcopoint' :: Par1 a -&gt; Maybe a
+</span><a href="#local-6989586621679123256"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Par1</span></span><span> </span><span id="local-6989586621679123254"><span class="annot"><span class="annottext">a :: a
+</span><a href="#local-6989586621679123254"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679123254"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span id="local-6989586621679123252"><span id="local-6989586621679123253"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123253"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123252"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621679123250"><span class="annot"><span class="annottext">gcopoint' :: K1 i c a -&gt; Maybe a
+</span><a href="#local-6989586621679123250"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span></span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span id="local-6989586621679123247"><span id="local-6989586621679123248"><span id="local-6989586621679123249"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123249"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123248"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123247"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123249"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>    </span><span id="local-6989586621679123245"><span class="annot"><span class="annottext">gcopoint' :: M1 i c f a -&gt; Maybe a
+</span><a href="#local-6989586621679123245"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679123243"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679123243"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123243"><span class="hs-identifier hs-var">a</span></a></span></span></span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span id="local-6989586621679123241"><span id="local-6989586621679123242"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123242"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123241"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123242"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679123241"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-80"></span><span>    </span><span id="local-6989586621679123239"><span class="annot"><span class="annottext">gcopoint' :: (:+:) f g a -&gt; Maybe a
+</span><a href="#local-6989586621679123239"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679123237"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679123237"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123237"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679123235"><span class="annot"><span class="annottext">a :: g a
+</span><a href="#local-6989586621679123235"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679123235"><span class="hs-identifier hs-var">a</span></a></span></span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- Favours left &quot;hole&quot; for copoint</span><span>
+</span><span id="line-84"></span><span id="local-6989586621679123233"><span id="local-6989586621679123234"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123234"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123233"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123234"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679123233"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-85"></span><span>    </span><span id="local-6989586621679123231"><span class="annot"><span class="annottext">gcopoint' :: (:*:) f g a -&gt; Maybe a
+</span><a href="#local-6989586621679123231"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679123230"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679123230"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679123228"><span class="annot"><span class="annottext">b :: g a
+</span><a href="#local-6989586621679123228"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123230"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-86"></span><span>                            </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679123227"><span class="annot"><span class="annottext">x :: a
+</span><a href="#local-6989586621679123227"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679123227"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-87"></span><span>                            </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">g a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">g a
+</span><a href="#local-6989586621679123228"><span class="hs-identifier hs-var">b</span></a></span></span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span id="local-6989586621679123226"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123226"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123226"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-90"></span><span>    </span><span id="local-6989586621679123224"><span class="annot"><span class="annottext">gcopoint' :: Rec1 f a -&gt; Maybe a
+</span><a href="#local-6989586621679123224"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rec1</span></span><span> </span><span id="local-6989586621679123222"><span class="annot"><span class="annottext">a :: f a
+</span><a href="#local-6989586621679123222"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe a) -&gt; a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">f a -&gt; a
+forall (d :: * -&gt; *) a. GCopoint d =&gt; d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-var">gcopoint</span></a></span><span> </span><span class="annot"><span class="annottext">f a
+</span><a href="#local-6989586621679123222"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span id="local-6989586621679123219"><span id="local-6989586621679123220"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123220"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123219"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123220"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:.:</span></span><span> </span><span class="annot"><a href="#local-6989586621679123219"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>    </span><span id="local-6989586621679123217"><span class="annot"><span class="annottext">gcopoint' :: (:.:) f g a -&gt; Maybe a
+</span><a href="#local-6989586621679123217"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Comp1</span></span><span> </span><span id="local-6989586621679123215"><span class="annot"><span class="annottext">x :: f (g a)
+</span><a href="#local-6989586621679123215"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">(g a -&gt; Maybe a) -&gt; (f (g a) -&gt; g a) -&gt; f (g a) -&gt; Maybe a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f (g a) -&gt; g a
+forall (d :: * -&gt; *) a. GCopoint d =&gt; d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-var">gcopoint</span></a></span><span> </span><span class="annot"><span class="annottext">(f (g a) -&gt; Maybe a) -&gt; f (g a) -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">f (g a)
+</span><a href="#local-6989586621679123215"><span class="hs-identifier hs-var">x</span></a></span></span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">class</span><span> </span><span id="GCopoint"><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-var">GCopoint</span></a></span></span><span> </span><span id="local-6989586621679123342"><span class="annot"><a href="#local-6989586621679123342"><span class="hs-identifier hs-type">d</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621679123341"><span id="gcopoint"><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-type">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679123342"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123341"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123341"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &gt;= 701
+</span><span>  </span><span id="local-6989586621679123213"><span class="hs-keyword">default</span><span> </span><span id="gcopoint"><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-type">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123342"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123342"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>                   </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123342"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123213"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123213"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621679123212"><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopoint"><span class="hs-identifier hs-var hs-var">gcopoint</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">d a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-103"></span><span id="local-6989586621679123332"><span id="local-6989586621679123333"><span class="annot"><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-type">gcopointdefault</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123333"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint%27"><span class="hs-identifier hs-type">GCopoint'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep1</span></span><span> </span><span class="annot"><a href="#local-6989586621679123333"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>                </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123333"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123332"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123332"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-105"></span><span id="gcopointdefault"><span class="annot"><span class="annottext">gcopointdefault :: d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var hs-var">gcopointdefault</span></a></span></span><span> </span><span id="local-6989586621679123211"><span class="annot"><span class="annottext">x :: d a
+</span><a href="#local-6989586621679123211"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rep1 d a -&gt; Maybe a
+forall (t :: * -&gt; *) a. GCopoint' t =&gt; t a -&gt; Maybe a
+</span><a href="Generics.Deriving.Copoint.html#gcopoint%27"><span class="hs-identifier hs-var">gcopoint'</span></a></span><span> </span><span class="annot"><span class="annottext">(Rep1 d a -&gt; Maybe a) -&gt; (d a -&gt; Rep1 d a) -&gt; d a -&gt; Maybe a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">d a -&gt; Rep1 d a
+forall k (f :: k -&gt; *) (a :: k). Generic1 f =&gt; f a -&gt; Rep1 f a
+</span><span class="hs-identifier hs-var">from1</span></span><span> </span><span class="annot"><span class="annottext">(d a -&gt; Maybe a) -&gt; d a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">d a
+</span><a href="#local-6989586621679123211"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-106"></span><span>                      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679123209"><span class="annot"><span class="annottext">x' :: a
+</span><a href="#local-6989586621679123209"><span class="hs-identifier hs-var">x'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679123209"><span class="hs-identifier hs-var">x'</span></a></span><span>
+</span><span id="line-107"></span><span>                      </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; a
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Data type is not copointed&quot;</span></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- instance (Generic1 d, GCopoint' (Rep1 d)) =&gt; GCopoint d</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- Base types instances</span><span>
+</span><span id="line-112"></span><span id="local-6989586621679123207"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123207"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621679123204"><span class="annot"><span class="annottext">gcopoint :: (a, a) -&gt; a
+</span><a href="#local-6989586621679123204"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span id="local-6989586621679123202"><span id="local-6989586621679123203"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123203"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123202"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621679123200"><span class="annot"><span class="annottext">gcopoint :: (a, b, a) -&gt; a
+</span><a href="#local-6989586621679123200"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, b, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span id="local-6989586621679123197"><span id="local-6989586621679123198"><span id="local-6989586621679123199"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123199"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123198"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123197"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621679123195"><span class="annot"><span class="annottext">gcopoint :: (a, b, c, a) -&gt; a
+</span><a href="#local-6989586621679123195"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, b, c, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span id="local-6989586621679123191"><span id="local-6989586621679123192"><span id="local-6989586621679123193"><span id="local-6989586621679123194"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123194"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123193"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123192"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123191"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621679123189"><span class="annot"><span class="annottext">gcopoint :: (a, b, c, d, a) -&gt; a
+</span><a href="#local-6989586621679123189"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, b, c, d, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span></span></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span id="local-6989586621679123184"><span id="local-6989586621679123185"><span id="local-6989586621679123186"><span id="local-6989586621679123187"><span id="local-6989586621679123188"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123188"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123187"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123186"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123185"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123184"><span class="hs-identifier hs-type">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621679123182"><span class="annot"><span class="annottext">gcopoint :: (a, b, c, d, e, a) -&gt; a
+</span><a href="#local-6989586621679123182"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, b, c, d, e, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span></span></span></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span id="local-6989586621679123176"><span id="local-6989586621679123177"><span id="local-6989586621679123178"><span id="local-6989586621679123179"><span id="local-6989586621679123180"><span id="local-6989586621679123181"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123181"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123180"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123179"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123178"><span class="hs-identifier hs-type">d</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123177"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123176"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621679123174"><span class="annot"><span class="annottext">gcopoint :: (a, b, c, d, e, f, a) -&gt; a
+</span><a href="#local-6989586621679123174"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, b, c, d, e, f, a) -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span></span></span></span></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,8,0)
+</span><span id="local-6989586621679123173"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123173"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Alt</span></span><span> </span><span class="annot"><a href="#local-6989586621679123173"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621679123171"><span class="annot"><span class="annottext">gcopoint :: Alt f a -&gt; a
+</span><a href="#local-6989586621679123171"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alt f a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span id="local-6989586621679123170"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Arg</span></span><span> </span><span class="annot"><a href="#local-6989586621679123170"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-137"></span><span>  </span><span id="local-6989586621679123168"><span class="annot"><span class="annottext">gcopoint :: Arg a a -&gt; a
+</span><a href="#local-6989586621679123168"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Arg a a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-140"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Down</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>  </span><span id="local-6989586621679123166"><span class="annot"><span class="annottext">gcopoint :: Down a -&gt; a
+</span><a href="#local-6989586621679123166"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Down a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Dual</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-144"></span><span>  </span><span id="local-6989586621679123164"><span class="annot"><span class="annottext">gcopoint :: Dual a -&gt; a
+</span><a href="#local-6989586621679123164"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Dual a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">First</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-148"></span><span>  </span><span id="local-6989586621679123162"><span class="annot"><span class="annottext">gcopoint :: First a -&gt; a
+</span><a href="#local-6989586621679123162"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">First a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621679123160"><span class="annot"><span class="annottext">gcopoint :: Identity a -&gt; a
+</span><a href="#local-6989586621679123160"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Identity a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Last</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621679123158"><span class="annot"><span class="annottext">gcopoint :: Last a -&gt; a
+</span><a href="#local-6989586621679123158"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Last a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Max</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-161"></span><span>  </span><span id="local-6989586621679123156"><span class="annot"><span class="annottext">gcopoint :: Max a -&gt; a
+</span><a href="#local-6989586621679123156"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Max a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Min</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621679123154"><span class="annot"><span class="annottext">gcopoint :: Min a -&gt; a
+</span><a href="#local-6989586621679123154"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Min a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span id="local-6989586621679123152"><span id="local-6989586621679123153"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123153"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123152"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor.Sum</span></span><span> </span><span class="annot"><a href="#local-6989586621679123153"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123152"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-167"></span><span>  </span><span id="local-6989586621679123150"><span class="annot"><span class="annottext">gcopoint :: Sum f g a -&gt; a
+</span><a href="#local-6989586621679123150"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Sum f g a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-170"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid.Sum</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621679123148"><span class="annot"><span class="annottext">gcopoint :: Sum a -&gt; a
+</span><a href="#local-6989586621679123148"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Sum a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span id="local-6989586621679123147"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123147"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WrappedMonad</span></span><span> </span><span class="annot"><a href="#local-6989586621679123147"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-174"></span><span>  </span><span id="local-6989586621679123145"><span class="annot"><span class="annottext">gcopoint :: WrappedMonad m a -&gt; a
+</span><a href="#local-6989586621679123145"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WrappedMonad m a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span></span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Generics.Deriving.Copoint.html#GCopoint"><span class="hs-identifier hs-type">GCopoint</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">WrappedMonoid</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-178"></span><span>  </span><span id="local-6989586621679123143"><span class="annot"><span class="annottext">gcopoint :: WrappedMonoid a -&gt; a
+</span><a href="#local-6989586621679123143"><span class="hs-identifier hs-var hs-var hs-var hs-var">gcopoint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WrappedMonoid a -&gt; a
+forall (d :: * -&gt; *) a.
+(Generic1 d, GCopoint' (Rep1 d)) =&gt;
+d a -&gt; a
+</span><a href="Generics.Deriving.Copoint.html#gcopointdefault"><span class="hs-identifier hs-var">gcopointdefault</span></a></span><span class="hs-cpp">
+#endif
+</span></pre></body></html>
