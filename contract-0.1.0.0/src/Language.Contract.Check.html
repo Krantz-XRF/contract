@@ -1,60 +1,74 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Language.Contract.Check</span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-2"></span><span>
-</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>
-</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
-</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Printf</span></span><span>
-</span><span id="line-6"></span><span>
-</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span>
-</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
-</span><span id="line-9"></span><span>
-</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.AST.html"><span class="hs-identifier">Language.Contract.AST</span></a></span><span>
-</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.Pretty.html"><span class="hs-identifier">Language.Contract.Pretty</span></a></span><span>
-</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.Proof.html"><span class="hs-identifier">Language.Contract.Proof</span></a></span><span>
-</span><span id="line-13"></span><span>
-</span><span id="line-14"></span><span class="hs-keyword">type</span><span> </span><span id="MonadTypeCheck"><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-var">MonadTypeCheck</span></a></span></span><span> </span><span id="local-6989586621679124522"><span class="annot"><a href="#local-6989586621679124522"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-15"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679124522"><span class="hs-identifier hs-type">m</span></a></span><span>
-</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679124522"><span class="hs-identifier hs-type">m</span></a></span><span>
-</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679124522"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">)</span><span>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{-|
+Module      : Language.Contract.Check
+Description : Type checker for the contract language.
+Copyright   : (c) Xie Ruifeng, 2020
+License     : AGPL-3
+Maintainer  : krantz.xrf@outlook.com
+Stability   : experimental
+Portability : portable
+-}</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Language.Contract.Check</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Printf</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
 </span><span id="line-18"></span><span>
-</span><span id="line-19"></span><span id="local-6989586621679124521"><span class="annot"><a href="Language.Contract.Check.html#runTypeCheck"><span class="hs-identifier hs-type">runTypeCheck</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679124521"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679124521"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
-</span><span id="line-20"></span><span id="runTypeCheck"><span class="annot"><span class="annottext">runTypeCheck :: MaybeT (ReaderT ([Type], [Term]) IO) a -&gt; IO (Maybe a)
-</span><a href="Language.Contract.Check.html#runTypeCheck"><span class="hs-identifier hs-var hs-var">runTypeCheck</span></a></span></span><span> </span><span id="local-6989586621679124519"><span class="annot"><span class="annottext">m :: MaybeT (ReaderT ([Type], [Term]) IO) a
-</span><a href="#local-6989586621679124519"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ([Type], [Term]) IO (Maybe a)
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.AST.html"><span class="hs-identifier">Language.Contract.AST</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.Pretty.html"><span class="hs-identifier">Language.Contract.Pretty</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Language.Contract.Proof.html"><span class="hs-identifier">Language.Contract.Proof</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- |Type checker monad.</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">type</span><span> </span><span id="MonadTypeCheck"><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-var">MonadTypeCheck</span></a></span></span><span> </span><span id="local-6989586621679124511"><span class="annot"><a href="#local-6989586621679124511"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679124511"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679124511"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679124511"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- |Run the type checker monad, get a 'Maybe' result.</span><span>
+</span><span id="line-30"></span><span id="local-6989586621679124510"><span class="annot"><a href="Language.Contract.Check.html#runTypeCheck"><span class="hs-identifier hs-type">runTypeCheck</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679124510"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679124510"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-31"></span><span id="runTypeCheck"><span class="annot"><span class="annottext">runTypeCheck :: MaybeT (ReaderT ([Type], [Term]) IO) a -&gt; IO (Maybe a)
+</span><a href="Language.Contract.Check.html#runTypeCheck"><span class="hs-identifier hs-var hs-var">runTypeCheck</span></a></span></span><span> </span><span id="local-6989586621679124508"><span class="annot"><span class="annottext">m :: MaybeT (ReaderT ([Type], [Term]) IO) a
+</span><a href="#local-6989586621679124508"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT ([Type], [Term]) IO (Maybe a)
 -&gt; ([Type], [Term]) -&gt; IO (Maybe a)
 forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
 </span><span class="hs-identifier hs-var hs-var">runReaderT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MaybeT (ReaderT ([Type], [Term]) IO) a
 -&gt; ReaderT ([Type], [Term]) IO (Maybe a)
 forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
 </span><span class="hs-identifier hs-var hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">MaybeT (ReaderT ([Type], [Term]) IO) a
-</span><a href="#local-6989586621679124519"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
-</span><span id="line-21"></span><span>
-</span><span id="line-22"></span><span id="local-6989586621679124531"><span class="annot"><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-type">assert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679124531"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124531"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
-</span><span id="line-23"></span><span id="assert"><span class="annot"><span class="annottext">assert :: Bool -&gt; m ()
-</span><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-var hs-var">assert</span></a></span></span><span> </span><span id="local-6989586621679124515"><span class="annot"><span class="annottext">c :: Bool
-</span><a href="#local-6989586621679124515"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+</span><a href="#local-6989586621679124508"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- |Assertion, fail with 'MonadFail'.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- 'guard' from Prelude uses Alternative, so not suitable here.</span><span>
+</span><span id="line-35"></span><span id="local-6989586621679124520"><span class="annot"><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-type">assert</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679124520"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124520"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-36"></span><span id="assert"><span class="annot"><span class="annottext">assert :: Bool -&gt; m ()
+</span><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-var hs-var">assert</span></a></span></span><span> </span><span id="local-6989586621679124504"><span class="annot"><span class="annottext">c :: Bool
+</span><a href="#local-6989586621679124504"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
 forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
 </span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="annot"><span class="annottext">Bool
-</span><a href="#local-6989586621679124515"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; m ()
+</span><a href="#local-6989586621679124504"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; m ()
 forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
 </span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-24"></span><span>
-</span><span id="line-25"></span><span id="local-6989586621679124530"><span class="annot"><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-type">prove</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-type">MonadTypeCheck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124530"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124530"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
-</span><span id="line-26"></span><span id="prove"><span class="annot"><span class="annottext">prove :: Term -&gt; m ()
-</span><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-var hs-var">prove</span></a></span></span><span> </span><span id="local-6989586621679124512"><span class="annot"><span class="annottext">res :: Term
-</span><a href="#local-6989586621679124512"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-27"></span><span>  </span><span id="local-6989586621679124511"><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124511"><span class="hs-identifier hs-var">bindings</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Type]) -&gt; m [Type]
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- |Prove a term in the type checker monad.</span><span>
+</span><span id="line-39"></span><span id="local-6989586621679124519"><span class="annot"><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-type">prove</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-type">MonadTypeCheck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124519"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124519"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-40"></span><span id="prove"><span class="annot"><span class="annottext">prove :: Term -&gt; m ()
+</span><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-var hs-var">prove</span></a></span></span><span> </span><span id="local-6989586621679124501"><span class="annot"><span class="annottext">res :: Term
+</span><a href="#local-6989586621679124501"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621679124500"><span class="annot"><span class="annottext">[Type]
+</span><a href="#local-6989586621679124500"><span class="hs-identifier hs-var">bindings</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Type]) -&gt; m [Type]
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
 </span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">([Type], [Term]) -&gt; [Type]
 forall a b. (a, b) -&gt; a
 </span><span class="hs-identifier hs-var">fst</span></span><span>
-</span><span id="line-28"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124509"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Type] -&gt; Natural
+</span><span id="line-42"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124498"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Type] -&gt; Natural
 forall i a. Num i =&gt; [a] -&gt; i
 </span><span class="hs-identifier hs-var">genericLength</span></span><span> </span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124511"><span class="hs-identifier hs-var">bindings</span></a></span><span>
-</span><span id="line-29"></span><span>  </span><span id="local-6989586621679124507"><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Term]) -&gt; m [Term]
+</span><a href="#local-6989586621679124500"><span class="hs-identifier hs-var">bindings</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621679124496"><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Term]) -&gt; m [Term]
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
 </span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Term -&gt; Bool) -&gt; [Term] -&gt; [Term]
 forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
@@ -74,131 +88,131 @@ forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([Type], [Term]) -&gt; [Term]
 forall a b. (a, b) -&gt; b
 </span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span>
-</span><span id="line-30"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124502"><span class="annot"><span class="annottext">res' :: Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var hs-var">res'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><span id="line-44"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124491"><span class="annot"><span class="annottext">res' :: Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var hs-var">res'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124512"><span class="hs-identifier hs-var">res</span></a></span><span>
-</span><span id="line-31"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124512"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Bool
+</span><a href="#local-6989586621679124501"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124501"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span>
-</span><span id="line-32"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String -&gt; String -&gt; IO ()
 forall r. PrintfType r =&gt; String -&gt; r
 </span><span class="hs-identifier hs-var">printf</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Proving %s =&gt; %s [%s] ... &quot;</span></span><span>
-</span><span id="line-33"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; [Term] -&gt; String
+</span><span id="line-47"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; [Term] -&gt; String
 forall a. PrettyPrint a =&gt; Natural -&gt; a -&gt; String
 </span><a href="Language.Contract.Pretty.html#prettyWith"><span class="hs-identifier hs-var">prettyWith</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
 forall a. PrettyPrint a =&gt; Natural -&gt; a -&gt; String
 </span><a href="Language.Contract.Pretty.html#prettyWith"><span class="hs-identifier hs-var">prettyWith</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
 forall a. PrettyPrint a =&gt; Natural -&gt; a -&gt; String
 </span><a href="Language.Contract.Pretty.html#prettyWith"><span class="hs-identifier hs-var">prettyWith</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124512"><span class="hs-identifier hs-var">res</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-34"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124501"><span class="hs-identifier hs-var">res</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String -&gt; IO ()
 forall r. PrintfType r =&gt; String -&gt; r
 </span><span class="hs-identifier hs-var">printf</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Proving %s =&gt; %s ... &quot;</span></span><span>
-</span><span id="line-35"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; [Term] -&gt; String
+</span><span id="line-49"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; [Term] -&gt; String
 forall a. PrettyPrint a =&gt; Natural -&gt; a -&gt; String
 </span><a href="Language.Contract.Pretty.html#prettyWith"><span class="hs-identifier hs-var">prettyWith</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural -&gt; Term -&gt; String
 forall a. PrettyPrint a =&gt; Natural -&gt; a -&gt; String
 </span><a href="Language.Contract.Pretty.html#prettyWith"><span class="hs-identifier hs-var">prettyWith</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124509"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-36"></span><span>  </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m (Maybe ThmResult)
+</span><a href="#local-6989586621679124498"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m (Maybe ThmResult)
 forall (m :: * -&gt; *).
 MonadIO m =&gt;
 [Type] -&gt; [Term] -&gt; Term -&gt; m (Maybe ThmResult)
 </span><a href="Language.Contract.Proof.html#tryProve"><span class="hs-identifier hs-var">tryProve</span></a></span><span> </span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124511"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe ThmResult) -&gt; (Maybe ThmResult -&gt; m ()) -&gt; m ()
+</span><a href="#local-6989586621679124500"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe ThmResult) -&gt; (Maybe ThmResult -&gt; m ()) -&gt; m ()
 forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
 </span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
-</span><span id="line-37"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124497"><span class="annot"><span class="annottext">r :: ThmResult
-</span><a href="#local-6989586621679124497"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">ThmResult
+</span><span id="line-51"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124486"><span class="annot"><span class="annottext">r :: ThmResult
+</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">ThmResult
 </span><a href="Language.Contract.Proof.html#Proven"><span class="hs-identifier hs-var">Proven</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
 forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">ThmResult
-</span><a href="#local-6989586621679124497"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-38"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124495"><span class="annot"><span class="annottext">r :: ThmResult
-</span><a href="#local-6989586621679124495"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">ThmResult
+</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124484"><span class="annot"><span class="annottext">r :: ThmResult
+</span><a href="#local-6989586621679124484"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">ThmResult
 </span><a href="Language.Contract.Proof.html#Falsified"><span class="hs-identifier hs-var">Falsified</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
 forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">ThmResult
-</span><a href="#local-6989586621679124495"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
+</span><a href="#local-6989586621679124484"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m () -&gt; m () -&gt; m ()
 forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
 </span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; m ()
 forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
 </span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="hs-string">&quot;Proof failed.&quot;</span></span><span>
-</span><span id="line-39"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124493"><span class="annot"><span class="annottext">r :: ThmResult
-</span><a href="#local-6989586621679124493"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-40"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+</span><span id="line-53"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679124482"><span class="annot"><span class="annottext">r :: ThmResult
+</span><a href="#local-6989586621679124482"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-54"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ThmResult -&gt; IO ()
 forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">ThmResult
-</span><a href="#local-6989586621679124493"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-41"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+</span><a href="#local-6989586621679124482"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
 </span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="hs-string">&quot;SBV failed, fall back to naive proving ... &quot;</span></span><span>
-</span><span id="line-42"></span><span>      </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m ()
+</span><span id="line-56"></span><span>      </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m ()
 forall (m :: * -&gt; *).
 (MonadFail m, MonadIO m) =&gt;
 [Type] -&gt; [Term] -&gt; Term -&gt; m ()
 </span><a href="Language.Contract.Proof.html#naiveTryProve"><span class="hs-identifier hs-var">naiveTryProve</span></a></span><span> </span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124511"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span>
-</span><span id="line-43"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-44"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+</span><a href="#local-6989586621679124500"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-58"></span><span>      </span><span class="annot"><span class="annottext">IO () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
 </span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="hs-string">&quot;SBV not usable, fall back to naive proving ... &quot;</span></span><span>
-</span><span id="line-45"></span><span>      </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m ()
+</span><span id="line-59"></span><span>      </span><span class="annot"><span class="annottext">[Type] -&gt; [Term] -&gt; Term -&gt; m ()
 forall (m :: * -&gt; *).
 (MonadFail m, MonadIO m) =&gt;
 [Type] -&gt; [Term] -&gt; Term -&gt; m ()
 </span><a href="Language.Contract.Proof.html#naiveTryProve"><span class="hs-identifier hs-var">naiveTryProve</span></a></span><span> </span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124511"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124507"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124502"><span class="hs-identifier hs-var">res'</span></a></span><span>
-</span><span id="line-46"></span><span>
-</span><span id="line-47"></span><span class="hs-comment">-- |The type of a term, within a specific context.</span><span>
-</span><span id="line-48"></span><span id="local-6989586621679124540"><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-type">typeOf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-type">MonadTypeCheck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124540"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124540"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span></span><span>
-</span><span id="line-49"></span><span id="typeOf"><span class="annot"><span class="annottext">typeOf :: Term -&gt; m Type
+</span><a href="#local-6989586621679124500"><span class="hs-identifier hs-var">bindings</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124496"><span class="hs-identifier hs-var">premise</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124491"><span class="hs-identifier hs-var">res'</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- |The type of a term, within a specific context.</span><span>
+</span><span id="line-62"></span><span id="local-6989586621679124529"><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-type">typeOf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.Check.html#MonadTypeCheck"><span class="hs-identifier hs-type">MonadTypeCheck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679124529"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679124529"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span></span><span>
+</span><span id="line-63"></span><span id="typeOf"><span class="annot"><span class="annottext">typeOf :: Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var hs-var">typeOf</span></a></span></span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Unit"><span class="hs-identifier hs-type">Unit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TUnit"><span class="hs-identifier hs-var">TUnit</span></a></span><span>
-</span><span id="line-50"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span id="local-6989586621679124486"><span class="annot"><span class="annottext">p :: Term
-</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124485"><span class="annot"><span class="annottext">t :: Type
-</span><a href="#local-6989586621679124485"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124484"><span class="annot"><span class="annottext">m :: Term
-</span><a href="#local-6989586621679124484"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">Type
+</span><span id="line-64"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span id="local-6989586621679124475"><span class="annot"><span class="annottext">p :: Term
+</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124474"><span class="annot"><span class="annottext">t :: Type
+</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124473"><span class="annot"><span class="annottext">m :: Term
+</span><a href="#local-6989586621679124473"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Type] -&gt; [Type]) -&gt; ([Type], [Term]) -&gt; ([Type], [Term])
@@ -206,16 +220,16 @@ forall (p :: * -&gt; * -&gt; *) a b c.
 Bifunctor p =&gt;
 (a -&gt; b) -&gt; p a c -&gt; p b c
 </span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124485"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
+</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; Type -&gt; Type -&gt; Type
+</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; Type -&gt; Type -&gt; Type
 </span><a href="Language.Contract.AST.html#TArrow"><span class="hs-identifier hs-var">TArrow</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124485"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">(Type -&gt; Type) -&gt; m Type -&gt; m Type
+</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">(Type -&gt; Type) -&gt; m Type -&gt; m Type
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
@@ -225,10 +239,10 @@ forall (p :: * -&gt; * -&gt; *) a b c d.
 Bifunctor p =&gt;
 (a -&gt; b) -&gt; (c -&gt; d) -&gt; p a c -&gt; p b d
 </span><span class="hs-identifier hs-var">bimap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124485"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
+</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124486"><span class="hs-identifier hs-var">p</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
+</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">p</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Term] -&gt; [Term]) -&gt; ([Term] -&gt; [Term]) -&gt; [Term] -&gt; [Term]
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
@@ -238,121 +252,121 @@ forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
 </span><a href="Language.Contract.AST.html#liftAtom"><span class="hs-identifier hs-var">liftAtom</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124484"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-53"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124475"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679124474"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-54"></span><span>  </span><span class="annot"><a href="Language.Contract.AST.html#TArrow"><span class="hs-identifier hs-type">TArrow</span></a></span><span> </span><span id="local-6989586621679124473"><span class="annot"><span class="annottext">p :: Term
-</span><a href="#local-6989586621679124473"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124472"><span class="annot"><span class="annottext">tx :: Type
-</span><a href="#local-6989586621679124472"><span class="hs-identifier hs-var">tx</span></a></span></span><span> </span><span id="local-6989586621679124471"><span class="annot"><span class="annottext">tr :: Type
-</span><a href="#local-6989586621679124471"><span class="hs-identifier hs-var">tr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
+</span><a href="#local-6989586621679124473"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124464"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124464"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679124463"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><a href="Language.Contract.AST.html#TArrow"><span class="hs-identifier hs-type">TArrow</span></a></span><span> </span><span id="local-6989586621679124462"><span class="annot"><span class="annottext">p :: Term
+</span><a href="#local-6989586621679124462"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124461"><span class="annot"><span class="annottext">tx :: Type
+</span><a href="#local-6989586621679124461"><span class="hs-identifier hs-var">tx</span></a></span></span><span> </span><span id="local-6989586621679124460"><span class="annot"><span class="annottext">tr :: Type
+</span><a href="#local-6989586621679124460"><span class="hs-identifier hs-var">tr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124475"><span class="hs-identifier hs-var">f</span></a></span><span>
-</span><span id="line-55"></span><span>  </span><span id="local-6989586621679124470"><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124470"><span class="hs-identifier hs-var">tx'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
+</span><a href="#local-6989586621679124464"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621679124459"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124459"><span class="hs-identifier hs-var">tx'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
+</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
 forall (m :: * -&gt; *). MonadFail m =&gt; Bool -&gt; m ()
 </span><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-var">assert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124472"><span class="hs-identifier hs-var">tx</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; Bool
+</span><a href="#local-6989586621679124461"><span class="hs-identifier hs-var">tx</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124470"><span class="hs-identifier hs-var">tx'</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; m ()
+</span><a href="#local-6989586621679124459"><span class="hs-identifier hs-var">tx'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; m ()
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m ()
 </span><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-var">evalWith</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124474"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124473"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124462"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124471"><span class="hs-identifier hs-var">tr</span></a></span><span>
-</span><span id="line-59"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Assert"><span class="hs-identifier hs-type">Assert</span></a></span><span> </span><span id="local-6989586621679124467"><span class="annot"><span class="annottext">p :: Term
-</span><a href="#local-6989586621679124467"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124466"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124466"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-60"></span><span>  </span><span id="local-6989586621679124465"><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124465"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
+</span><a href="#local-6989586621679124460"><span class="hs-identifier hs-var">tr</span></a></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Assert"><span class="hs-identifier hs-type">Assert</span></a></span><span> </span><span id="local-6989586621679124456"><span class="annot"><span class="annottext">p :: Term
+</span><a href="#local-6989586621679124456"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679124455"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124455"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621679124454"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124454"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124466"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m () -&gt; m ()
+</span><a href="#local-6989586621679124455"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m () -&gt; m ()
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Type] -&gt; [Type]) -&gt; ([Type], [Term]) -&gt; ([Type], [Term])
 forall (p :: * -&gt; * -&gt; *) a b c.
 Bifunctor p =&gt;
 (a -&gt; b) -&gt; p a c -&gt; p b c
 </span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124465"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
+</span><a href="#local-6989586621679124454"><span class="hs-identifier hs-var">t</span></a></span><span class="annot"><span class="annottext">Type -&gt; [Type] -&gt; [Type]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-62"></span><span>    </span><span class="annot"><span class="annottext">Type
+</span><span id="line-76"></span><span>    </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124467"><span class="hs-identifier hs-var">p</span></a></span><span>
-</span><span id="line-63"></span><span>    </span><span class="annot"><span class="annottext">Term -&gt; m ()
+</span><a href="#local-6989586621679124456"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="annottext">Term -&gt; m ()
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m ()
 </span><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124467"><span class="hs-identifier hs-var">p</span></a></span><span>
-</span><span id="line-64"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124456"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124465"><span class="hs-identifier hs-var">t</span></a></span><span>
-</span><span id="line-65"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-type">Atom</span></a></span><span> </span><span id="local-6989586621679124463"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-66"></span><span>  </span><span id="local-6989586621679124462"><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124462"><span class="hs-identifier hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Type]) -&gt; m [Type]
+</span><a href="#local-6989586621679124454"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-type">Atom</span></a></span><span> </span><span id="local-6989586621679124452"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124452"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621679124451"><span class="annot"><span class="annottext">[Type]
+</span><a href="#local-6989586621679124451"><span class="hs-identifier hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; [Type]) -&gt; m [Type]
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; a) -&gt; m a
 </span><span class="hs-identifier hs-var">asks</span></span><span> </span><span class="annot"><span class="annottext">([Type], [Term]) -&gt; [Type]
 forall a b. (a, b) -&gt; a
 </span><span class="hs-identifier hs-var">fst</span></span><span>
-</span><span id="line-67"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
 forall (m :: * -&gt; *). MonadFail m =&gt; Bool -&gt; m ()
 </span><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-var">assert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Type] -&gt; Natural
 forall i a. Num i =&gt; [a] -&gt; i
 </span><span class="hs-identifier hs-var">genericLength</span></span><span> </span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124462"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
+</span><a href="#local-6989586621679124451"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
 forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-68"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124452"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Type]
-</span><a href="#local-6989586621679124462"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="annot"><span class="annottext">[Type] -&gt; Natural -&gt; Type
+</span><a href="#local-6989586621679124451"><span class="hs-identifier hs-var">ts</span></a></span><span> </span><span class="annot"><span class="annottext">[Type] -&gt; Natural -&gt; Type
 forall i a. Integral i =&gt; [a] -&gt; i -&gt; a
 </span><span class="hs-operator hs-var">`genericIndex`</span></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124463"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-69"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621679124458"><span class="annot"><span class="annottext">c :: Term
-</span><a href="#local-6989586621679124458"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679124457"><span class="annot"><span class="annottext">t :: Term
-</span><a href="#local-6989586621679124457"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124456"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124456"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124452"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621679124447"><span class="annot"><span class="annottext">c :: Term
+</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679124446"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621679124446"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124445"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124445"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124458"><span class="hs-identifier hs-var">c</span></a></span><span>
-</span><span id="line-71"></span><span>  </span><span id="local-6989586621679124455"><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124455"><span class="hs-identifier hs-var">tt</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
+</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span id="local-6989586621679124444"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124444"><span class="hs-identifier hs-var">tt</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Term] -&gt; [Term]) -&gt; ([Type], [Term]) -&gt; ([Type], [Term])
 forall (p :: * -&gt; * -&gt; *) b c a.
 Bifunctor p =&gt;
 (b -&gt; c) -&gt; p a b -&gt; p a c
 </span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124458"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
+</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124457"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-72"></span><span>  </span><span id="local-6989586621679124453"><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124453"><span class="hs-identifier hs-var">tf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
+</span><a href="#local-6989586621679124446"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621679124442"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124442"><span class="hs-identifier hs-var">tf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(([Type], [Term]) -&gt; ([Type], [Term])) -&gt; m Type -&gt; m Type
 forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">local</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Term] -&gt; [Term]) -&gt; ([Type], [Term]) -&gt; ([Type], [Term])
 forall (p :: * -&gt; * -&gt; *) b c a.
@@ -360,210 +374,210 @@ Bifunctor p =&gt;
 (b -&gt; c) -&gt; p a b -&gt; p a c
 </span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#Not"><span class="hs-identifier hs-var">Not</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124458"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
+</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">c</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124456"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-73"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
+</span><a href="#local-6989586621679124445"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m ()
 forall (m :: * -&gt; *). MonadFail m =&gt; Bool -&gt; m ()
 </span><a href="Language.Contract.Check.html#assert"><span class="hs-identifier hs-var">assert</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124455"><span class="hs-identifier hs-var">tt</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; Bool
+</span><a href="#local-6989586621679124444"><span class="hs-identifier hs-var">tt</span></a></span><span> </span><span class="annot"><span class="annottext">Type -&gt; Type -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124453"><span class="hs-identifier hs-var">tf</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-74"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124442"><span class="hs-identifier hs-var">tf</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679124455"><span class="hs-identifier hs-var">tt</span></a></span><span>
-</span><span id="line-75"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span id="local-6989586621679124450"><span class="annot"><span class="annottext">n :: Term
-</span><a href="#local-6989586621679124450"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679124444"><span class="hs-identifier hs-var">tt</span></a></span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span id="local-6989586621679124439"><span class="annot"><span class="annottext">n :: Term
+</span><a href="#local-6989586621679124439"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-90"></span><span>  </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124450"><span class="hs-identifier hs-var">n</span></a></span><span>
-</span><span id="line-77"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124439"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span>
-</span><span id="line-78"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679124447"><span class="annot"><span class="annottext">n :: Term
-</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-79"></span><span>  </span><span class="annot"><span class="annottext">Type
+</span><span id="line-92"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679124436"><span class="annot"><span class="annottext">n :: Term
+</span><a href="#local-6989586621679124436"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">n</span></a></span><span>
-</span><span id="line-80"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; m ()
+</span><a href="#local-6989586621679124436"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><span class="annottext">Term -&gt; m ()
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m ()
 </span><a href="Language.Contract.Check.html#prove"><span class="hs-identifier hs-var">prove</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#Not"><span class="hs-identifier hs-var">Not</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; Term) -&gt; Term -&gt; Term
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-var">IsZero</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124447"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-81"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124436"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span>
-</span><span id="line-82"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span id="local-6989586621679124445"><span class="annot"><span class="annottext">t :: Term
-</span><a href="#local-6989586621679124445"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-83"></span><span>  </span><span class="annot"><span class="annottext">Type
+</span><span id="line-96"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span id="local-6989586621679124434"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621679124434"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Term -&gt; m Type
 forall (m :: * -&gt; *). MonadTypeCheck m =&gt; Term -&gt; m Type
 </span><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124445"><span class="hs-identifier hs-var">t</span></a></span><span>
-</span><span id="line-84"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><a href="#local-6989586621679124434"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span>
-</span><span id="line-85"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><span id="line-99"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TBoolean"><span class="hs-identifier hs-var">TBoolean</span></a></span><span>
-</span><span id="line-86"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Type -&gt; m Type
+</span><span id="line-100"></span><span class="annot"><a href="Language.Contract.Check.html#typeOf"><span class="hs-identifier hs-var">typeOf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Type -&gt; m Type
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Type
 </span><a href="Language.Contract.AST.html#TNatural"><span class="hs-identifier hs-var">TNatural</span></a></span><span>
-</span><span id="line-87"></span><span>
-</span><span id="line-88"></span><span class="hs-comment">-- |One-step evaluation of a term.</span><span>
-</span><span id="line-89"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-type">eval1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
-</span><span id="line-90"></span><span id="eval1"><span class="annot"><span class="annottext">eval1 :: [Term] -&gt; Term -&gt; Term
-</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var hs-var">eval1</span></a></span></span><span> </span><span id="local-6989586621679124442"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124442"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679124441"><span class="annot"><span class="annottext">m :: Term
-</span><a href="#local-6989586621679124441"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124440"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124440"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Term
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- |One-step evaluation of a term.</span><span>
+</span><span id="line-103"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-type">eval1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-104"></span><span id="eval1"><span class="annot"><span class="annottext">eval1 :: [Term] -&gt; Term -&gt; Term
+</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var hs-var">eval1</span></a></span></span><span> </span><span id="local-6989586621679124431"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679124430"><span class="annot"><span class="annottext">m :: Term
+</span><a href="#local-6989586621679124430"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124429"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124429"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">Term
 </span><a href="Language.Contract.AST.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124440"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
+</span><a href="#local-6989586621679124429"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Term -&gt; [Term] -&gt; [Term]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124442"><span class="hs-identifier hs-var">vs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124441"><span class="hs-identifier hs-var">m</span></a></span><span>
-</span><span id="line-91"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124438"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124438"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124437"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124437"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124436"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124436"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">vs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124430"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124427"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124427"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124426"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124426"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124425"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124425"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
 </span><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-var">App</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124437"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
-</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124438"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124436"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-92"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124435"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124435"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124434"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124434"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679124433"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124433"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
-</span><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-var">App</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
-</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124435"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124434"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124433"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-93"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124432"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124432"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-type">Atom</span></a></span><span> </span><span id="local-6989586621679124431"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-94"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Natural
-forall i a. Num i =&gt; [a] -&gt; i
-</span><span class="hs-identifier hs-var">genericLength</span></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124432"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
-forall a. Ord a =&gt; a -&gt; a -&gt; Bool
-</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">n</span></a></span><span>
-</span><span id="line-95"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124432"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Natural -&gt; Term
-forall i a. Integral i =&gt; [a] -&gt; i -&gt; a
-</span><span class="hs-operator hs-var">`genericIndex`</span></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">n</span></a></span><span>
-</span><span id="line-96"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
-</span><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-var">Atom</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124431"><span class="hs-identifier hs-var">n</span></a></span><span>
-</span><span id="line-97"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span id="local-6989586621679124430"><span class="annot"><span class="annottext">c :: Bool
-</span><a href="#local-6989586621679124430"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124429"><span class="annot"><span class="annottext">t :: Term
-</span><a href="#local-6989586621679124429"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124428"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124428"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
-</span><a href="#local-6989586621679124430"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124429"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124428"><span class="hs-identifier hs-var">f</span></a></span><span>
-</span><span id="line-98"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124427"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124427"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621679124426"><span class="annot"><span class="annottext">c :: Term
-</span><a href="#local-6989586621679124426"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679124425"><span class="annot"><span class="annottext">t :: Term
-</span><a href="#local-6989586621679124425"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124424"><span class="annot"><span class="annottext">f :: Term
-</span><a href="#local-6989586621679124424"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term -&gt; Term
-</span><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-var">If</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
+</span><a href="#local-6989586621679124426"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
 </span><a href="#local-6989586621679124427"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124426"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124425"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124424"><span class="hs-identifier hs-var">f</span></a></span><span>
-</span><span id="line-99"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124423"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124423"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
+</span><a href="#local-6989586621679124425"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124424"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124424"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-type">App</span></a></span><span> </span><span id="local-6989586621679124423"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124423"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679124422"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124422"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#App"><span class="hs-identifier hs-var">App</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
+</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124424"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124423"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124422"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-107"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124421"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124421"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-type">Atom</span></a></span><span> </span><span id="local-6989586621679124420"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Natural
+forall i a. Num i =&gt; [a] -&gt; i
+</span><span class="hs-identifier hs-var">genericLength</span></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124421"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Natural
+</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124421"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Natural -&gt; Term
+forall i a. Integral i =&gt; [a] -&gt; i -&gt; a
+</span><span class="hs-operator hs-var">`genericIndex`</span></span><span> </span><span class="annot"><span class="annottext">Natural
+</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
+</span><a href="Language.Contract.AST.html#Atom"><span class="hs-identifier hs-var">Atom</span></a></span><span> </span><span class="annot"><span class="annottext">Natural
+</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-type">Boolean</span></a></span><span> </span><span id="local-6989586621679124419"><span class="annot"><span class="annottext">c :: Bool
+</span><a href="#local-6989586621679124419"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679124418"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621679124418"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124417"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124417"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679124419"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124418"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124417"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124416"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124416"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621679124415"><span class="annot"><span class="annottext">c :: Term
+</span><a href="#local-6989586621679124415"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679124414"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621679124414"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679124413"><span class="annot"><span class="annottext">f :: Term
+</span><a href="#local-6989586621679124413"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Term -&gt; Term
+</span><a href="Language.Contract.AST.html#If"><span class="hs-identifier hs-var">If</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
+</span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
+</span><a href="#local-6989586621679124416"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124415"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124414"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124413"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124412"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124412"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
 </span><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-var">Natural</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124423"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Natural
+</span><a href="#local-6989586621679124412"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Natural
 forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
-</span><span id="line-100"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124421"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124421"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span id="local-6989586621679124420"><span class="annot"><span class="annottext">n :: Term
-</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><span id="line-114"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124410"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-type">Succ</span></a></span><span> </span><span id="local-6989586621679124409"><span class="annot"><span class="annottext">n :: Term
+</span><a href="#local-6989586621679124409"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#Succ"><span class="hs-identifier hs-var">Succ</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124421"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124420"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-101"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124419"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124419"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
+</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124409"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124408"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124408"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Term
 </span><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-var">Natural</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124419"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Natural
+</span><a href="#local-6989586621679124408"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Natural
 forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
-</span><span id="line-102"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124418"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124418"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679124417"><span class="annot"><span class="annottext">n :: Term
-</span><a href="#local-6989586621679124417"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><span id="line-116"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124407"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124407"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679124406"><span class="annot"><span class="annottext">n :: Term
+</span><a href="#local-6989586621679124406"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124418"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124417"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-103"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124416"><span class="annot"><span class="annottext">n :: Natural
-</span><a href="#local-6989586621679124416"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Term
+</span><a href="#local-6989586621679124407"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124406"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#Natural"><span class="hs-identifier hs-type">Natural</span></a></span><span> </span><span id="local-6989586621679124405"><span class="annot"><span class="annottext">n :: Natural
+</span><a href="#local-6989586621679124405"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Term
 </span><a href="Language.Contract.AST.html#Boolean"><span class="hs-identifier hs-var">Boolean</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Natural
-</span><a href="#local-6989586621679124416"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
+</span><a href="#local-6989586621679124405"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; Natural -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
-</span><span id="line-104"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124415"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124415"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span id="local-6989586621679124414"><span class="annot"><span class="annottext">n :: Term
-</span><a href="#local-6989586621679124414"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
+</span><span id="line-118"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span id="local-6989586621679124404"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124404"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-type">IsZero</span></a></span><span> </span><span id="local-6989586621679124403"><span class="annot"><span class="annottext">n :: Term
+</span><a href="#local-6989586621679124403"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term
 </span><a href="Language.Contract.AST.html#IsZero"><span class="hs-identifier hs-var">IsZero</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124415"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124414"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-105"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span id="local-6989586621679124413"><span class="annot"><span class="annottext">v :: Term
-</span><a href="#local-6989586621679124413"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124413"><span class="hs-identifier hs-var">v</span></a></span><span>
-</span><span id="line-106"></span><span>
-</span><span id="line-107"></span><span class="hs-comment">-- |Full evaluation of a term.</span><span>
-</span><span id="line-108"></span><span class="annot"><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-type">evalWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
-</span><span id="line-109"></span><span id="evalWith"><span class="annot"><span class="annottext">evalWith :: [Term] -&gt; Term -&gt; Term
-</span><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-var hs-var">evalWith</span></a></span></span><span> </span><span id="local-6989586621679124412"><span class="annot"><span class="annottext">vs :: [Term]
-</span><a href="#local-6989586621679124412"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span id="local-6989586621679124411"><span class="annot"><span class="annottext">t :: Term
-</span><a href="#local-6989586621679124411"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124410"><span class="annot"><span class="annottext">x :: Term
-</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
+</span><a href="#local-6989586621679124404"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124403"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="hs-identifier">_</span><span>  </span><span id="local-6989586621679124402"><span class="annot"><span class="annottext">v :: Term
+</span><a href="#local-6989586621679124402"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124402"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- |Full evaluation of a term.</span><span>
+</span><span id="line-122"></span><span class="annot"><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-type">evalWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-123"></span><span id="evalWith"><span class="annot"><span class="annottext">evalWith :: [Term] -&gt; Term -&gt; Term
+</span><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-var hs-var">evalWith</span></a></span></span><span> </span><span id="local-6989586621679124401"><span class="annot"><span class="annottext">vs :: [Term]
+</span><a href="#local-6989586621679124401"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span id="local-6989586621679124400"><span class="annot"><span class="annottext">t :: Term
+</span><a href="#local-6989586621679124400"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679124399"><span class="annot"><span class="annottext">x :: Term
+</span><a href="#local-6989586621679124399"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval1"><span class="hs-identifier hs-var">eval1</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124412"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124411"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">in</span><span>
-</span><span id="line-110"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Bool
+</span><a href="#local-6989586621679124401"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124400"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Term -&gt; Bool
 </span><a href="Language.Contract.AST.html#isValue"><span class="hs-identifier hs-var">isValue</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="#local-6989586621679124399"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
 </span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124411"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Bool
+</span><a href="#local-6989586621679124400"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Term -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
+</span><a href="#local-6989586621679124399"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124399"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-var">evalWith</span></a></span><span> </span><span class="annot"><span class="annottext">[Term]
-</span><a href="#local-6989586621679124412"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
-</span><a href="#local-6989586621679124410"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-111"></span><span>
-</span><span id="line-112"></span><span class="hs-comment">-- |Full evaluation of a term.</span><span>
-</span><span id="line-113"></span><span class="annot"><a href="Language.Contract.Check.html#eval"><span class="hs-identifier hs-type">eval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
-</span><span id="line-114"></span><span id="eval"><span class="annot"><span class="annottext">eval :: Term -&gt; Term
+</span><a href="#local-6989586621679124401"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621679124399"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- |Full evaluation of a term.</span><span>
+</span><span id="line-127"></span><span class="annot"><a href="Language.Contract.Check.html#eval"><span class="hs-identifier hs-type">eval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Language.Contract.AST.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span>
+</span><span id="line-128"></span><span id="eval"><span class="annot"><span class="annottext">eval :: Term -&gt; Term
 </span><a href="Language.Contract.Check.html#eval"><span class="hs-identifier hs-var hs-var">eval</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Term] -&gt; Term -&gt; Term
 </span><a href="Language.Contract.Check.html#evalWith"><span class="hs-identifier hs-var">evalWith</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
-</span><span id="line-115"></span></pre></body></html>
+</span><span id="line-129"></span></pre></body></html>
